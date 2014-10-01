@@ -62,34 +62,15 @@
 % 'ref' command, e.g., instead of writing `Section 1', you can write
 % `Section~\ref{sec:intro}', which is useful if the section number
 % changes.
-\section{Background}
-\label{sec:background}
-Haskell has one of the strongest type systems of any mainstream
-programming language, with features such as Type Families, Typeclasses, 
-and Generalized Algebraic Datatypes. When writing Haskell, there are
-a lot of guarantees of correctness encoded in the type system. We wish
-to ensure the type safety of features like these is ensured in System FC, 
-the GHC core language.
-
 \section{Introduction}
 \label{sec:intro}
+Haskell has one of the strongest type systems of any mainstream programming language, with features such as Type Families, Typeclasses, and Generalized Algebraic Datatypes. When writing Haskell, there are a lot of guarantees of correctness encoded in the type system. We wish to ensure that this type safety of features like these is preserved in System FC, the GHC core language.  We will do this by proving the progress and preservation theorems using our formalized definition of System FC.
 
-You should begin by introducing your topic. You should define core
-terminology specific to the field, introduce the problem statement,
-and make clear the benefits (motivate!) of resolving that problem
-statement. If there are many preliminaries (\textit{e.g.,}
-definitions, conceptual explanations) you need to handle before
-jumping into your topic, it may be worthwhile to create an explicit
-``Background'' section.
+Progress and preservation are the most basic indications of safety for any type system. More specifically, progress states that a well-typed term is either a value or can take a step of evaluation. Preservation indicates that if a well-typed term takes a step, the resulting term will still be well-typed (TODO: Cite TAPL). When formalizing System FC, we will prove both progress and preservation for each feature added.
 
-Let us suppose you are attempting to build a constant time integer
-factorization algorithm. You would want to briefly explain that
-factorization is the process of breaking an integer into its prime
-multipliers. Give a simple example. Your problem statement would
-conclude that factorization is an unneccesarily complex
-process. Finally, you would state that via your proposed system,
-factorization will be easy and the consequences that will
-have. Namely, the RSA-encryption algorithm will be broken.
+System FC is built on top of the simpler language System F.  System F, also known as the polymorphic lambda calculus, is an extension of the simply-typed lambda calculus to include the abstraction and application of type terms. This feature essentially allows for functions to take types as parameters, granting the ability to define functions whose actual types vary based on these input types. We will first formally verify System F in Coq and then we will add the additional features needed to transform System F into a full formalization of System FC.  These features include type coercion, type families, and type constructors.  Once we have added these features to System F, we will have a formalized language that is equivalent to System FC.  We will then be able to prove a translation to System FC which will show that we have indeed verified the core language of GHC.
+
+The formally verified version of System FC will pave the way for future work in formal verification.  Once the core language is verified, it will be possible to verify that translations of the language preserve types and semantic meaning.  Such translations include compiler optimizations performed by GHC.  Compiler optimizations can introduce compiler bugs, so the ability to verify optimizations could make several important in verifying the entirety on the compiler.
 
 % The header of this document might have been a little intimidatating
 % to beginners. Notice once you are in the body of the document,
@@ -144,22 +125,7 @@ what you are going to do and the expected benefit it will bring.
 
 \subsection{Anticipated Approach}
 \label{subsec:approach}
-Having summarized \textit{what} you are going to do, its time to
-describe \textit{how} you plan to do it. Our factorization example
-does not work so well here (it is likely impossible to realize) -- so
-let us suppose you are going to create a service that takes a
-cell-phone picture of a building and returns via text-message, the
-name of that building\footnote{Do not use this idea -- someone did it
-  in a previous year.}.
-
-In this case you might want to talk about establishing a server to
-receive pictures via MMS. Once the picture is received, you will run
-an edge extraction algorithm over it. Then, similarity between the
-submitted picture and those stored (and tagged) in a MySQL database
-will be computing using algorithm $XYZ$. Finally, the tag of the most
-similar image will be returned to the user. Do not bore the reader
-with trivial details, but give them an overview; a block-flow diagram
-would prove helpful (and is required).
+To begin, we plan to create a Coq formalization of the semantics of System F as defined in Types and Programming Languages. We will then prove that progress and preservation hold for this formalization. Once we have properly proven these properties, we plan to extend our formalization to include coercions without datatypes. Given this extension, we will then adjust our verification to account for the addition of these coercions. This will be a subset of System FC missing features such as datatypes and type families.
 
 \subsection{Technical Challenges}
 \label{subsec:tech_challenges}
@@ -175,36 +141,19 @@ worth undertaking.
 
 \subsection{Evaluation Criteria}
 \label{subsec:eval_criteria}
-Suppose you have implemented your approach and it is functioning. Now
-how are you going to convince readers your approach is better than
-what exists? In the factorization example, you could just compare
-run-times between algorithms run on the same input. The image
-recognition example might use a percentage of accurate
-classifications. Other fields may have established testing benchmarks.
-
-No matter the case, you need to prove you have contributed to the
-field. This will be easier for some than others. In particular, those
-with `sensory' projects involving visual or sonic elements need to
-think this point through -- objective measures are always better than
-subjective ones.
+This formalization for System FC has never been done. Upon completion, we will provide assurance of the correctness of the type system of Haskell, a widely used programming language. We would also provide a building block for verifications of other features of System FC.
 
 \section{Research Timeline}
 \label{sec:research_timeline}
-Finally, we would like you to speculate about the pace of your
-research progress. This section need not be lengthy, we would just
-like you to specify some milestones so we can gauge your progress
-during our intermediate interviews. Let us follow through with our
-image recognition example:
-
 % The 'itemize' environment shown here, and its friend 'enumerate'
 % (shown below), are used to create indented\bulleted\outline style
 % lists.
 \begin{itemize*}
-	\item {\sc already completed}: Preliminary reading. Began implementation of image-recognition algorithm.\vspace{3pt}
-	\item {\sc prior-to thanksgiving} : Photograph buildings for DB. Make algorithm more efficient, tune parameters.\vspace{3pt}
-	\item {\sc prior-to christmas} : Create server-MMS interface. Expand tagged DB collection.\vspace{3pt}
-	\item {\sc completion tasks} : Verify implementation is bug-free. Conduct accuracy testing. Complete write-up.\vspace{3pt}
-	\item {\sc if there's time} : Investigate image pre-processing techniques to improve accuracy.
+	\item {\sc already completed}: Understand the formal definition of System F.
+	\item {\sc prior-to thanksgiving} : 
+	\item {\sc prior-to christmas} : 
+	\item {\sc completion tasks} : Formalize System FC, verify formal language, prove translation between formal language and System FC as implemented in GHC.
+	\item {\sc if there's time} : Verify other GHC features, such as optimizations and extensions
 \end{itemize*}
 
 % We next move onto the bibliography.
