@@ -42,18 +42,12 @@
 % Next we write out our abstract -- generally a two paragraph maximum,
 % executive summary of the motivation and contributions of the work.
 \begin{abstract}
-  \textit{We plan to verify a formalized version of System FC, the core
-    language of the Glascow Haskell Compiler (GHC), using the Coq proof 
-    assistant. We will then prove a translation from our formal language to 
-    the actual implementation of System FC that is used in GHC. The goals 
-    of verification are to prove that the evaluation semantics of System FC 
-    are type safe.
+  \textit{
+We plan to verify a formalized version of System FC, the core language of the Glascow Haskell Compiler (GHC), using the Coq proof assistant. We will then prove a translation from our formal language to GHC Core, the concrete implementation of System FC that is used in GHC. The goals of verification are to prove that the evaluation semantics of System FC are type safe.
   }
 
-  \textit{There are two main benefits to this project. First, the verification
-   would provide assurance regarding the safety and accuracy of GHC. 
-   Second, and perhaps more importantly, it will provide foundation to
-   verify other properties of GHC such as compiler optimization.
+  \textit{
+There are two main benefits to this project. First, the verification would provide assurance regarding the safety and accuracy of GHC. Second, and perhaps more importantly, it will provide foundation to verify other properties of GHC such as compiler optimization. 
  }
 \end{abstract}
 
@@ -68,89 +62,64 @@
 \label{sec:intro}
 Haskell has one of the strongest type systems of any mainstream programming language, with features such as Type Families, Typeclasses, and Generalized Algebraic Datatypes. When writing Haskell, there are a lot of guarantees of correctness encoded in the type system. We wish to ensure that this type safety of features like these is preserved in System FC, the GHC core language.  We will do this by proving the progress and preservation theorems using our formalized definition of System FC.
 
-Progress and preservation are the most basic indications of safety for any type system. More specifically, progress states that a well-typed term is either a value or can take a step of evaluation. Preservation indicates that if a well-typed term takes a step, the resulting term will still be well-typed (TODO: Cite TAPL). When formalizing System FC, we will prove both progress and preservation for each feature added.
-
-Haskell has one of the strongest type systems of any mainstream programming language, with features such as Type Families, Typeclasses, and Generalized Algebraic Datatypes. When writing Haskell, there are a lot of guarantees of correctness encoded in the type system. We wish to ensure that this type safety of features like these is preserved in System FC, the GHC core language.  We will do this by proving the progress and preservation theorems using our formalized definition of System FC.
-
-Progress and preservation are the most basic indications of safety for any type system. More specifically, progress states that a well-typed term is either a value or can take a step of evaluation. Preservation indicates that if a well-typed term takes a step, the resulting term will still be well-typed (TODO: Cite TAPL). When formalizing System FC, we will prove both progress and preservation for each feature added.
+Progress and preservation are the most basic indications of safety for any type system. To understand these, we must first note how the operational semantics of a language are formalized. When specifying the operational semantics of a programming language, one defines a step relation that relates a term of a particular type in that language to another term. One can then model the evaluation of any expression in the language in a series of discrete “steps”, where in each step one takes a term in the expression and replaces it with the resulting term per the step relation. In a well-typed terminating program, this process continues until the expression evaluates to a canonical form, a unique representation of a value for a particular type (e.g. ‘1’ for the type of integers). A well-typed program can also fail to terminate by entering into an infinite loop, and an ill-typed language can fail to terminate by getting stuck, which happens when the step relation provides no simplification for the current term.
+Knowing this, we can then define the progress and preservation theorems. Progress states that a well-typed term is either a canonical form, or can take a step per the step relation. Preservation indicates that if a well-typed term takes a step, the resulting term will still be well-typed (TODO: Cite TAPL). Together, these properties guarantee that a well-typed program in the specified language will always be able to continue evaluation until it reaches a canonical form; the failure of the program to terminate will only result from the program logic leading to an infinite loop, and not from the language falling into some invalid state. After formalizing the operational semantics for System FC, we plan on demonstrating that preservation and progress hold for the specification, thus ensuring that the program remains in a valid state throughout its execution.
 
 System FC is built on top of the simpler language System F.  System F, also known as the polymorphic lambda calculus, is an extension of the simply-typed lambda calculus to include the abstraction and application of type terms. This feature essentially allows for functions to take types as parameters, granting the ability to define functions whose actual types vary based on these input types. We will first formally verify System F in Coq and then we will add the additional features needed to transform System F into a full formalization of System FC.  These features include type coercion, type families, and type constructors.  Once we have added these features to System F, we will have a formalized language that is equivalent to System FC.  We will then be able to prove a translation to System FC which will show that we have indeed verified the core language of GHC.
 
-The formally verified version of System FC will pave the way for future work in the formal verification of GHC. Once the core language is verified, it becomes possible to verify that transformations of this core language preserve the typing and progression semantics of the original language.  One particularly relevant class of transformations on the core language is the set of compiler optimizations performed by GHC. While these transformations can improve the runtime of one's code, they can also introduce bugs due to the semantics of the original code not being preserved under the optimization. With the semantics of the source language formalized and verified, it becomes easy to extend the formalizations to verify the 
-
-Such translations include compiler optimizations performed by GHC.  Compiler optimizations can introduce compiler bugs, so the ability to verify optimizations could make several important in verifying the entirety on the compiler.
-
+The formally verified version of System FC will pave the way for future work in the formal verification of GHC. Once the core language is verified, it becomes possible to verify that transformations of this core language preserve the typing and progression semantics of the original language.  One particularly relevant class of transformations on the core language is the set of compiler optimizations performed by GHC. While these transformations can improve the runtime of one’s code, they can also introduce bugs due to the semantics of the original code not being preserved under the optimization. With the semantics of the source language formalized and verified, it becomes easy to extend the formalizations to encompass the changes made under these optimizations, and thus verify their correctness. 
 
 % The header of this document might have been a little intimidatating
 % to beginners. Notice once you are in the body of the document,
 % however, LaTeX commands are minimal and 'normal text' is frequent.
 \section{Related Work}
 \label{sec:related_work}
-Perhaps the most important section of your proposal is \textit{related
-  work}. Here you demonstrate that you have read and understand what
-others in the field have done. This ensures you (1) know the
-state-of-the-art, (2) are not re-doing others work, and (3) you know
-the performance levels you must achieve to make a contribution. As you
-discuss each related work, make note of how each has advanced the
-field. Keep in mind that this section should not read like a regular
-research paper you write for other classes. In other words, you should
-not just discuss related work for the sake of having a related work
-section; rather, tell a story about the state-of-the-art of the field
-and where your work fits in.
 
 % Here we see our first citations. It's just a simple command, the
 % body of which is the keyword-label assigned to resources over in the
 % *.bib file
-This section should have in-line citations to your bibliography
-(really all sections should have citations, but we expect them to be
-most dense in this section). We are going to require that your
-proposal has at least $6$ references. Fortunately, \LaTeX{} makes
-citations easy. Your TA has had no difficulty, as the work of Ivanov
-\textit{et al.}~\cite{ivanov14} demonstrates. Need help with \LaTeX{}?
-Be sure to check out~\cite{latex_wikibook} and~\cite{ctan_pdf}, two
-helpful on-line resources.
-
-What defines a good resource? Wikipedia is \textbf{NOT} a good
-resource. We would like to see references from academic
-journals/conferences (ACM, IEEE, etc.). We realize not everyone is
-doing pure research and for students with `implementation' projects
-such sources may be rare. No matter the case, your sources need to be
-reputable.
-
-Let us return to your factorization proposal. You should put out the
-earliest related work; na\"{i}ve methods like trial divison and the
-Sieve of Eratosthenes, but state they are of no modern relevance. Then
-discuss modern methods like the Quadratic Sieve and General Number
-Field Sieve. Note the humongous time and memory bounds of these
-algorithms. But wait! You are going to propose a better way $\ldots$
 
 \section{Project Proposal}
 \label{sec:project_proposal}
-Now is the time to introduce your proposed project in all of its
-glory. Admittedly, this is not the easiest since you probably have not
-done much actual research yet. Even so, setting and realizing
-realistic research goals is an important skill. Begin by summarizing
-what you are going to do and the expected benefit it will bring.
 
 \subsection{Anticipated Approach}
 \label{subsec:approach}
-To begin, we plan to create a Coq formalization of the semantics of System F as defined in Types and Programming Languages. We will then prove that progress and preservation hold for this formalization. Once we have properly proven these properties, we plan to extend our formalization to include coercions without datatypes. Given this extension, we will then adjust our verification to account for the addition of these coercions. This will be a subset of System FC missing features such as datatypes and type families.
+To begin, we plan to create a Coq formalization of the semantics of System F as defined in Types and Programming Languages. We will then prove that progress and preservation hold for this formalization. Once we have generated verified proofs of these theorems, we plan to extend our formalization to include the remaining features of System FC that are absent from System F.  At each step we will adjust our verification to account for the features that we have added.  In this way, we will incrementally build the proofs until we have arrived as a complete proof for a formalized version of System FC.
+
+The first feature that we plan to add to our formalization of System F is type coercions without datatypes.  Coercions are responsible for most of the power of System FC over System F.  They allow type-level abstraction and and polymorphism.  For example, the standard Haskell function \texttt{map :: (a->b) -> [a] -> [b]} acts over a list of generic type \texttt{a}, applying a transformation function to each element and returns a list of type \texttt{b}.  In order to type check \texttt{map} in System FC, the generic type variables \texttt{a} and \texttt{b} must be coerced to match the types of the arguments to \texttt{map}.  In the expression \texttt{map (> 0) [-1,0,1]}, the abstract types \texttt{a} and \texttt{b} must be coerced to the concrete types \texttt{Int} and \texttt{Bool} respectively.
+
+After adding type coercions without data types, and verifying correctness using the progress and preservation theorems, we plan to add the type family feature. At the most basic level, type families are just functions at the type-level. Below is a basic example of a type family.
+\begin{verbatim}
+data Ty = Tint
+        | TBool
+
+type family I (t : Ty) :: *
+type instance I TInt  = Int
+type instance I TBool = Bool
+\end{verbatim}
+In this example, courtesy of [TODO: cite Stephanie/Richard`s paper], the type \texttt{Ty} is defined to be either a \texttt{TInt} or \texttt{TBool}. Then, the type family \texttt{I} is defined acting on something of type \texttt{Ty}, either a \texttt{TInt} or \texttt{TBool}. This returns something of kind \texttt{*}. A kind in Haskell represents the type of a type constructor. An \texttt{Int} and \texttt{Bool} in Haskell both have kind \texttt{*}, while something like \texttt{Int -> Bool} has kind \texttt{* -> *}. So, this type family \texttt{I}, can map the data constructor \texttt{TInt} to \texttt{Int} and \texttt{TBool} to \texttt{Bool}.
+
+Note this use of type families, and in turn the most common use of type families, uses datatypes in order to be the most useful. However, at this point in our implementation, we will not have added datatypes. Still, the next feature added will be datatypes, which will help explore the value of these type families.
+
+Next, we plan to add datatypes to our formalization of System FC.  Datatypes are another very powerful construct in Haskell that allow programmers to define their own algebraic data types.  Types defined in such ways can be used to represent virtually anything.  For example, we can use datatypes to define generic lists as follows:
+\begin{verbatim}
+data List a = Nil
+            | Cons a (List a)
+\end{verbatim}
+Here, a list is parameterized by the generic type variable \texttt{a} and is constructed as either \texttt{Nil}, the empty list, or an element of type \texttt{a} consed on to a list of type \texttt{a}.  This construct is extremely simple, but also very powerful.  It is another very important addition to System FC.
+
+Once we have added the features described above to System F, we will have formalization of the language System FC.  We will then prove a translation to the core language that is actually implemented in GHC.
+
 
 \subsection{Technical Challenges}
 \label{subsec:tech_challenges}
-In this subsection note where you anticipate having \underline{novel}
-difficulty. Maybe you have never setup a MySQL database or even used
-SQL before at all -- yes, that is a challenge -- but not one readers
-care about. More novel would be the fact that many buildings on Penn's
-campus look similar and your classifier may be inaccurate in such
-instances. The purpose of this section is two-fold: 1) you will think
-about which parts of your project would require the most time and
-effort and 2) you will convince the reader that this is a project
-worth undertaking.
+Since the formalization of System FC has never been performed before, 
+One of the primary challenges in completing this project is dividing the specifications of System FC and GHC Core in such a way that they can be sensibly formalized. GHC Core, in particular, would prove difficult to formalize due to the fact that the operational and typing semantics of this language are geared toward making it easy to perform compiler optimizations on the language, rather making it easy than analyze its semantics. We plan to obviate this by formalizing the semantics of System FC and then proving a direct translation between these formalized semantics and the semantics of GHC Core. [Can expand here?]
 
 \subsection{Evaluation Criteria}
 \label{subsec:eval_criteria}
-This formalization for System FC has never been done. Upon completion, we will provide assurance of the correctness of the type system of Haskell, a widely used programming language. We would also provide a building block for verifications of other features of System FC.
+This formalization for System FC has never been done.  Upon completion, we will provide assurance of the formal correctness of this language, which is essential to the compilation of Haskell. We would also provide a building block for verifications of other features of System FC.
+Our primary criterion for evaluation would be how much of the specification of System FC we are able to formalize; given that there exists no precedent for formalizing System FC, the completion of the full specification is not assured. The formalization of the base specification for System FC can be done in several parts, meaning we can judge our progress based on what sections of the language specification are completed. Completing this, our project could be arbitrarily extended to formalize proposed extensions to System FC; evaluation of this could again be based on how much we complete of these extensions.
 
 \section{Block Diagram}
 \label{sec:block_diagram}
@@ -227,9 +196,9 @@ This formalization for System FC has never been done. Upon completion, we will p
 \begin{itemize*}
 	\item {\sc already completed}: Understand the formal definition of System F.
 	\item {\sc prior-to thanksgiving} : 
-	\item {\sc prior-to christmas} : 
+	\item {\sc prior-to christmas} : Complete verification of System F in Coq.
 	\item {\sc completion tasks} : Formalize System FC, verify formal language, prove translation between formal language and System FC as implemented in GHC.
-	\item {\sc if there's time} : Verify other GHC features, such as optimizations and extensions
+	\item {\sc if there's time} : Verify other GHC features, such as optimizations and extensions.
 \end{itemize*}
 
 % We next move onto the bibliography.
