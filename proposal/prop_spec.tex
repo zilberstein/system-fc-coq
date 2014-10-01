@@ -18,7 +18,9 @@
 % styles and formattings that aren't part of the 'standard library'
 \usepackage{mdwlist}
 \usepackage{url}
-
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows}
+\usepackage{lipsum,adjustbox}
 \begin{document} 
 
 % We setup the parameters to our title header before 'making' it. Note
@@ -62,34 +64,19 @@
 % 'ref' command, e.g., instead of writing `Section 1', you can write
 % `Section~\ref{sec:intro}', which is useful if the section number
 % changes.
-\section{Background}
-\label{sec:background}
-Haskell has one of the strongest type systems of any mainstream
-programming language, with features such as Type Families, Typeclasses, 
-and Generalized Algebraic Datatypes. When writing Haskell, there are
-a lot of guarantees of correctness encoded in the type system. We wish
-to ensure the type safety of features like these is ensured in System FC, 
-the GHC core language.
-
 \section{Introduction}
 \label{sec:intro}
 
-You should begin by introducing your topic. You should define core
-terminology specific to the field, introduce the problem statement,
-and make clear the benefits (motivate!) of resolving that problem
-statement. If there are many preliminaries (\textit{e.g.,}
-definitions, conceptual explanations) you need to handle before
-jumping into your topic, it may be worthwhile to create an explicit
-``Background'' section.
+Haskell has one of the strongest type systems of any mainstream programming language, with features such as Type Families, Typeclasses, and Generalized Algebraic Datatypes. When writing Haskell, there are a lot of guarantees of correctness encoded in the type system. We wish to ensure that this type safety of features like these is preserved in System FC, the GHC core language.  We will do this by proving the progress and preservation theorems using our formalized definition of System FC.
 
-Let us suppose you are attempting to build a constant time integer
-factorization algorithm. You would want to briefly explain that
-factorization is the process of breaking an integer into its prime
-multipliers. Give a simple example. Your problem statement would
-conclude that factorization is an unneccesarily complex
-process. Finally, you would state that via your proposed system,
-factorization will be easy and the consequences that will
-have. Namely, the RSA-encryption algorithm will be broken.
+Progress and preservation are the most basic indications of safety for any type system. More specifically, progress states that a well-typed term is either a value or can take a step of evaluation. Preservation indicates that if a well-typed term takes a step, the resulting term will still be well-typed (TODO: Cite TAPL). When formalizing System FC, we will prove both progress and preservation for each feature added.
+
+System FC is built on top of the simpler language System F.  System F, also known as the polymorphic lambda calculus, is an extension of the simply-typed lambda calculus to include the abstraction and application of type terms. This feature essentially allows for functions to take types as parameters, granting the ability to define functions whose actual types vary based on these input types. We will first formally verify System F in Coq and then we will add the additional features needed to transform System F into a full formalization of System FC.  These features include type coercion, type families, and type constructors.  Once we have added these features to System F, we will have a formalized language that is equivalent to System FC.  We will then be able to prove a translation to System FC which will show that we have indeed verified the core language of GHC.
+
+The formally verified version of System FC will pave the way for future work in the formal verification of GHC. Once the core language is verified, it becomes possible to verify that transformations of this core language preserve the typing and progression semantics of the original language.  One particularly relevant class of transformations on the core language is the set of compiler optimizations performed by GHC. While these transformations can improve the runtime of one's code, they can also introduce bugs due to the semantics of the original code not being preserved under the optimization. With the semantics of the source language formalized and verified, it becomes easy to extend the formalizations to verify the 
+
+Such translations include compiler optimizations performed by GHC.  Compiler optimizations can introduce compiler bugs, so the ability to verify optimizations could make several important in verifying the entirety on the compiler.
+
 
 % The header of this document might have been a little intimidatating
 % to beginners. Notice once you are in the body of the document,
@@ -187,6 +174,73 @@ field. This will be easier for some than others. In particular, those
 with `sensory' projects involving visual or sonic elements need to
 think this point through -- objective measures are always better than
 subjective ones.
+
+\section{Block Diagram}
+\label{sec:block_diagram}
+\tikzstyle{int}=[draw, fill=blue!20, minimum size=2em]
+\tikzstyle{thm}=[draw, fill=green!20, minimum size=2em]
+\tikzstyle{init} = [pin edge={to-,thick,black}]
+\vspace{-1in}
+%\begin {figure*}
+%\begin{adjustbox}{width=\textwidth}
+\begin{tikzpicture}[node distance=2.75cm and 1cm,text width=1.75cm,minimum height=3cm,text centered, rounded corners,auto,>=latex']
+\tikzstyle{every node}=[font=\small]
+    % System FC
+    \node [int] (f) {\bf System F};
+    \node [thm, right of=f] (fprog) {Progress};
+    \node [thm, right of=fprog] (fpres) {Preservation};
+
+    % Coercions
+    \node [int, below of=f] (f2) {+ Coercions};
+    \node [thm, right of=f2] (f2prog) {Progress};
+    \node [thm, right of=f2prog] (f2pres) {Preservation};
+
+    % Type Families
+    \node [int, below of=f2] (f3) {+ Type Families};
+    \node [thm, right of=f3] (f3prog) {Progress};
+    \node [thm, right of=f3prog] (f3pres) {Preservation};
+
+    % Datatypes
+    \node [int, below of=f3] (f4) {+ Datatypes};
+    \node [thm, right of=f4] (f4prog) {Progress};
+    \node [thm, right of=f4prog] (f4pres) {Preservation};
+    
+    % System FC
+    \node [int, below of=f4] (fc) {\bf System FC};
+    \node [int, below of=fc] (ghc) {\bf GHC Core};
+    \node [thm, right of=fc] (fcprog) {Progress};
+    \node [thm, right of=fcprog] (fcpres) {Preservation};
+
+    \path[->] (f) edge node {} (fprog);
+    \path[->] (f) edge [bend left] node {} (fpres);
+
+    \path[->] (f) edge node {} (f2);
+    \path[->] (f2) edge node {} (f2prog);
+    \path[->] (fprog) edge node {} (f2prog);
+    \path[->] (f2) edge [bend left] node {} (f2pres);
+    \path[->] (fpres) edge node {} (f2pres);
+
+    \path[->] (f2) edge node {} (f3);
+    \path[->] (f3) edge node {} (f3prog);
+    \path[->] (f3) edge [bend left] node {} (f3pres);
+    \path[->] (f2prog) edge node {} (f3prog);
+    \path[->] (f2pres) edge node {} (f3pres);
+
+    \path[->] (f3) edge node {} (f4);
+    \path[->] (f4) edge node {} (f4prog);
+    \path[->] (f4) edge [bend left] node {} (f4pres);
+    \path[->] (f3prog) edge node {} (f4prog);
+    \path[->] (f3pres) edge node {} (f4pres);
+
+    \path[->] (f4) edge node {} (fc);
+    \path[<->] (fc) edge node {\it Verified translation} (ghc);
+    \path[->] (fc) edge node {} (fcprog);
+    \path[->] (fc) edge [bend left] node {} (fcpres);
+    \path[->] (f4prog) edge node {} (fcprog);
+    \path[->] (f4pres) edge node {} (fcpres);
+\end{tikzpicture}
+%\end{adjustbox}
+%\end{figure*}
 
 \section{Research Timeline}
 \label{sec:research_timeline}
