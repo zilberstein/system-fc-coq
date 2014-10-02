@@ -76,6 +76,16 @@ The formally verified version of System FC will pave the way for future work in 
 
 \section{Background}
 \label{sec:background}
+\noindent\textbf{Theorem}: Progress\\
+$\forall t\; T,\; \Gamma\vdash t\in T \implies$\\
+$ \exists v, v=t \wedge \exists t', t\rightarrow t'$.\\
+
+\noindent\textbf{Theorem}: Preservation\\
+$\forall t\; t'\; T,\; \Gamma\vdash t\in T \implies$\\
+$t \rightarrow t' \implies$\\
+$\Gamma\vdash t'\in T$
+
+
 System F is a very simple language that is the foundation for System FC, the core language of the Glasgow Haskell Compiler.  In essence, System F is the Polymorphic Lambda-Calculus.  Below is a full specification of System F.\\\\
 \newcommand\mybox[2][]{\tikz[overlay]\node[fill=blue!20,inner sep=2pt, anchor=text, rectangle, rounded corners=1mm,#1] {#2};\phantom{#2}}
 {\large\it Syntax}\\
@@ -149,7 +159,7 @@ f :: G a -> a
 f G1 = 5
 f G2 = True
 \end{verbatim}
-This is a basic example of datatypes in Haskell and a trivial use of them. \texttt{G} is a parameterized datatype with kind \texttt{* -> *}. A \textit{kind} in Haskell represents the type of a type constructor. In Haskell, the types \texttt{Int} and \texttt{Bool} both have kind \texttt{*}. \texttt{f} is a function that takes something of type \texttt{G a} and returns something of type \texttt{a}. In Haskell, this only compiles because of coercions. Specifically, in System FC, this same segment of code would look like this:
+This is a basic example of datatypes in Haskell and a trivial use of them. \texttt{G} is a parameterized datatype with kind ${\tt *}\rightarrow{\tt *}$. A \textit{kind} in Haskell represents the type of a type constructor. In Haskell, the types \texttt{Int} and \texttt{Bool} both have kind \texttt{*}. \texttt{f} is a function that takes something of type \texttt{G a} and returns something of type \texttt{a}. In Haskell, this only compiles because of coercions. Specifically, in System FC, this same segment of code would look like this:
 \begin{lstlisting}
 G :: * -> *
 G1 :: forall (a :: *). a ~ Int -> G a
