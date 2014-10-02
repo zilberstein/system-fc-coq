@@ -22,7 +22,11 @@
 \usepackage{tikz}
 \usetikzlibrary{shapes,arrows}
 \usepackage{lipsum,adjustbox}
-\begin{document} 
+\usepackage{listings}% http://ctan.org/pkg/listings
+\lstset{
+  basicstyle=\ttfamily,
+  mathescape
+}\begin{document} 
 
 % We setup the parameters to our title header before 'making' it. Note
 % that your proposals should have actual titles, not the generic one
@@ -146,7 +150,7 @@ f G1 = 5
 f G2 = True
 \end{verbatim}
 This is a basic example of datatypes in Haskell and a trivial use of them. \texttt{G} is a parameterized datatype with kind \texttt{* -> *}. A \textit{kind} in Haskell represents the type of a type constructor. In Haskell, the types \texttt{Int} and \texttt{Bool} both have kind \texttt{*}. \texttt{f} is a function that takes something of type \texttt{G a} and returns something of type \texttt{a}. In Haskell, this only compiles because of coercions. Specifically, in System FC, this same segment of code would look like this:
-\begin{verbatim}
+\begin{lstlisting}
 G :: * -> *
 G1 :: forall (a :: *). a ~ Int -> G a
 G2 :: forall (a :: *). a ~ Bool -> G a
@@ -154,9 +158,9 @@ G2 :: forall (a :: *). a ~ Bool -> G a
 f :: forall (a :: *). G a -> a
 f = \(a :: *). \(x :: G a)
   case x of
-    G1 c -> 5 > sym c
-    G2 c -> True > sym c
-\end{verbatim}
+    G1 c -> 5 $\triangleright$ sym c
+    G2 c -> True $\triangleright$ sym c
+\end{lstlisting}
 Here, \texttt{G1} is stating that for all types \texttt{a} of kind \texttt{*}, if \texttt{a} can be coerced to an \texttt{Int}, then one can obtain something of type \texttt{G a}. \texttt{G2} is defined similarly. Now, in the \texttt{G1} case, in order for the function \texttt{f} to correctly yield something of type \texttt{a}, \texttt{5} needs to be coerced to be of type \texttt{a}. This is accomplished using the rule from the construction of \texttt{G1}, since \texttt{G1} requires that an \texttt{a} can be coerced to an \texttt{Int}. The symmetry of this rule allows for \texttt{5} to be coerced to an \texttt{a}, which is required in the body of \texttt{f}. 
 
 Note here that datatypes are used to demonstrate the power of coercions. However, at this point in our implementation, we will not have added datatypes. Datatypes are much more complicated to formalize than are coercions and type families, and it will be easier to formalize datatypes after formalizing them.
