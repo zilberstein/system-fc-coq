@@ -204,8 +204,11 @@ Once we have added the features described above to System F, we will have a form
 
 \subsection{Technical Challenges}
 \label{subsec:tech_challenges}
-Since the formalization of System FC has never been performed before, 
-One of the primary challenges in completing this project is dividing the specifications of System FC and GHC Core in such a way that they can be sensibly formalized. GHC Core, in particular, would prove difficult to formalize due to the fact that the operational and typing semantics of this language are geared toward making it easy to perform compiler optimizations on the language, rather making it easy than analyze its semantics. We plan to obviate this by formalizing the semantics of System FC and then proving a direct translation between these formalized semantics and the semantics of GHC Core. [Can expand here?]
+One of the primary challenges in completing this project is dividing the specifications of System FC and GHC Core in such a way that they can be sensibly formalized. GHC Core, in particular, would prove difficult to formalize due to the fact that the operational and typing semantics of this language are geared toward making it easy to perform compiler optimizations on the language, rather making it easy than analyze its semantics. We plan to obviate this by formalizing the semantics of System FC and then proving a direct translation between these formalized semantics and the semantics of GHC Core.
+
+One specific challenge we may face regards proving progress, preservation, and soundness, in some instances after we have added coercions, datatypes, and type families. For example, recall the segment of code given in the previous section explaining coercions. Here, a coercion could be added in the scrutiny of the case statement of \texttt{f}, where the scrutiny of a case statement represents that which is being broken down into cases. With this addition, progress, preservation, and soundness may be very difficult to prove.
+
+Additionally, since the formalization of System FC has never been performed before, it is difficult to estimate how long it will take to formalize different parts of System FC. Further, we may find that progress, preservation, and soundness is in fact impossible to prove. This would be a result of the inconsistency in the specifications of System FC, which would be a major unexpected result.
 
 
 \subsection{Evaluation Criteria}
