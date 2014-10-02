@@ -65,27 +65,27 @@ There are two main benefits to this project. First, the verification would provi
 % changes.
 \section{Introduction}
 \label{sec:intro}
-Haskell has one of the strongest type systems of any mainstream programming language with features such as type families, typeclasses, and generalized algebraic datatypes. When writing Haskell, there are many guarantees of correctness encoded in the type system. We wish to ensure that the type safety of features like these is preserved in System FC, the GHC core language.  We will do this by proving the progress, preservation, and soundness theorems using our formalized definition of System FC.
+Haskell has one of the strongest type systems of any mainstream programming language with features such as type families, typeclasses, and generalized algebraic datatypes. When writing Haskell, there are many guarantees of correctness encoded in the type system. We wish to ensure that the type safety of features like these is preserved in System FC, the basis of the GHC core language. A core language is a translation from a surface language to a language that a compiler can better reason about. Whereas types are important in programming languages to prevent a user from making errors, types are important in core languages to prevent the compiler from making errors. We will ensure this type safety by proving the progress, preservation, and soundness theorems using our formalized definition of System FC.
 
 
 
-The formally verified version of System FC will pave the way for future work in the formal verification of GHC. Once the core language is verified, it becomes possible to verify that transformations of this core language preserve the typing and progression semantics of the original language. One particularly relevant class of transformations on the core language is the set of compiler optimizations performed by GHC. While these transformations can improve the runtime of one's code, they can also introduce bugs due to the semantics of the original code not being preserved under the optimization. With the semantics of the source language formalized and verified, it becomes easy to extend the formalizations to encompass the changes made under these optimizations, and thus verify their correctness. 
+The formally verified version of System FC will pave the way for future work in the formal verification of GHC. Once the core language is verified, it becomes possible to verify that transformations of this core language preserve the typing and progression semantics of the original language. One particularly relevant class of transformations on the core language is the set of compiler optimizations performed by GHC. While these transformations can improve the runtime of one's code, they can also introduce bugs due to the semantics of the original code not being preserved under the optimization. With the semantics of the source language formalized and verified, it becomes easy to extend the formalizations to encompass the changes made under these optimizations, and thus verify their correctness. Another major use would be the ability to extend our proof, in order to verify extensions to System FC. Such extensions to System FC are used to add new features to the surface language.
 
 \section{Background}
 \label{sec:background}
-Progress, preservation, and soundness are the most basic indications of safety for any type system~\cite{Pierce:TAPL}. To understand these, we must first note how the operational semantics of a language are formalized. When specifying the operational semantics of a programming language, one defines a step relation that relates a term of a particular type in that language to another term. One can then model the evaluation of any expression in the language in a series of discrete ``steps'', where in each step one takes a term in the expression and replaces it with the resulting term per the step relation. In a well-typed, terminating program, this process continues until the expression evaluates to a canonical form, a unique representation of a value for a particular type (e.g. `1' for the type of integers). A well-typed program can also fail to terminate by entering into an infinite loop, and an ill-typed language can fail to terminate by getting stuck, which happens when the step relation provides no simplification for the current term.
+Progress, preservation, and soundness are the most basic indications of safety for any type system~\cite{Pierce:TAPL}. To understand these, we must first note how the operational semantics of a language are formalized. When specifying the operational semantics of a programming language, one defines a step relation that relates a term of a particular type in that language to another term. One can then model the evaluation of any expression in the language in a series of discrete ``steps'', where in each step one takes a term in the expression and replaces it with the resulting term per the step relation. In a well-typed program, this process continues until the expression evaluates to a value, a unique representation of a value for a particular type (e.g. `1' for the type of integers). 
 
-Knowing this, we can now define the progress, preservation, and soundness theorems. Progress states that a well-typed term is either a canonical form, or can take a step per the step relation. Preservation indicates that if a well-typed term takes a step, the resulting term will still be well-typed.  Combining these, soundness states that a well typed program will never become stuck~\cite{Pierce:TAPL}.\\\\\\
-\noindent\textbf{\large Theorem (Progress)} \textit{For all terms $t$, types $T$, and contexts $\Gamma$, if $t$ has type $T$ under context $\Gamma$ then either $t$ is a canonical form, or there exists a term $t'$ such that $t$ steps to $t'$}\\
+Knowing this, we can now define the progress, preservation, and soundness theorems. Progress states that a well-typed term is either a value, or can take a step per the step relation. Preservation indicates that if a well-typed term takes a step, the resulting term will still be well-typed. Combining these, soundness states that a well typed program will never become stuck~\cite{Pierce:TAPL}. This stuckness will cause errors including but not limited to a segmentation fault. \\\\\\
+\noindent\textbf{\large Theorem (Progress)} \textit{For all terms $t$, types $T$, and contexts $\Gamma$, if $t$ has type $T$ under context $\Gamma$ then either $t$ is a value, or there exists a term $t'$ such that $t$ steps to $t'$} \\
 
 \noindent\textbf{\large Theorem (Preservation)} \textit{For all terms $t$ and $t'$, types $T$ and contexts $\Gamma$, if $t$ has type $T$ under the context $\Gamma$ and $t$ steps to $t'$ then $t'$ has type $T$ under the context $\Gamma$.} \\
 
-\noindent\textbf{\large Theorem (Soundness)} \textit{Any well-typed program will never reach a stuck state during evaluation in a consistent type system.}\\
+\noindent\textbf{\large Theorem (Soundness)} \textit{Any well-typed program will never reach a stuck state during evaluation.}\\
 
-Together, these properties guarantee that a well-typed program in the specified language will always be able to continue evaluation until it reaches a canonical form; the failure of the program to terminate will only result from the program logic leading to an infinite loop, and not from the language falling into some invalid state. After formalizing the operational semantics for System FC, we plan on demonstrating that preservation, progress, and soundness hold for the specification.
+Together, these properties guarantee that a well-typed program in the specified language will always be able to continue evaluation until it reaches a value; the result of the program ending up in a stuck statee will only result from the program logic leading to an infinite loop, and not from the language falling into some invalid state. After formalizing the operational semantics for System FC, we plan on demonstrating that preservation, progress, and soundness hold for the specification.
 
-System FC is built on top of the simpler language System F. System F, also known as the polymorphic lambda calculus, is an extension of the simply-typed lambda calculus to include the abstraction and application of type terms~\cite{Pierce:TAPL}. This feature essentially allows for functions to take types as parameters, granting the ability to define functions whose actual types vary based on these input types. We will first formally verify System F in Coq and then we will add the additional features needed to transform System F into a full formalization of System FC. These features include type coercion, type families, and datatypes. In particular, type coercions allow for type families and generalized algebraic datatypes to exist in System FC by acting as a witness for equality between syntactically different types~\cite{DBLP:conf/rta/VytiniotisJ13}.  Once we have added these features to System F, we will have a formalized language that is equivalent to System FC. We will then be able to prove a translation to System FC which will show that we have indeed verified the core language of GHC. The syntax, evaluation semantics and type relations for System F are provided below. The rules that are highlighted in blue are not present in the simply typed lambda calculus and are specific to System F.\vspace{1cm}\\
-\newcommand\mybox[2][]{\tikz[overlay]\node[fill=blue!20,inner sep=2pt, anchor=text, rectangle, rounded corners=1mm,#1] {#2};\phantom{#2}}
+System FC is built on top of the simpler language System F. System F, also known as the polymorphic lambda calculus, is an extension of the simply-typed lambda calculus to include the abstraction and application of type terms~\cite{Pierce:TAPL}. This feature essentially allows for functions to take types as parameters, granting the ability to define functions whose actual types vary based on these input types. We will first formally verify System F in Coq and then we will add the additional features needed to transform System F into a full formalization of System FC. These features include type coercion, type families, and datatypes. In particular, type coercions allow for type families and generalized algebraic datatypes to exist in System FC by acting as a witness for equality between syntactically different types~\cite{DBLP:conf/rta/VytiniotisJ13}. Once we have added these features to System F, we will have a formalized language that is System FC. We will then be able to prove a translation to System FC which will show that we have indeed verified the core language of GHC. The syntax, evaluation semantics and type relations for System F are provided below.\vspace{1cm}\\
+\newcommand\mybox[2][]{#2}%\tikz[overlay]\node[fill=white!20,inner sep=2pt, anchor=text, rectangle, rounded corners=1mm,#1] {#2};\phantom{#2}}
 \noindent{\large\it Syntax}\\
 \begin{tabular}{l l r}
 \hline
@@ -148,17 +148,17 @@ system's correctness and safety using these methods.
 
 Prior work has demonstrated that programming languages are ripe targets for verification using 
 formal methods. There exist full specifications and verifications for simple programming
-models, such as the simply-typed lambda calculus ~\cite{Pierce:SF}. In particular, it is desirable to verify intermediate representation languages for compilers because correctness of compilers is a crucial in order to correctly execute and reason about programs written in that language~\cite{Zhao:2012:FLI:2103656.2103709}.
+models, such as the simply-typed lambda calculus, as proven in ~\cite{Pierce:SF} for example. In particular, it is desirable to verify intermediate representation languages for compilers because correctness of compilers is a crucial in order to correctly execute and reason about programs written in that language~\cite{Zhao:2012:FLI:2103656.2103709}.
 
 Further, some work has gone into formalizing the specification for System FC, including a basic 
 Coq translation provided with the initial proposal of System FC~\cite{conf/tldi/SulzmannCJD07}. 
-Progress for System F has a non-verified proof~\cite{Girard:1989:PT:64805}. To our knowledge, however, there has not been any substantial progress in a formal 
-proof of the soundness of the System FC specification. 
+Progress for System F has a non-mechanized proof~\cite{Girard:1989:PT:64805}. To our knowledge, however, there has not been any substantial progress in a formal 
+proof of the soundness of System FC.
 
 % Here we see our first citations. It's just a simple command, the
 % body of which is the keyword-label assigned to resources over in the
 % *.bib file
-\newpage
+%\newpage
 \section{Project Proposal}
 \label{sec:project_proposal}
 
@@ -230,10 +230,10 @@ To begin, we plan to create a Coq formalization of the semantics of System F as 
     \path[->] (f4pres) edge node {} (fcpres);
 \end{tikzpicture}
 \begin{center}
-\it Figure 2: block diagram depicting our anticipated approach
+\it Figure 2: Block diagram depicting our anticipated approach. The arrows on the left side represent work required to complete each given step.
 \end{center}
 
-The first feature that we plan to add to our formalization of System F is type coercions without datatypes.  Coercions are responsible for most of the power of System FC over System F.  They allow for type-level abstraction and polymorphism, by allowing a conversion from one type to another. A basic example of the usefulness of coercions is below.
+The first feature that we plan to add to our formalization of System F is type coercions without datatypes.  Coercions are responsible for most of the power of System FC over System F. They allow a conversion from one type to another. A basic example of the usefulness of coercions is below.
 \begin{verbatim}
 data G a where
   G1 :: G Int
@@ -289,16 +289,16 @@ Once we have added the features described above to System F, we will have a form
 
 \subsection{Technical Challenges}
 \label{subsec:tech_challenges}
-One of the primary challenges in completing this project is dividing the specifications of System FC and GHC Core in such a way that they can be sensibly formalized. GHC Core, in particular, would prove difficult to formalize due to the fact that the operational and typing semantics of this language are geared toward making it easy to perform compiler optimizations on the language, rather than making it easy than analyze its semantics. We plan to obviate this by formalizing the semantics of System FC and then proving a direct translation between these formalized semantics and the semantics of GHC Core.
+One of the primary challenges in completing this project is deciding on an order to iteratively add features in order to sensibly formalize System FC and GHC Core. We currently have a plan to circumvent this by adding coercions first, followed by type families, followed by datatypes. However, there may be unforeseen dependencies that make this ordering in practical. For example, it may be impossible or infeasible to add coercions before adding datatypes. Further, GHC Core would prove difficult to formalize due to the fact that the operational and typing semantics of this language are geared toward making it easy to perform compiler optimizations on the language, rather than making it easy than analyze its semantics. We plan to obviate this by formalizing the semantics of System FC and then proving a direct translation between these formalized semantics and the semantics of GHC Core.
 
-We may face one specific challenge regarding the proofs of progress, preservation, and soundness in some instances after we have added coercions, datatypes, and type families. For example, recall the segment of code given in the previous section explaining coercions. Here, a coercion could be added in the scrutiny of the case statement of \texttt{f}, where the scrutiny of a case statement represents that which is being broken down into cases. With this addition, progress, preservation, and soundness may be very difficult to prove.
+We may face one specific challenge regarding the proofs of progress, preservation, and soundness in some instances after we have added coercions, datatypes, and type families. For example, recall the segment of code given in the previous section explaining coercions. Here, a coercion could be added in the scrutinee of the case statement of \texttt{f}, where the scrutinee of a case statement represents that which is being broken down into cases. With this addition, progress, preservation, and soundness may be very difficult to prove.
 
-Additionally, since the formalization of System FC has never been performed before, it is difficult to estimate how long it will take to formalize different parts of System FC. Further, we may find that progress, preservation, and soundness are in fact impossible to prove. This would be a result of the inconsistency in the specifications of System FC, which would be a major unexpected result.
+Additionally, since the formalization of System FC has never been performed before, it is difficult to estimate how long it will take to formalize different parts of System FC. In fact, we may need to add axioms in order to bypass rather large or unwieldy proofs that are obvious, but necessary to achieve our primary goals. Further, we may find that progress, preservation, and soundness are in fact impossible to prove. This would be a result of the inconsistency in the specifications of System FC, which would be a major unexpected result.
 
 \subsection{Evaluation Criteria}
 \label{subsec:eval_criteria}
 This formalization for System FC has never been done. Upon completion, we will provide assurance of the formal correctness of this language, which is essential to the compilation of Haskell. We would also provide a building block for verifications of other features of System FC.
-Our primary criterion for evaluation would be how much of the specification of System FC we are able to formalize; given that there exists no precedent for formalizing System FC, the completion of the full specification is not assured. The formalization of the base specification for System FC can be done in several parts, meaning we can judge our progress based on what sections of the language specification are completed. Completing this, our project could be arbitrarily extended to formalize proposed extensions to System FC; evaluation of this could again be based on how much we complete of these extensions.
+Our primary criterion for evaluation would be how much of the specification of System FC we are able to formalize; given that there exists no precedent for formalizing System FC, the completion of the full specification is not assured. The formalization of the base specification for System FC can be done in several parts, meaning we can judge our progress based on what sections of the language specification are completed. Completing this, our project could be arbitrarily extended to formalize proposed extensions to System FC; evaluation of this could again be based on how much we complete of these extensions. Additionally, another criterion for evaluation would be how many axioms we need to assume in our formalization. The fewer axioms assumed, the stronger the result becomes.
 
 \section{Research Timeline}
 \label{sec:research_timeline}
@@ -308,9 +308,9 @@ Our primary criterion for evaluation would be how much of the specification of S
 \begin{itemize*}
 	\item {\sc already completed}: Understand the formal definition of System F.
 	\item {\sc prior-to thanksgiving} : Formalize System F in Coq.
-	\item {\sc prior-to christmas} : Complete verification of System F in Coq.
-	\item {\sc completion tasks} : Formalize System FC, verify formal language, prove translation between formal language and System FC as implemented in GHC.
-	\item {\sc if there's time} : Verify other GHC features, such as optimizations and extensions.
+	\item {\sc prior-to christmas} : Prove the substitution lemma holds in System F.
+	\item {\sc completion tasks} : Complete verification of System F with coercions and type families.
+	\item {\sc if there's time} : Complete formalization of System FC, verify formal language, prove translation between formal language and System FC as implemented in GHC. Also verify other GHC features, such as optimizations and extensions.
 \end{itemize*}
 
 % We next move onto the bibliography.
