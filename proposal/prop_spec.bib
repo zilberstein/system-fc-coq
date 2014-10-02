@@ -3,25 +3,51 @@
 @COMMENT{BibTex for CIS400/401 Project Proposal Specification}
 @COMMENT{Note that in practice these citation blocks are found online. You should not be manually entering paper and journal names unless you really cannot find the citation. Usually if you google "[paper name] bibtex" something will come up.
 
-@inproceedings{ivanov14,
- title = {Attack-Resilient Sensor Fusion},
- author = {Ivanov, Radoslav and Pajic, Miroslav and Lee, Insup},
- booktitle = {DATE'14: Design, Automation and Test in Europe},
- year = {2014}
+@book{Pierce:TAPL,
+  author = {Benjamin C. Pierce},
+  title = {Types and Programming Languages},
+  publisher = {MIT Press},
+  year = 2002,
+  plclub = {Yes},
+  bcp = {Yes},
+  keys = {books},
+  homepage = {http://www.cis.upenn.edu/~bcpierce/tapl},
+  errata = {http://www.cis.upenn.edu/~bcpierce/tapl/errata.txt}
 }
 
-
-@COMMENT{Formatting URL's in bibliographies is no convenient task. We're trying to work out a better solution -- but for now we just examine the output and manually insert spaces where they are most appropriate (as below).}
-	
-@MISC{latex_wikibook,
-	author = "Wikibooks",
-	title = "La{T}e{X}",
-	howpublished = {\texttt{http://en.wikibooks.org/wiki/ LaTeX}},
-	note = "Note: Students should not cite Wikis!"
+@inproceedings{DBLP:conf/icfp/WeirichHE13,
+  author    = {Stephanie Weirich and
+               Justin Hsu and
+               Richard A. Eisenberg},
+  title     = {System {FC} with explicit kind equality},
+  booktitle = {{ACM} {SIGPLAN} International Conference on Functional Programming,
+               ICFP'13, Boston, MA, {USA} - September 25 - 27, 2013},
+  year      = {2013},
+  pages     = {275--286},
+  crossref  = {DBLP:conf/icfp/2013},
+  url       = {http://doi.acm.org/10.1145/2500365.2500599},
+  doi       = {10.1145/2500365.2500599},
+  timestamp = {Thu, 02 Oct 2014 04:06:13 +0200},
+  biburl    = {http://dblp.uni-trier.de/rec/bib/conf/icfp/WeirichHE13},
+  bibsource = {dblp computer science bibliography, http://dblp.org}
+}
+@proceedings{DBLP:conf/icfp/2013,
+  editor    = {Greg Morrisett and
+               Tarmo Uustalu},
+  title     = {{ACM} {SIGPLAN} International Conference on Functional Programming,
+               ICFP'13, Boston, MA, {USA} - September 25 - 27, 2013},
+  year      = {2013},
+  publisher = {{ACM}},
+  url       = {http://dl.acm.org/citation.cfm?id=2500365},
+  isbn      = {978-1-4503-2326-0},
+  timestamp = {Thu, 02 Oct 2014 04:06:13 +0200},
+  biburl    = {http://dblp.uni-trier.de/rec/bib/conf/icfp/2013},
+  bibsource = {dblp computer science bibliography, http://dblp.org}
 }
 
-@MISC{ctan_pdf,
-	author = "The Comprehensive TeX Archive Network (CTAN)",
-	title = "A (Not So) Short Introduction to {LaTeX2e}",
-	howpublished = {\texttt{http://www. ctan.org/tex-archive/info/lshort/english/}},
+@INPROCEEDINGS{Coquand90aproof,
+    author = {Thierry Coquand and Jean Gallier and Le Chesnay Cedex},
+    title = {A Proof of Strong Normalization For the Theory of Constructions Using a Kripke-Like Interpretation},
+    booktitle = {In Workshop on Logical Frameworks--Preliminary Proceedings},
+    year = {1990}
 }
