@@ -1,0 +1,7 @@
+get rid of we's
+talk about motivation in intro
+define type, term, context, coercion in background
+add example of taking a step*****
+define GADTs
+add intro sentences before anticipated approach
+change coercion code to a figure sort of thing and add a caption, then when referencing it later, reference it by fig num*****
