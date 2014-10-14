@@ -1,4 +1,3 @@
-
 % Many thanks to Andrew West for writing most of this file
 % Main LaTeX file for CIS400/401 Project Proposal Specification
 %
@@ -171,12 +170,12 @@ proof of the soundness of System FC.
 %\newpage
 \section{Project Proposal}
 \label{sec:project_proposal}
-This section describes the proposed approach. It begins by detailing the set of steps we plan to follow in order to successfully verify System FC. Next, it describes the technical challenges that are involved in the project and finally, it explains the evuation criteria.
+This section describes the proposed approach. It begins by detailing the set of steps we plan to follow in order to successfully verify System FC. Next, it describes the technical challenges that are involved in the project and finally, it explains the evaluation criteria.
 
 \subsection{Anticipated Approach}
 \label{subsec:approach}
-To begin, the semantics of System F as defined in Types and Programming Languages~\cite{Pierce:SF} will be formalized in Coq. Progress and preservation will then be proven to hold for this formalization. Once the proofs of these theorems have been generated and mechanically verified, the formalization will be extended to include the remaining features of System FC that are absent from System F.  At each step the proofs will be adjusted to account for the features that have been added. In this way, the proofs will be incrementally built until there is a complete proof for a formalized version of System FC. This approach is outlined in Figure 3.
-The first feature that will be added to the formalization of System F is type coercions without datatypes.  Coercions are responsible for most of the power of System FC over System F. They allow a conversion from one type to another. A basic example of the usefulness of coercions is provided in Figure 4.
+To begin, the semantics of System F as defined in~\cite{Pierce:SF} are formalized in Coq. Progress and preservation are then proven to hold for this formalization. Once the proofs of these theorems have been generated and mechanically verified, the formalization is extended to include the remaining features of System FC that are absent from System F.  At each step the proofs are be adjusted to account for the features that have been added. In this way, the proofs are incrementally built until there is a complete proof for a formalized version of System FC. This approach is outlined in Figure 3.
+The first feature that is added to the formalization of System F is type coercions without datatypes. Coercions are responsible for most of the power of System FC over System F. They allow a conversion from one type to another. A basic example of the usefulness of coercions is provided in Figure 4.
 \begin{verbatim}
 data G a where
   G1 :: G Int
@@ -210,7 +209,7 @@ This is a basic example of datatypes in Haskell and a trivial use of them. \text
 
 Here, \texttt{G1} is stating that for all types \texttt{a} of kind \texttt{*}, if \texttt{a} can be coerced to an \texttt{Int}, then one can obtain something of type \texttt{G a}. \texttt{G2} is defined similarly. Now, in the \texttt{G1} case, in order for the function \texttt{f} to correctly yield something of type \texttt{a}, \texttt{5} needs to be coerced to be of type \texttt{a}. This is accomplished using the rule from the construction of \texttt{G1}, since \texttt{G1} requires that an \texttt{a} can be coerced to an \texttt{Int}. The symmetry of this rule allows for \texttt{5} to be coerced to an \texttt{a}, which is required in the body of \texttt{f}. 
 
-Note here that datatypes are used to demonstrate the power of coercions. However, at this point in the implementation, there will not be datatypes. Datatypes are much more complicated to formalize than are coercions and type families, and it will be easier to formalize datatypes after formalizing coercions and type families.
+Note here that datatypes are used to demonstrate the power of coercions. However, at this point in the implementation, there will not be datatypes. Datatypes are much more complicated to formalize than are coercions and type families, and it is easier to formalize datatypes after formalizing coercions and type families.
 
 %For example, the standard Haskell function map shown below acts over a list of generic type \texttt{a}, applying a transformation function to each element and returns a list of type \texttt{b}.
 %\begin{verbatim}
@@ -220,7 +219,7 @@ Note here that datatypes are used to demonstrate the power of coercions. However
 %\end{verbatim}
 %In order to type check \texttt{map} in System FC, the generic type variables \texttt{a} and \texttt{b} must be coerced to match the types of the arguments to \texttt{map}.  In the expression \texttt{map (> 0) [-1,0,1]}, the abstract types \texttt{a} and \texttt{b} must be coerced to the concrete types \texttt{Int} and \texttt{Bool} respectively.
 
-After adding type coercions without data types, and verifying correctness using the progress and preservation theorems, the type family feature will be added. At the most basic level, type families are just functions at the type-level. Below is a basic example of a type family.
+After adding type coercions without data types, and verifying correctness using the progress and preservation theorems, the type family feature is added. At the most basic level, type families are just functions at the type-level. Below is a basic example of a type family.
 \begin{verbatim}
 data Ty = Tint
         | TBool
@@ -231,14 +230,14 @@ type instance I TBool = Bool
 \end{verbatim}
 In this example~\cite{DBLP:conf/icfp/WeirichHE13}, the type \texttt{Ty} is defined to be either a \texttt{TInt} or \texttt{TBool}. Then, the type family \texttt{I} is defined to act on something of type \texttt{Ty}, either a \texttt{TInt} or \texttt{TBool}. This returns something of kind \texttt{*}. So, this type family \texttt{I} can map the data constructor \texttt{TInt} to \texttt{Int} and \texttt{TBool} to \texttt{Bool}.
 
-Next, datatypes will be added to the formalization of System FC. Datatypes are another very powerful construct in Haskell that allow programmers to define their own algebraic types. Types defined in such ways can be used to represent many constructs. For example, datatypes can be used to define generic lists as follows:
+Next, datatypes are added to the formalization of System FC. Datatypes are another very powerful construct in Haskell that allow programmers to define their own algebraic types. Types defined in such ways can be used to represent many constructs. For example, datatypes can be used to define generic lists as follows:
 \begin{verbatim}
 data List a = Nil
             | Cons a (List a)
 \end{verbatim}
-Here, a list is parameterized by the generic type variable \texttt{a} and is constructed as either \texttt{Nil}, the empty list, or an element of type \texttt{a} consed on to a list of type \texttt{a}. This construct is extremely simple, but also very powerful.  It is another very important addition to System FC.
+Here, a list is parameterized by the generic type variable \texttt{a} and is constructed as either \texttt{Nil}, the empty list, or an element of type \texttt{a} consed on to a list of type \texttt{a}. This construct is extremely simple, but also very powerful. It is another very important addition to System FC.
 
-The language resulting from added the features described above to System F is a formalization of the language System FC.  A translation to the core language that is actually implemented in GHC will then be proven. This verified translation will prove that the formalized language is indeed equivalent to System FC and therefore the proofs on the formalized language will hold on the actual language.
+The language resulting from adding the features described above to System F is a formalization of the language System FC. A translation to the core language that is actually implemented in GHC is then be proven. This verified translation then proves that the formalized language is indeed equivalent to System FC and therefore the proofs on the formalized language hold on the actual language.
 
 \label{sec:block_diagram}
 \tikzstyle{int}=[draw, fill=blue!20, minimum size=2em]
@@ -312,7 +311,7 @@ The language resulting from added the features described above to System F is a 
 \label{subsec:tech_challenges}
 One of the primary challenges in completing this project is deciding on an order to iteratively add features in order to sensibly formalize System FC and GHC Core. Currently, the plan is to add coerciosn first, followed by type families, followed by datatypes. However, there may be unforeseen dependencies that make this ordering impractical. For example, it may be impossible or infeasible to add coercions before adding datatypes. Further, GHC Core would prove difficult to formalize due to the fact that the operational and typing semantics of this language are geared toward making it easy to perform compiler optimizations on the language, rather than making it easy to analyze its semantics. In order to obviate this, the semantics of System FC will be formalized and then a direct translation between these formalized semantics and the semantics of GHC Core will be proven.
 
-One specific challenge may arise regarding the proofs of progress, preservation, and soundness in some instances after coercions, datatypes, and type families have been. Recall Figure 4. Here, a coercion could be added in the scrutinee of the case statement of \texttt{f}, where the scrutinee of a case statement represents that which is being broken down into cases. With this addition, progress, preservation, and soundness may be very difficult to prove.
+One specific challenge may arise regarding the proofs of progress, preservation, and soundness in some instances after coercions, datatypes, and type families have been added. Recall Figure 4. Here, a coercion could be added in the scrutinee of the case statement of \texttt{f}, where the scrutinee of a case statement represents that which is being broken down into cases. With this addition, progress, preservation, and soundness may be very difficult to prove.
 
 Additionally, since the formalization of System FC has never been performed before, it is difficult to estimate how long it will take to formalize different parts of System FC. In fact, axioms may be required in order to bypass rather large or unwieldy proofs that are obvious, but necessary to achieve the primary goals. Further, progress, preservation, and soundness may be, in fact, impossible to prove. This would be a result of the inconsistency in the specifications of System FC, which would be a major unexpected result.
 
