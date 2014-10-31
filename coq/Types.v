@@ -1,6 +1,8 @@
 (** * Types: Type Systems *)
 
-Require Export Auto.
+Require Export Smallstep.
+
+Hint Constructors multi.  
 
 (** Our next major topic is _type systems_ -- static program
     analyses that classify expressions according to the "shapes" of
@@ -69,7 +71,7 @@ Definition value (t:tm) := bvalue t \/ nvalue t.
 
 Hint Constructors bvalue nvalue.
 Hint Unfold value.  
-Hint Unfold beq_id beq_nat extend.
+Hint Unfold extend.
 
 (* ###################################################################### *)
 (** ** Operational Semantics *)
@@ -157,7 +159,6 @@ Tactic Notation "step_cases" tactic(first) ident(c) :=
   | Case_aux c "ST_Iszero" ].
 
 Hint Constructors step.
-
 (** Notice that the [step] relation doesn't care about whether
     expressions make global sense -- it just checks that the operation
     in the _next_ reduction step is being applied to the right kinds
@@ -190,7 +191,13 @@ Hint Unfold stuck.
 Example some_term_is_stuck :
   exists t, stuck t.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  exists (tsucc ttrue).
+  unfold stuck. split.
+  Case "l". unfold normal_form. unfold not. intros. inversion H.
+    inversion H0. inversion H2.
+  Case "r". unfold not. intros. inversion H. inversion H0. inversion H0.
+    inversion H2.
+Qed.
 (** [] *)
 
 (** However, although values and normal forms are not the same in this
@@ -372,14 +379,37 @@ Proof with auto.
     SCase "t1 can take a step".
       inversion H as [t1' H1].
       exists (tif t1' t2 t3)...
-  (* FILL IN HERE *) Admitted.
+  Case "T_Succ". inversion IHHT; clear IHHT. 
+    SCase "t1 is a value".  inversion H; clear H.
+      SSCase "t1 is a bvalue". solve by inversion 2.
+      SSCase "t1 is a nvalue". left...
+    SCase "t1 ==> t1'". inversion H; subst. right. exists (tsucc x).
+      apply ST_Succ. assumption.
+  Case "T_Pred". inversion IHHT; clear IHHT.
+    SCase "t1 is a value". inversion H; clear H.
+      SSCase "t1 is a bvalue". solve by inversion 2.
+      SSCase "t1 is a nvalue". right. inversion H0.
+        SSSCase "t1 is tzero". exists tzero...
+        SSSCase "t1 is succ". exists t...
+    SCase "t1 ==> t1'". inversion H; subst. right. exists (tpred x).
+      apply ST_Pred. assumption.
+  Case "T_Iszero". inversion IHHT; clear IHHT.
+    SCase "t1 is a value". inversion H; clear H.
+      SSCase "t1 is a bvalue". solve by inversion 2.
+      SSCase "t1 is a nvalue". right. inversion H0.
+        SSSCase "t1 is tzero". exists ttrue. constructor.
+        SSSCase "t1 is tsucc". exists tfalse. constructor. assumption.
+    SCase "t1 ==> t1'". inversion H; subst. right. exists (tiszero x).
+      constructor. assumption.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, advanced (finish_progress_informal) *)
 (** Complete the corresponding informal proof: *)
 
 (** _Theorem_: If [|- t \in T], then either [t] is a value or else 
-    [t ==> t'] for some [t']. *)
+
+   [t ==> t'] for some [t']. *)
 
 (** _Proof_: By induction on a derivation of [|- t \in T].
 
@@ -394,6 +424,7 @@ Proof with auto.
               [Bool] to any term that could be an [nvalue].  So [t1]
               is a [bvalue] -- i.e., it is either [true] or [false].
               If [t1 = true], then [t] steps to [t2] by [ST_IfTrue],
+
               while if [t1 = false], then [t] steps to [t3] by
               [ST_IfFalse].  Either way, [t] can step, which is what
               we wanted to show.
@@ -413,14 +444,14 @@ Proof with auto.
 (** **** Exercise: 1 star (step_review) *)
 (** Quick review.  Answer _true_ or _false_.  In this language...
       - Every well-typed normal form is a value.
-
+          True
       - Every value is a normal form.
-
+          True
       - The single-step evaluation relation is
         a partial function (i.e., it is deterministic).
-
+          True
       - The single-step evaluation relation is a _total_ function.
-
+          False
 *)
 (** [] *)
 
@@ -460,7 +491,15 @@ Proof with auto.
       SCase "ST_IfFalse". assumption.
       SCase "ST_If". apply T_If; try assumption.
         apply IHHT1; assumption.
-    (* FILL IN HERE *) Admitted.
+    Case "T_Succ". inversion HE; subst.
+      SCase "ST_Succ". apply T_Succ; try assumption. apply IHHT. assumption.
+    Case "T_Pred". inversion HE; subst.
+      SCase "tzero". apply T_Zero. 
+      SCase "tsucc". inversion HT. assumption.
+      SCase "tpred". apply T_Pred. apply IHHT. assumption.
+    Case "T_Iszero". inversion HE; subst. apply T_True. apply T_False.
+      apply T_Iszero. apply IHHT. assumption.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, advanced (finish_preservation_informal) *)
@@ -507,6 +546,131 @@ Theorem preservation' : forall t t' T,
   t ==> t' ->
   |- t' \in T.
 Proof with eauto.
+  intros t t' T HT HE. generalize dependent T.
+  step_cases (induction HE) Case; intros T H'; inversion H'; subst.
+  Case "ST_IfTrue". assumption.
+  Case "ST_IfFalse". assumption.
+  Case "ST_If". apply T_If. apply IHHE. assumption. assumption. assumption.
+  Case "ST_Succ". apply T_Succ. apply IHHE. assumption.
+  Case "ST_PredZero". apply T_Zero.
+  Case "ST_PredSucc". inversion H1. assumption.
+  Case "ST_Pred". apply T_Pred. apply IHHE. assumption.
+  Case "ST_IszeroZero". apply T_True.
+  Case "ST_IszeroSucc". apply T_False.
+  Case "ST_Iszero". apply T_Iszero. apply IHHE. assumption.
+Qed.
+(** [] *)
+
+(* ###################################################################### *)
+(** * Aside: the [normalize] Tactic *)
+
+(** When experimenting with definitions of programming languages in
+    Coq, we often want to see what a particular concrete term steps
+    to -- i.e., we want to find proofs for goals of the form [t ==>*
+    t'], where [t] is a completely concrete term and [t'] is unknown.
+    These proofs are simple but repetitive to do by hand. Consider for
+    example reducing an arithmetic expression using the small-step
+    relation [astep]. *)
+
+
+Definition amultistep st := multi (astep st). 
+Notation " t '/' st '==>a*' t' " := (amultistep st t t')
+  (at level 40, st at level 39).
+
+Example astep_example1 : 
+  (APlus (ANum 3) (AMult (ANum 3) (ANum 4))) / empty_state 
+  ==>a* (ANum 15).
+Proof.
+  apply multi_step with (APlus (ANum 3) (ANum 12)).
+    apply AS_Plus2. 
+      apply av_num. 
+      apply AS_Mult.
+  apply multi_step with (ANum 15).
+    apply AS_Plus.
+  apply multi_refl.
+Qed.
+
+(** We repeatedly apply [multi_step] until we get to a normal
+    form. The proofs that the intermediate steps are possible are
+    simple enough that [auto], with appropriate hints, can solve
+    them. *)
+
+Hint Constructors astep aval.
+Example astep_example1' : 
+  (APlus (ANum 3) (AMult (ANum 3) (ANum 4))) / empty_state 
+  ==>a* (ANum 15).
+Proof.
+  eapply multi_step. auto. simpl.
+  eapply multi_step. auto. simpl.
+  apply multi_refl.
+Qed.
+
+
+(** The following custom [Tactic Notation] definition captures this
+    pattern.  In addition, before each [multi_step] we print out the
+    current goal, so that the user can follow how the term is being
+    evaluated. *)
+
+Tactic Notation "print_goal" := match goal with |- ?x => idtac x end.
+Tactic Notation "normalize" := 
+   repeat (print_goal; eapply multi_step ; 
+             [ (eauto 10; fail) | (instantiate; simpl)]);
+   apply multi_refl.
+
+
+Example astep_example1'' : 
+  (APlus (ANum 3) (AMult (ANum 3) (ANum 4))) / empty_state 
+  ==>a* (ANum 15).
+Proof.
+  normalize.
+  (* At this point in the proof script, the Coq response shows 
+     a trace of how the expression evaluated. 
+
+   (APlus (ANum 3) (AMult (ANum 3) (ANum 4)) / empty_state ==>a* ANum 15)
+   (multi (astep empty_state) (APlus (ANum 3) (ANum 12)) (ANum 15))
+   (multi (astep empty_state) (ANum 15) (ANum 15))
+*)
+Qed.
+
+
+(** The [normalize] tactic also provides a simple way to calculate
+    what the normal form of a term is, by proving a goal with an
+    existential variable in it. *)
+
+Example astep_example1''' : exists e',
+  (APlus (ANum 3) (AMult (ANum 3) (ANum 4))) / empty_state 
+  ==>a* e'.
+Proof.
+  eapply ex_intro. normalize.
+
+(* This time, the trace will be:
+
+    (APlus (ANum 3) (AMult (ANum 3) (ANum 4)) / empty_state ==>a* ??)
+    (multi (astep empty_state) (APlus (ANum 3) (ANum 12)) ??)
+    (multi (astep empty_state) (ANum 15) ??)
+
+   where ?? is the variable ``guessed'' by eapply.
+*)
+Qed.
+
+
+(** **** Exercise: 1 star (normalize_ex) *)
+Theorem normalize_ex : exists e',
+  (AMult (ANum 3) (AMult (ANum 2) (ANum 1))) / empty_state 
+  ==>a* e'.
+Proof.
+  eapply ex_intro. normalize.
+Qed.
+
+(** [] *)
+
+(** **** Exercise: 1 star, optional (normalize_ex') *)
+(** For comparison, prove it using [apply] instead of [eapply]. *)
+
+Theorem normalize_ex' : exists e',
+  (AMult (ANum 3) (AMult (ANum 2) (ANum 1))) / empty_state 
+  ==>a* e'.
+Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
@@ -540,7 +704,7 @@ Proof.
     not, give a counter-example.  (You do not need to prove your
     counter-example in Coq, but feel free to do so if you like.)
 
-    (* FILL IN HERE *)
+    (* Counter-example: t = if ttrue 1 ttrue *)
 []
 *)
 
@@ -557,11 +721,11 @@ Proof.
    else "becomes false." If a property becomes false, give a
    counterexample.
       - Determinism of [step]
-
+          remains true.
       - Progress
-
+          remains true.
       - Preservation
-
+          remains true.          
 []
 *)
 
@@ -571,7 +735,12 @@ Proof.
            (tif ttrue t2 t3) ==> t3
    Which of the above properties become false in the presence of
    this rule?  For each one that does, give a counter-example.
-
+      - Determinism of [step]
+          becomes false: tif ttrue ttrue 1 could be ttrue or 1.
+      - Progress
+          remains true.
+      - Preservation
+          remains true.
 []
 *)
 
@@ -635,7 +804,8 @@ Proof.
     achieve this simply by removing the rule from the definition of
     [step]?  Would doing so create any problems elsewhere? 
 
-(* FILL IN HERE *)
+(* This rule would not work for any instance of 'pred zero'. It
+   would not know what to do and no progress could be made. *)
 [] *)
 
 (** **** Exercise: 4 stars, advanced (prog_pres_bigstep) *)
@@ -647,4 +817,4 @@ Proof.
 []
 *)
 
-(* $Date: 2013-04-10 17:40:22 -0400 (Wed, 10 Apr 2013) $ *)
+(* $Date: 2013-07-17 16:19:11 -0400 (Wed, 17 Jul 2013) $ *)

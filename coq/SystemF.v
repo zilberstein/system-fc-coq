@@ -77,9 +77,9 @@ Reserved Notation "'[' x ':=' s ']' t" (at level 20).
 Fixpoint subst_term_fix (x:id) (s:tm) (t:tm) : tm :=
   match t with
   | tvar x' => 
-      if beq_id x x' then s else t
+      if eq_id_dec x x' then s else t
   | tabs x' T t1 => 
-      tabs x' T (if beq_id x x' then t1 else ([x:=s] t1)) 
+      tabs x' T (if eq_id_dec x x' then t1 else ([x:=s] t1)) 
   | tapp t1 t2 => 
       tapp ([x:=s] t1) ([x:=s] t2)
   | ttabs X t =>
@@ -135,7 +135,7 @@ Inductive subst_term (s:tm) (x:id) : tm -> tm -> Prop :=
 Hint Constructors subst_term.
 
 Theorem subst_term_correct : forall s x t t',
-  [x:=s]t = t' <-> substi s x t t'.
+  [x:=s]t = t' <-> subst_term s x t t'.
 Proof.
   intros s x t. split.
   Case "->".
