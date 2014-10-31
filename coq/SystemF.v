@@ -1,172 +1,36 @@
-(** * Stlc: The Simply Typed Lambda-Calculus *)
+(** * System F **)
 
 Require Export Types.
-
-(* ###################################################################### *)
-(** * The Simply Typed Lambda-Calculus *)
-
-(** The simply typed lambda-calculus (STLC) is a tiny core calculus
-    embodying the key concept of _functional abstraction_, which shows
-    up in pretty much every real-world programming language in some
-    form (functions, procedures, methods, etc.).
-    
-    We will follow exactly the same pattern as in the previous
-    chapter when formalizing this calculus (syntax, small-step
-    semantics, typing rules) and its main properties (progress and
-    preservation).  The new technical challenges (which will take some
-    work to deal with) all arise from the mechanisms of _variable
-    binding_ and _substitution_. *)
-
-(* ###################################################################### *)
-(** ** Overview *)
-
-(** The STLC is built on some collection of _base types_ -- booleans,
-    numbers, strings, etc.  The exact choice of base types doesn't
-    matter -- the construction of the language and its theoretical
-    properties work out pretty much the same -- so for the sake of
-    brevity let's take just [Bool] for the moment.  At the end of the
-    chapter we'll see how to add more base types, and in later
-    chapters we'll enrich the pure STLC with other useful constructs
-    like pairs, records, subtyping, and mutable state.
-
-    Starting from the booleans, we add three things:
-        - variables
-        - function abstractions
-        - application
-
-    This gives us the following collection of abstract syntax
-    constructors (written out here in informal BNF notation -- we'll
-    formalize it below).
-
-*)
-
-(** Informal concrete syntax: 
-       t ::= x                       variable
-           | \x:T1.t2                abstraction
-           | t1 t2                   application
-           | true                    constant true
-           | false                   constant false
-           | if t1 then t2 else t3   conditional
-*)
-
-(** The [\] symbol (backslash, in ascii) in a function abstraction
-    [\x:T1.t2] is generally written as a greek letter "lambda" (hence
-    the name of the calculus).  The variable [x] is called the
-    _parameter_ to the function; the term [t1] is its _body_.  The
-    annotation [:T] specifies the type of arguments that the function
-    can be applied to. *)
-
-(** Some examples:
-
-      - [\x:Bool. x]
-
-        The identity function for booleans.
-
-      - [(\x:Bool. x) true]
-
-        The identity function for booleans, applied to the boolean [true].
-
-      - [\x:Bool. if x then false else true]
-
-        The boolean "not" function.
-
-      - [\x:Bool. true]
-
-        The constant function that takes every (boolean) argument to
-        [true]. *)
-(**  
-      - [\x:Bool. \y:Bool. x]
-
-        A two-argument function that takes two booleans and returns
-        the first one.  (Note that, as in Coq, a two-argument function
-        is really a one-argument function whose body is also a
-        one-argument function.)
-
-      - [(\x:Bool. \y:Bool. x) false true]
-
-        A two-argument function that takes two booleans and returns
-        the first one, applied to the booleans [false] and [true].
-
-        Note that, as in Coq, application associates to the left --
-        i.e., this expression is parsed as [((\x:Bool. \y:Bool. x)
-        false) true].
-
-      - [\f:Bool->Bool. f (f true)]
-
-        A higher-order function that takes a _function_ [f] (from
-        booleans to booleans) as an argument, applies [f] to [true],
-        and applies [f] again to the result.
-
-      - [(\f:Bool->Bool. f (f true)) (\x:Bool. false)]
-
-        The same higher-order function, applied to the constantly
-        [false] function. *)
-
-(** As the last several examples show, the STLC is a language of
-    _higher-order_ functions: we can write down functions that take
-    other functions as arguments and/or return other functions as
-    results.  
-
-    Another point to note is that the STLC doesn't provide any
-    primitive syntax for defining _named_ functions -- all functions
-    are "anonymous."  We'll see in chapter [MoreStlc] that it is easy
-    to add named functions to what we've got -- indeed, the
-    fundamental naming and binding mechanisms are exactly the same.  
-
-    The _types_ of the STLC include [Bool], which classifies the
-    boolean constants [true] and [false] as well as more complex
-    computations that yield booleans, plus _arrow types_ that classify
-    functions. *)
-(**
-      T ::= Bool
-          | T1 -> T2
-    For example:
-
-      - [\x:Bool. false] has type [Bool->Bool]
-
-      - [\x:Bool. x] has type [Bool->Bool]
-
-      - [(\x:Bool. x) true] has type [Bool]
-
-      - [\x:Bool. \y:Bool. x] has type [Bool->Bool->Bool] (i.e. [Bool -> (Bool->Bool)])
-
-      - [(\x:Bool. \y:Bool. x) false] has type [Bool->Bool]
-
-      - [(\x:Bool. \y:Bool. x) false true] has type [Bool]
-*)
-
-
-
 
 
 (* ###################################################################### *)
 (** ** Syntax *)
 
-Module STLC.
+Module SystemF.
 
 (* ################################### *)
 (** *** Types *)
 
 Inductive ty : Type := 
-  | TBool  : ty 
-  | TArrow : ty -> ty -> ty.
+  | TVar   : id -> ty 
+  | TArrow : ty -> ty -> ty
+  | TUniv  : forall (X : ty),ty.
 
 (* ################################### *)
 (** *** Terms *)
 
 Inductive tm : Type :=
-  | tvar : id -> tm
-  | tapp : tm -> tm -> tm
-  | tabs : id -> ty -> tm -> tm
-  | ttrue : tm
-  | tfalse : tm
-  | tif : tm -> tm -> tm -> tm.
+  | tvar  : id -> tm
+  | tapp  : tm -> tm -> tm
+  | tabs  : id -> ty -> tm -> tm
+  | ttapp : tm -> ty -> tm
+  | ttabs : id -> tm -> tm.
 
 Tactic Notation "t_cases" tactic(first) ident(c) :=
   first;
   [ Case_aux c "tvar" | Case_aux c "tapp" 
-  | Case_aux c "tabs" | Case_aux c "ttrue" 
-  | Case_aux c "tfalse" | Case_aux c "tif" ].
+  | Case_aux c "tabs" | Case_aux c "ttapp" 
+  | Case_aux c "ttabs" ].
 
 (** Note that an abstraction [\x:T.t] (formally, [tabs x T t]) is
     always annotated with the type [T] of its parameter, in contrast
@@ -183,34 +47,6 @@ Hint Unfold x.
 Hint Unfold y.
 Hint Unfold z.
 
-(** [idB = \x:Bool. x] *)
-
-Notation idB := 
-  (tabs x TBool (tvar x)).
-
-(** [idBB = \x:Bool->Bool. x] *)
-
-Notation idBB := 
-  (tabs x (TArrow TBool TBool) (tvar x)).
-
-(** [idBBBB = \x:(Bool->Bool) -> (Bool->Bool). x] *)
-
-Notation idBBBB :=
-  (tabs x (TArrow (TArrow TBool TBool) 
-                      (TArrow TBool TBool)) 
-    (tvar x)).
-
-(** [k = \x:Bool. \y:Bool. x] *)
-
-Notation k := (tabs x TBool (tabs y TBool (tvar x))).
-
-(** [notB = \x:Bool. if x then false else true] *)
-
-Notation notB := (tabs x TBool (tif (tvar x) tfalse ttrue)).
-
-
-(** (We write these as [Notation]s rather than [Definition]s to make
-    things easier for [auto].) *)
 
 (* ###################################################################### *)
 (** ** Operational Semantics *)
@@ -224,50 +60,11 @@ Notation notB := (tabs x TBool (tif (tvar x) tfalse ttrue)).
 (* ################################### *)
 (** *** Values *)
 
-(** To define the values of the STLC, we have a few cases to consider.
-
-    First, for the boolean part of the language, the situation is
-    clear: [true] and [false] are the only values.  An [if]
-    expression is never a value. *)
-
-(** Second, an application is clearly not a value: It represents a
-    function being invoked on some argument, which clearly still has
-    work left to do. *)
-
-(** Third, for abstractions, we have a choice:
-
-      - We can say that [\x:T.t1] is a value only when [t1] is a
-        value -- i.e., only if the function's body has been
-        reduced (as much as it can be without knowing what argument it
-        is going to be applied to).
-
-      - Or we can say that [\x:T.t1] is always a value, no matter
-        whether [t1] is one or not -- in other words, we can say that
-        reduction stops at abstractions.
-
-    Coq, in its built-in functional programming langauge, makes the
-    first choice -- for example,
-         Eval simpl in (fun x:bool => 3 + 4)
-    yields [fun x:bool => 7].  
-
-    Most real-world functional programming languages make the second
-    choice -- reduction of a function's body only begins when the
-    function is actually applied to an argument.  We also make the
-    second choice here. *)
-
-(** Finally, having made the choice not to reduce under abstractions,
-    we don't need to worry about whether variables are values, since
-    we'll always be reducing programs "from the outside in," and that
-    means the [step] relation will always be working with closed
-    terms (ones with no free variables).  *)
-
 Inductive value : tm -> Prop :=
   | v_abs : forall x T t,
       value (tabs x T t)
-  | v_true : 
-      value ttrue
-  | v_false : 
-      value tfalse.
+  | v_tabs : forall X t,
+      value (ttabs X t).
 
 Hint Constructors value.
 
@@ -275,66 +72,9 @@ Hint Constructors value.
 (* ###################################################################### *)
 (** *** Free Variables and Substitution *)
 
-(** Now we come to the heart of the STLC: the operation of
-    substituting one term for a variable in another term.
-
-    This operation will be used below to define the operational
-    semantics of function application, where we will need to
-    substitute the argument term for the function parameter in the
-    function's body.  For example, we reduce
-       (\x:Bool. if x then true else x) false
-    to 
-       if false then true else false
-]] 
-    by substituting [false] for the parameter [x] in the body of the
-    function.  
-
-    In general, we need to be able to substitute some given
-    term [s] for occurrences of some variable [x] in another term [t].
-    In informal discussions, this is usually written [ [x:=s]t ] and
-    pronounced "substitute [x] with [s] in [t]." *)
-
-(** Here are some examples:
-
-      - [[x:=true] (if x then x else false)] yields [if true then true else false]
-
-      - [[x:=true] x] yields [true]
-
-      - [[x:=true] (if x then x else y)] yields [if true then true else y]
-
-      - [[x:=true] y] yields [y]
-
-      - [[x:=true] false] yields [false] (vacuous substitution)
-
-      - [[x:=true] (\y:Bool. if y then x else false)] yields [\y:Bool. if y then true else false]
-      - [[x:=true] (\y:Bool. x)] yields [\y:Bool. true]
-
-      - [[x:=true] (\y:Bool. y)] yields [\y:Bool. y]
-
-      - [[x:=true] (\x:Bool. x)] yields [\x:Bool. x]
-
-    The last example is very important: substituting [x] with [true] in
-    [\x:Bool. x] does _not_ yield [\x:Bool. true]!  The reason for
-    this is that the [x] in the body of [\x:Bool. x] is _bound_ by the
-    abstraction: it is a new, local name that just happens to be
-    spelled the same as some global name [x]. *)
-
-(** Here is the definition, informally...
-   [x:=s]x = s
-   [x:=s]y = y                                   if x <> y
-   [x:=s](\x:T11.t12)   = \x:T11. t12      
-   [x:=s](\y:T11.t12)   = \y:T11. [x:=s]t12      if x <> y
-   [x:=s](t1 t2)        = ([x:=s]t1) ([x:=s]t2)       
-   [x:=s]true           = true
-   [x:=s]false          = false
-   [x:=s](if t1 then t2 else t3) = 
-                   if [x:=s]t1 then [x:=s]t2 else [x:=s]t3
-]]  
-    ... and formally: *)
-
 Reserved Notation "'[' x ':=' s ']' t" (at level 20).
 
-Fixpoint subst (x:id) (s:tm) (t:tm) : tm :=
+Fixpoint subst_term_fix (x:id) (s:tm) (t:tm) : tm :=
   match t with
   | tvar x' => 
       if beq_id x x' then s else t
@@ -342,15 +82,13 @@ Fixpoint subst (x:id) (s:tm) (t:tm) : tm :=
       tabs x' T (if beq_id x x' then t1 else ([x:=s] t1)) 
   | tapp t1 t2 => 
       tapp ([x:=s] t1) ([x:=s] t2)
-  | ttrue => 
-      ttrue
-  | tfalse => 
-      tfalse
-  | tif t1 t2 t3 => 
-      tif ([x:=s] t1) ([x:=s] t2) ([x:=s] t3)
+  | ttabs X t =>
+      ttabs X ([x:=s] t)
+  | ttapp t T =>
+      ttapp ([x:=s] t) T      
   end
 
-where "'[' x ':=' s ']' t" := (subst x s t).
+where "'[' x ':=' s ']' t" := (subst_term_fix x s t).
 
 (** _Technical note_: Substitution becomes trickier to define if we
     consider the case where [s], the term being substituted for a
@@ -371,18 +109,70 @@ where "'[' x ':=' s ']' t" := (subst x s t).
     one of the constructors; your job is to fill in the rest of the
     constructors. *)
 
-Inductive substi (s:tm) (x:id) : tm -> tm -> Prop := 
-  | s_var1 : 
-      substi s x (tvar x) s
-  (* FILL IN HERE *)
-.
+Inductive subst_term (s:tm) (x:id) : tm -> tm -> Prop := 
+  | s_var1 :
+      subst_term s x (tvar x) s
+  | s_var2 : forall x',
+      x <> x' ->
+      subst_term s x (tvar x') (tvar x')
+  | s_tabs1 : forall T t,
+      subst_term s x (tabs x T t) (tabs x T t)
+  | s_tabs2 : forall x' T t t',
+      x <> x' ->
+      subst_term s x t t' ->
+      subst_term s x (tabs x' T t) (tabs x' T t')
+  | s_tapp : forall t1 t2 t1' t2',
+      subst_term s x t1 t1' ->
+      subst_term s x t2 t2' ->
+      subst_term s x (tapp t1 t2) (tapp t1' t2')
+  | s_ttabs : forall t t' X,
+      subst_term s x t t' ->
+      subst_term s x (ttabs X t) (ttabs X t')
+  | s_ttapp : forall t t' T,
+      subst_term s x t t' ->
+      subst_term s x (ttapp t T) (ttapp t' T).
 
-Hint Constructors substi.
+Hint Constructors subst_term.
 
-Theorem substi_correct : forall s x t t',
+Theorem subst_term_correct : forall s x t t',
   [x:=s]t = t' <-> substi s x t t'.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros s x t. split.
+  Case "->".
+    generalize dependent t'. induction t; intros t' H; simpl in H.
+    SCase "t = tvar i".
+      destruct (eq_id_dec x i) in H; subst.
+      SSCase "x = i".
+        constructor.
+      SSCase "x <> i".
+        constructor. assumption.
+    SCase "t = tapp t1 t2".
+      rewrite <- H. constructor.
+      apply IHt1. reflexivity.
+      apply IHt2. reflexivity.
+    SCase "t = tabs i t t0".
+      destruct (eq_id_dec x i) in H; subst.
+      SSCase "x = i".
+        constructor.
+      SSCase "x <> i".
+        constructor. assumption.
+        apply IHt. reflexivity.
+    SCase "t = ttrue".
+      subst. constructor.
+    SCase "t = tfalse".
+      subst. constructor.
+    SCase "t = tif t1 t2 t3".
+      rewrite <- H. constructor.
+      apply IHt1. reflexivity.
+      apply IHt2. reflexivity.
+      apply IHt3. reflexivity.
+  Case "<-".
+    intro H. induction H; simpl;
+    try (rewrite -> eq_id); try (rewrite -> neq_id);
+    subst; try reflexivity; try assumption.
+Qed.
+
+
 (** [] *)
 
 (* ################################### *)
@@ -412,32 +202,22 @@ Proof.
                            ----------------                           (ST_App2)
                            v1 t2 ==> v1 t2'
 *)
-(** ... plus the usual rules for booleans:
-                    --------------------------------                (ST_IfTrue)
-                    (if true then t1 else t2) ==> t1
 
-                    ---------------------------------              (ST_IfFalse)
-                    (if false then t1 else t2) ==> t2
-
-                              t1 ==> t1'
-         ----------------------------------------------------           (ST_If)
-         (if t1 then t2 else t3) ==> (if t1' then t2 else t3)
-*)
 
 Reserved Notation "t1 '==>' t2" (at level 40).
 
 Inductive step : tm -> tm -> Prop :=
-  | ST_AppAbs : forall x T t12 v2,
+  | E_AppAbs : forall x T t12 v2,
          value v2 ->
          (tapp (tabs x T t12) v2) ==> [x:=v2]t12
-  | ST_App1 : forall t1 t1' t2,
+  | E_App1 : forall t1 t1' t2,
          t1 ==> t1' ->
          tapp t1 t2 ==> tapp t1' t2
-  | ST_App2 : forall v1 t2 t2',
+  | E_App2 : forall v1 t2 t2',
          value v1 ->
          t2 ==> t2' -> 
          tapp v1 t2 ==> tapp v1  t2'
-  | ST_IfTrue : forall t1 t2,
+  | E_IfTrue : forall t1 t2,
       (tif ttrue t1 t2) ==> t1
   | ST_IfFalse : forall t1 t2,
       (tif tfalse t1 t2) ==> t2
@@ -798,7 +578,5 @@ Proof.
 
 
 
-End STLC.
-
-(* $Date: 2013-04-17 11:24:12 -0400 (Wed, 17 Apr 2013) $ *)
+End SystemF.
 

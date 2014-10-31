@@ -1,6 +1,6 @@
 (** * SfLib: Software Foundations Library *)
 
-(* $Date: 2013-04-09 20:53:20 -0400 (Tue, 09 Apr 2013) $ *)
+(* $Date: 2013-07-17 16:19:11 -0400 (Wed, 17 Jul 2013) $ *)
 
 (** Here we collect together several useful definitions and theorems
     from Basics.v, List.v, Poly.v, Ind.v, and Logic.v that are not
@@ -13,6 +13,7 @@
 Require Omega.   (* needed for using the [omega] tactic *)
 Require Export Bool.
 Require Export List.
+Export ListNotations.
 Require Export Arith.
 Require Export Arith.EqNat.  (* Contains [beq_nat], among other things *)
 
@@ -78,13 +79,6 @@ Theorem beq_nat_sym : forall (n m : nat),
 (* An exercise in Lists.v *)
 Admitted.
 
-(* From Poly.v *)
-
-Notation "[ ]" := nil.
-Notation "[ x , .. , y ]" := (cons x .. (cons y []) ..).
-Notation "x ++ y" := (app x y) 
-                     (at level 60, right associativity).
-
 (** * From Props.v *)
 
 Inductive ev : nat -> Prop :=
@@ -103,7 +97,7 @@ Proof.
       inversion H.
     inversion H.  Qed.
 
-Theorem not_eq_beq_false : forall n n' : nat,
+Theorem false_beq_nat: forall n n' : nat,
      n <> n' ->
      beq_nat n n' = false.
 Proof. 
@@ -179,51 +173,34 @@ Theorem multi_trans :
 Proof.
   (* FILL IN HERE *) Admitted.
 
-(* Identifiers and polymorphic partial maps. *)
+(**  Identifiers and polymorphic partial maps. *)
+
 Inductive id : Type := 
   Id : nat -> id.
 
-Definition beq_id id1 id2 :=
-  match (id1, id2) with
-    (Id n1, Id n2) => beq_nat n1 n2
-  end.
-
-Theorem beq_id_refl : forall i,
-  true = beq_id i i.
+Theorem eq_id_dec : forall id1 id2 : id, {id1 = id2} + {id1 <> id2}.
 Proof.
-  intros. destruct i.
-  apply beq_nat_refl.  Qed.
+   intros id1 id2.
+   destruct id1 as [n1]. destruct id2 as [n2].
+   destruct (eq_nat_dec n1 n2) as [Heq | Hneq].
+   Case "n1 = n2".
+     left. rewrite Heq. reflexivity.
+   Case "n1 <> n2".
+     right. intros contra. inversion contra. apply Hneq. apply H0.
+Defined. 
 
-Theorem beq_id_eq : forall i1 i2,
-  true = beq_id i1 i2 -> i1 = i2.
+Lemma eq_id : forall (T:Type) x (p q:T), 
+              (if eq_id_dec x x then p else q) = p. 
 Proof.
-  intros i1 i2 H.
-  destruct i1. destruct i2.
-  apply beq_nat_eq in H. subst.
-  reflexivity.  Qed.
+  intros. 
+  destruct (eq_id_dec x x); try reflexivity. 
+  apply ex_falso_quodlibet; auto.
+Qed.
 
-Theorem beq_id_false_not_eq : forall i1 i2,
-  beq_id i1 i2 = false -> i1 <> i2.
+Lemma neq_id : forall (T:Type) x y (p q:T), x <> y -> 
+               (if eq_id_dec x y then p else q) = q. 
 Proof.
-  intros i1 i2 H.
-  destruct i1. destruct i2.
-  apply beq_nat_false in H.
-  intros C. apply H. inversion C. reflexivity.  Qed.
-
-Theorem not_eq_beq_id_false : forall i1 i2,
-  i1 <> i2 -> beq_id i1 i2 = false.
-Proof.
-  intros i1 i2 H.
-  destruct i1. destruct i2.
-  assert (n <> n0).
-    intros C. subst. apply H. reflexivity.
-  apply not_eq_beq_false. assumption.  Qed.
-
-Theorem beq_id_sym: forall i1 i2,
-  beq_id i1 i2 = beq_id i2 i1.
-Proof.
-  intros i1 i2. destruct i1. destruct i2. apply beq_nat_sym. Qed.
-
+  (* FILL IN HERE *) Admitted.
 
 Definition partial_map (A:Type) := id -> option A.
 
@@ -232,26 +209,28 @@ Definition empty {A:Type} : partial_map A := (fun _ => None).
 Notation "'\empty'" := empty.
 
 Definition extend {A:Type} (Gamma : partial_map A) (x:id) (T : A) :=
-  fun x' => if beq_id x x' then Some T else Gamma x'.
+  fun x' => if eq_id_dec x x' then Some T else Gamma x'.
 
 Lemma extend_eq : forall A (ctxt: partial_map A) x T,
   (extend ctxt x T) x = Some T.
 Proof.
-  intros. unfold extend. rewrite <- beq_id_refl. auto.
+  intros. unfold extend. rewrite eq_id; auto. 
 Qed.
 
 Lemma extend_neq : forall A (ctxt: partial_map A) x1 T x2,
-  beq_id x2 x1 = false ->
+  x2 <> x1 ->
   (extend ctxt x2 T) x1 = ctxt x1.
 Proof.
-  intros. unfold extend. rewrite H. auto.
+  intros. unfold extend. rewrite neq_id; auto. 
 Qed.
 
 Lemma extend_shadow : forall A (ctxt: partial_map A) t1 t2 x1 x2,
   extend (extend ctxt x2 t1) x2 t2 x1 = extend ctxt x2 t2 x1.
 Proof with auto.
-  intros. unfold extend. destruct (beq_id x2 x1)...
+  intros. unfold extend. destruct (eq_id_dec x2 x1)...
 Qed.
+
+(** -------------------- *)
 
 (** * Some useful tactics *)
 
