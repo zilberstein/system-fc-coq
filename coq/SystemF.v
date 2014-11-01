@@ -174,14 +174,18 @@ Qed.
 
 (* Type Sustitution *)
 
-Fixpoint subst_type_in_type_fix (X:id) (T:ty) (T':ty) : ty :=
-  match T with
+Reserved Notation "'[' X '|:=' T1 ']' T2" (at level 20).
+
+Fixpoint subst_type_in_type_fix (X:id) (T2:ty) (T1:ty) : ty :=
+  match T2 with
   | TVar X' =>
-      if eq_id_dec X X' then T' else T
-  | TArrow T1 T2 =>
-      TArrow (subst_type_in_type_fix X T1 T') (subst_type_in_type_fix X T2 T')
-  | TUniv T1 => TUniv (subst_type_in_type_fix X T1 T')
-  end.
+      if eq_id_dec X X' then T1 else T2
+  | TArrow T T' =>
+      TArrow (subst_type_in_type_fix X T T1) (subst_type_in_type_fix X T' T1)
+  | TUniv T => TUniv (subst_type_in_type_fix X T T1)
+  end
+
+where "'[' X '|:=' T1 ']' T2" := (subst_type_in_type_fix X T2 T1).
 
 Reserved Notation "'[' X '|=' s ']' t" (at level 20).
 
@@ -519,10 +523,12 @@ Inductive has_type : context -> tm -> ty -> Prop :=
       Gamma |- t2 \in T11 -> 
       Gamma |- tapp t1 t2 \in T12
   | T_TAbs : forall Gamma X T t2 T2,
+      extend Gamma X T |- t2 \in T2 ->
+      Gamma |- ttabs X t2 \in (TUniv T2)
+  | T_TApp : forall Gamma t1 T12 T2,
+      Gamma |- t1 \in (TUniv T12) ->
+      Gamma |- ttapp t1 T2 \in subst_type_in_type_fix X T12 T2
       
-      extend Gamma X |- t2 \in T2 ->
-      Gamme |- tabs 
-
 where "Gamma '|-' t '\in' T" := (has_type Gamma t T).
 
 Tactic Notation "has_type_cases" tactic(first) ident(c) :=
@@ -536,114 +542,30 @@ Hint Constructors has_type.
 (* ################################### *)
 (** *** Examples *)
 
-Example typing_example_1 :
-  empty |- tabs x TBool (tvar x) \in TArrow TBool TBool.
-Proof.
-  apply T_Abs. apply T_Var. reflexivity.  Qed.
+Lemma type_unique : (forall S T, ~ (S = (TArrow S T))).
+  induction S; intros T contra; inversion contra; clear contra.
+  apply (IHS1 S2). assumption.
+Qed.  
 
-(** Note that since we added the [has_type] constructors to the hints
-    database, auto can actually solve this one immediately. *)
-
-Example typing_example_1' :
-  empty |- tabs x TBool (tvar x) \in TArrow TBool TBool.
-Proof. auto.  Qed.
-
-(** Another example:
-     empty |- \x:A. \y:A->A. y (y x)) 
-           \in A -> (A->A) -> A.
-*)
-
-Example typing_example_2 :
-  empty |-
-    (tabs x TBool
-       (tabs y (TArrow TBool TBool)
-          (tapp (tvar y) (tapp (tvar y) (tvar x))))) \in
-    (TArrow TBool (TArrow (TArrow TBool TBool) TBool)).
-Proof with auto using extend_eq.
-  apply T_Abs.
-  apply T_Abs.
-  eapply T_App. apply T_Var...
-  eapply T_App. apply T_Var...
-  apply T_Var...
-Qed.
-
-(** **** Exercise: 2 stars, optional (typing_example_2_full) *)
-(** Prove the same result without using [auto], [eauto], or
-    [eapply]. *)
-
-Example typing_example_2_full :
-  empty |-
-    (tabs x TBool
-       (tabs y (TArrow TBool TBool)
-          (tapp (tvar y) (tapp (tvar y) (tvar x))))) \in
-    (TArrow TBool (TArrow (TArrow TBool TBool) TBool)).
-Proof.
-  (* FILL IN HERE *) Admitted.
-(** [] *)
-
-(** **** Exercise: 2 stars (typing_example_3) *)
-(** Formally prove the following typing derivation holds: *)
-(** 
-   empty |- \x:Bool->B. \y:Bool->Bool. \z:Bool.
-               y (x z) 
-         \in T.
-*)
-
-Example typing_example_3 :
-  exists T, 
-    empty |-
-      (tabs x (TArrow TBool TBool)
-         (tabs y (TArrow TBool TBool)
-            (tabs z TBool
-               (tapp (tvar y) (tapp (tvar x) (tvar z)))))) \in
-      T.
-Proof with auto.
-  (* FILL IN HERE *) Admitted.
-(** [] *)
-
-(** We can also show that terms are _not_ typable.  For example, let's
-    formally check that there is no typing derivation assigning a type
-    to the term [\x:Bool. \y:Bool, x y] -- i.e.,
-    ~ exists T,
-        empty |- \x:Bool. \y:Bool, x y : T.
-*)
-
-Example typing_nonexample_1 :
-  ~ exists T,
-      empty |- 
-        (tabs x TBool
-            (tabs y TBool
-               (tapp (tvar x) (tvar y)))) \in
-        T.
-Proof.
-  intros Hc. inversion Hc.
-  (* The [clear] tactic is useful here for tidying away bits of
-     the context that we're not going to need again. *)
-  inversion H. subst. clear H.
-  inversion H5. subst. clear H5.
-  inversion H4. subst. clear H4.
-  inversion H2. subst. clear H2.
-  inversion H5. subst. clear H5.
-  (* rewrite extend_neq in H1. rewrite extend_eq in H1. *)
-  inversion H1.  Qed.
-
-(** **** Exercise: 3 stars, optional (typing_nonexample_3) *)
-(** Another nonexample:
-    ~ (exists S, exists T,
-          empty |- \x:S. x x : T).
-*)
-
-Example typing_nonexample_3 :
+Example typing_nonexample :
   ~ (exists S, exists T,
         empty |- 
           (tabs x S
              (tapp (tvar x) (tvar x))) \in
           T).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros H.
+  inversion H. clear H.
+  inversion H0. clear H0.
+  inversion H; subst. clear H.
+  inversion H5; subst. clear H5.
+  inversion H4; subst. clear H4.
+  inversion H2; subst. clear H2.
+  rewrite H3 in H1. inversion H1. 
+  apply (type_unique T11 T12). symmetry. assumption.
+Qed.  
+
 (** [] *)
-
-
 
 
 End SystemF.
