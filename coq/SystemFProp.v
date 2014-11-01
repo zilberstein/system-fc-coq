@@ -2,8 +2,8 @@
 
 Require Export SystemF.
 
-Module SystemFProp.
-Import SystemF.
+Module SYSTEMFPROP.
+Import SYSTEMF.
 
 (** In this chapter, we develop the fundamental theory of the Simply
     Typed Lambda Calculus -- in particular, the type safety
@@ -836,7 +836,7 @@ and the following typing rule:
 []
 *)
 
-End SystemFProp.
+End SYSTEMFPROP.
 
 (* ###################################################################### *)
 (* ###################################################################### *)

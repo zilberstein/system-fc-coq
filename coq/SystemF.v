@@ -6,7 +6,7 @@ Require Export Types.
 (* ###################################################################### *)
 (** ** Syntax *)
 
-Module SystemF.
+Module SYSTEMF.
 
 (* ################################### *)
 (** *** Types *)
@@ -570,5 +570,5 @@ Qed.
 (** [] *)
 
 
-End SystemF.
+End SYSTEMF.
 
