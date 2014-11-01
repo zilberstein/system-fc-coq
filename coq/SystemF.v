@@ -452,8 +452,10 @@ Lemma neq_label_refl : forall (T:Type) (l1 l2 : label) (p q : T),
   l1 <> l2 -> (if eq_label_dec l1 l2 then p else q) = q.
 Proof.
   intros. destruct (eq_label_dec l1 l2).
-  unfold not in H. apply ex_falso_quodlibet. apply H. apply e.
-  reflexivity.
+  Case "l1 = l2".  
+    unfold not in H. apply ex_falso_quodlibet. apply H. assumption.
+  Case "l1 <> l2".
+    reflexivity.
 Qed.
 
 Definition extend {A:Type} (Gamma : partial_map A) (x:label) (T : A) :=
@@ -534,8 +536,8 @@ where "Gamma '|-' t '\in' T" := (has_type Gamma t T).
 Tactic Notation "has_type_cases" tactic(first) ident(c) :=
   first;
   [ Case_aux c "T_Var" | Case_aux c "T_Abs" 
-  | Case_aux c "T_App" | Case_aux c "T_True" 
-  | Case_aux c "T_False" | Case_aux c "T_If" ].
+  | Case_aux c "T_App" | Case_aux c "T_TAbs" 
+  | Case_aux c "T_TApp" ].
 
 Hint Constructors has_type.
 
