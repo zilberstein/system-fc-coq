@@ -72,6 +72,8 @@ Hint Constructors value.
 (* ###################################################################### *)
 (** *** Free Variables and Substitution *)
 
+(* Term Sustitution *)
+
 Reserved Notation "'[' x ':=' s ']' t" (at level 20).
 
 Fixpoint subst_term_fix (x:id) (s:tm) (t:tm) : tm :=
@@ -157,23 +159,164 @@ Proof.
       SSCase "x <> i".
         constructor. assumption.
         apply IHt. reflexivity.
-    SCase "t = ttrue".
-      subst. constructor.
-    SCase "t = tfalse".
-      subst. constructor.
-    SCase "t = tif t1 t2 t3".
-      rewrite <- H. constructor.
-      apply IHt1. reflexivity.
-      apply IHt2. reflexivity.
-      apply IHt3. reflexivity.
+    SCase "t = ttapp".
+      subst. constructor. apply IHt. reflexivity.
+    SCase "t = ttabs".
+      subst. constructor. apply IHt. reflexivity.
   Case "<-".
     intro H. induction H; simpl;
     try (rewrite -> eq_id); try (rewrite -> neq_id);
     subst; try reflexivity; try assumption.
 Qed.
 
+(** [] *)
+
+
+(* Type Sustitution *)
+
+Fixpoint subst_type_in_type_fix (X:id) (T:ty) (T':ty) : ty :=
+  match T with
+  | TVar X' =>
+      if eq_id_dec X X' then T' else T
+  | TArrow T1 T2 =>
+      TArrow (subst_type_in_type_fix X T1 T') (subst_type_in_type_fix X T2 T')
+  | TUniv T1 => TUniv (subst_type_in_type_fix X T1 T')
+  end.
+
+Reserved Notation "'[' X '|=' s ']' t" (at level 20).
+
+Fixpoint subst_type_fix (X:id) (T:ty) (t:tm) : tm :=
+  match t with
+  | tvar x =>
+      tvar x
+  | tabs x T' t1 => 
+      tabs x (subst_type_in_type_fix X T' T) ([X|=T] t1) 
+  | tapp t1 t2 => 
+      tapp ([X|=T] t1) ([X|=T] t2)
+  | ttabs X' t1 =>
+      ttabs X' (if eq_id_dec X X' then t1 else ([X|=T] t1)) 
+  | ttapp t' T' =>
+      ttapp ([X|=T] t') (subst_type_in_type_fix X T' T)
+  end
+
+where "'[' x '|=' s ']' t" := (subst_type_fix x s t).
+
+(** _Technical note_: Substitution becomes trickier to define if we
+    consider the case where [s], the term being substituted for a
+    variable in some other term, may itself contain free variables.
+    Since we are only interested here in defining the [step] relation
+    on closed terms (i.e., terms like [\x:Bool. x], that do not mention
+    variables are not bound by some enclosing lambda), we can skip
+    this extra complexity here, but it must be dealt with when
+    formalizing richer languages. *)
+
+(** *** *)
+(** **** Exercise: 3 stars (substi) *)  
+
+(** The definition that we gave above uses Coq's [Fixpoint] facility
+    to define substitution as a _function_.  Suppose, instead, we
+    wanted to define substitution as an inductive _relation_ [substi].
+    We've begun the definition by providing the [Inductive] header and
+    one of the constructors; your job is to fill in the rest of the
+    constructors. *)
+
+Inductive subst_type_in_type (T:ty) (X:id) : ty -> ty -> Prop :=
+  | s_var_eq :
+      subst_type_in_type T X (TVar X) T
+  | s_var_neq : forall X',
+      X <> X' ->
+      subst_type_in_type T X (TVar X') (TVar X')
+  | s_arrow : forall T1 T2 T1' T2',
+      subst_type_in_type T X T1 T1' ->
+      subst_type_in_type T X T2 T2' ->
+      subst_type_in_type T X (TArrow T1 T2) (TArrow T1' T2')
+  | u_univ : forall T1 T2,
+      subst_type_in_type T X T1 T2 ->
+      subst_type_in_type T X (TUniv T1) (TUniv T2).
+
+Lemma subst_type_in_type_correct : forall T X T1 T2,
+  subst_type_in_type_fix X T1 T = T2 <-> subst_type_in_type T X T1 T2.
+Proof.
+  intros. split.
+  Case "->".
+    generalize dependent T2; induction T1; intros T2 H; simpl in H.
+    SCase "T1 = TVar i".
+      destruct (eq_id_dec X i) in H; subst.
+      SSCase "X = i".
+        constructor.
+      SSCase "X <> i".
+        constructor. assumption.
+    SCase "T1 = TArrow T11 T12".
+      rewrite <- H. constructor.
+      apply IHT1_1. reflexivity.
+      apply IHT1_2. reflexivity.
+    SCase "T2 = TUniv T1".
+      rewrite <- H. constructor.
+      apply IHT1. reflexivity.
+  Case "<-".
+    intro H. induction H; simpl;
+    try (rewrite -> eq_id); try (rewrite -> neq_id);
+    subst; try reflexivity; try assumption.
+Qed.
+
+Inductive subst_type (T:ty) (X:id) : tm -> tm -> Prop := 
+  | st_var : forall x,
+      subst_type T X (tvar x) (tvar x)
+  | st_tabs : forall T1 T2 x t t',
+      subst_type T X t t' ->
+      subst_type_in_type T X T1 T2 ->
+      subst_type T X (tabs x T1 t) (tabs x T2 t')
+  | st_tapp : forall t1 t2 t1' t2',
+      subst_type T X t1 t1' ->
+      subst_type T X t2 t2' ->
+      subst_type T X (tapp t1 t2) (tapp t1' t2')
+  | st_ttabs_eq : forall t,
+      subst_type T X (ttabs X t) (ttabs X t)
+  | st_ttabs_neq : forall t t' X',
+      X <> X' ->
+      subst_type T X t t' ->
+      subst_type T X (ttabs X' t) (ttabs X' t')
+  | st_ttapp : forall t t' T1 T2,
+      subst_type T X t t' ->
+      subst_type_in_type T X T1 T2 ->
+      subst_type T X (ttapp t T1) (ttapp t' T2).
+
+Hint Constructors subst_type.
+
+Theorem subst_type_correct : forall T X t t',
+  [X|=T]t = t' <-> subst_type T X t t'.
+Proof.
+  intros. split.
+  Case "->".
+    generalize dependent t'. induction t; intros t' H; simpl in H.
+    SCase "t = tvar i".
+      rewrite <- H. constructor.
+    SCase "t = tapp t1 t2".
+      rewrite <- H. constructor.
+      apply IHt1. reflexivity.
+      apply IHt2. reflexivity.
+    SCase "t = tabs i t t0".
+      rewrite <- H. constructor.
+      apply IHt. reflexivity.
+      apply subst_type_in_type_correct. reflexivity.
+    SCase "t = ttapp".
+      subst. constructor. apply IHt. reflexivity.
+      apply subst_type_in_type_correct. reflexivity.
+    SCase "t = ttabs".
+      subst. destruct (eq_id_dec X i).
+      SSCase "X = i".
+        subst. constructor.
+      SSCase "X <> i".
+        constructor. assumption. apply IHt. reflexivity.
+  Case "<-".
+    intro H. induction H; simpl;
+    try (rewrite -> eq_id); try (rewrite -> neq_id);
+    subst; try reflexivity; try assumption;
+    apply subst_type_in_type_correct in H0; rewrite H0; reflexivity.    
+Qed.
 
 (** [] *)
+
 
 (* ################################### *)
 (** *** Reduction *)
@@ -217,21 +360,19 @@ Inductive step : tm -> tm -> Prop :=
          value v1 ->
          t2 ==> t2' -> 
          tapp v1 t2 ==> tapp v1  t2'
-  | E_IfTrue : forall t1 t2,
-      (tif ttrue t1 t2) ==> t1
-  | ST_IfFalse : forall t1 t2,
-      (tif tfalse t1 t2) ==> t2
-  | ST_If : forall t1 t1' t2 t3,
-      t1 ==> t1' ->
-      (tif t1 t2 t3) ==> (tif t1' t2 t3)
+  | E_TApp : forall t1 t1' T2,
+         t1 ==> t1' ->
+         ttapp t1 T2 ==> ttapp t1' T2
+  | E_TAappTabs : forall X t12 T2,
+         ttapp (ttabs X t12) T2 ==> [X|=T2] t12
 
 where "t1 '==>' t2" := (step t1 t2).
 
 Tactic Notation "step_cases" tactic(first) ident(c) :=
   first;
-  [ Case_aux c "ST_AppAbs" | Case_aux c "ST_App1" 
-  | Case_aux c "ST_App2" | Case_aux c "ST_IfTrue" 
-  | Case_aux c "ST_IfFalse" | Case_aux c "ST_If" ].
+  [ Case_aux c "E_AppAbs" | Case_aux c "E_App1" 
+  | Case_aux c "E_App2" | Case_aux c "E_TApp" 
+  | Case_aux c "E_TAppTabs" ].
 
 Hint Constructors step.
 
