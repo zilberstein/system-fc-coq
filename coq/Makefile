@@ -1,7 +1,10 @@
 CC=coqc
 CFLAGS=
 
-all: SystemF
+all: SystemF SystemFProp
+
+SystemFProp: SystemFProp.v SystemF
+	$(CC) $(CFLAGS) SystemFProp.v
 
 SystemF: SystemF.v Types
 	$(CC) $(CFLAGS) SystemF.v
