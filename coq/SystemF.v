@@ -379,116 +379,6 @@ Hint Constructors step.
 Notation multistep := (multi step).
 Notation "t1 '==>*' t2" := (multistep t1 t2) (at level 40).
 
-(* ##################################### *)
-(** *** Examples *)
-
-(** Example:
-    ((\x:Bool->Bool. x) (\x:Bool. x)) ==>* (\x:Bool. x)
-i.e.
-    (idBB idB) ==>* idB
-*)
-
-Lemma step_example1 :
-  (tapp idBB idB) ==>* idB.
-Proof.
-  eapply multi_step.
-    apply ST_AppAbs.
-    apply v_abs.
-  simpl.
-  apply multi_refl.  Qed.  
-
-(** Example:
-((\x:Bool->Bool. x) ((\x:Bool->Bool. x) (\x:Bool. x))) 
-      ==>* (\x:Bool. x)
-i.e.
-  (idBB (idBB idB)) ==>* idB.
-*)
-
-Lemma step_example2 :
-  (tapp idBB (tapp idBB idB)) ==>* idB.
-Proof.
-  eapply multi_step.
-    apply ST_App2. auto.
-    apply ST_AppAbs. auto.
-  eapply multi_step.
-    apply ST_AppAbs. simpl. auto.
-  simpl. apply multi_refl.  Qed. 
-
-(** Example:
-((\x:Bool->Bool. x) (\x:Bool. if x then false
-                              else true)) true)
-      ==>* false
-i.e.
-  ((idBB notB) ttrue) ==>* tfalse.
-*)
-
-Lemma step_example3 :
-  tapp (tapp idBB notB) ttrue ==>* tfalse.
-Proof. 
-  eapply multi_step.
-    apply ST_App1. apply ST_AppAbs. auto. simpl.
-  eapply multi_step.
-    apply ST_AppAbs. auto. simpl.
-  eapply multi_step.
-    apply ST_IfTrue. apply multi_refl.  Qed. 
-
-(** Example:
-((\x:Bool->Bool. x) ((\x:Bool. if x then false
-                               else true) true))
-      ==>* false
-i.e.
-  (idBB (notB ttrue)) ==>* tfalse.
-*)
-
-Lemma step_example4 :
-  tapp idBB (tapp notB ttrue) ==>* tfalse.
-Proof. 
-  eapply multi_step.
-    apply ST_App2. auto. 
-    apply ST_AppAbs. auto. simpl.
-  eapply multi_step.
-    apply ST_App2. auto. 
-    apply ST_IfTrue. 
-  eapply multi_step.
-    apply ST_AppAbs. auto. simpl.
-  apply multi_refl.  Qed. 
-
-
-(** A more automatic proof *)
-
-Lemma step_example1' :
-  (tapp idBB idB) ==>* idB.
-Proof. normalize.  Qed.  
-
-(** Again, we can use the [normalize] tactic from above to simplify
-    the proof. *)
-
-Lemma step_example2' :
-  (tapp idBB (tapp idBB idB)) ==>* idB.
-Proof.
-  normalize.
-Qed. 
-
-Lemma step_example3' :
-  tapp (tapp idBB notB) ttrue ==>* tfalse.
-Proof. normalize.  Qed.  
-
-Lemma step_example4' :
-  tapp idBB (tapp notB ttrue) ==>* tfalse.
-Proof. normalize.  Qed.  
-
-(** **** Exercise: 2 stars (step_example3) *)  
-(** Try to do this one both with and without [normalize]. *)
-
-Lemma step_example5 :
-       (tapp (tapp idBBBB idBB) idB)
-  ==>* idB.
-Proof.
-  (* FILL IN HERE *) Admitted.
-
-(* FILL IN HERE *)
-(** [] *)
-
 (* ###################################################################### *)
 (** ** Typing *)
 
@@ -512,7 +402,10 @@ Proof.
 
 Module PartialMap.
 
-Definition partial_map (A:Type) := id -> option A.
+Inductive label := tm_var : id -> label
+                 | ty_var : id -> label.
+
+Definition partial_map (A:Type) := label -> option A.
 
 Definition empty {A:Type} : partial_map A := (fun _ => None). 
 
@@ -520,20 +413,59 @@ Definition empty {A:Type} : partial_map A := (fun _ => None).
     function [Gamma] to also map [x] to [T]."  Formally, we use the
     function [extend] to add a binding to a partial map. *)
 
-Definition extend {A:Type} (Gamma : partial_map A) (x:id) (T : A) :=
-  fun x' => if beq_id x x' then Some T else Gamma x'.
+Theorem eq_label_dec : forall l1 l2 : label, {l1 = l2} + {l1 <> l2}.
+Proof.
+   intros.
+   destruct l1; destruct l2.
+   Case "l1 is term, l2 is term".
+     destruct (eq_id_dec i i0).
+     SCase "i = i0".
+       subst. left. reflexivity. 
+     SCase "i <> i0".
+       right. unfold not. unfold not in n.
+       intros H. apply n. inversion H. reflexivity.
+   Case "l1 is term, l2 is type".
+     right. unfold not. intros H. inversion H.
+   Case "l1 is type, l2 is term".
+     right. unfold not. intros H. inversion H.     
+   Case "l1 is type, l2 is type".
+     destruct (eq_id_dec i i0).
+     SCase "i = i0".
+       subst. left. reflexivity. 
+     SCase "i <> i0".
+       right. unfold not. unfold not in n.
+       intros H. apply n. inversion H. reflexivity.
+Qed.
+
+Definition eq_label_refl := fun (T:Type) (l:label) (p q : T) =>
+  let s := eq_label_dec l l in
+  match s as s0 return ((if s0 then p else q) = p) with
+  | left _ => eq_refl
+  | right n => ex_falso_quodlibet (q = p) (n eq_refl)
+  end.
+
+Lemma neq_label_refl : forall (T:Type) (l1 l2 : label) (p q : T),
+  l1 <> l2 -> (if eq_label_dec l1 l2 then p else q) = q.
+Proof.
+  intros. destruct (eq_label_dec l1 l2).
+  unfold not in H. apply ex_falso_quodlibet. apply H. apply e.
+  reflexivity.
+Qed.
+
+Definition extend {A:Type} (Gamma : partial_map A) (x:label) (T : A) :=
+  fun x' => if eq_label_dec x x' then Some T else Gamma x'.
 
 Lemma extend_eq : forall A (ctxt: partial_map A) x T,
   (extend ctxt x T) x = Some T.
 Proof.
-  intros. unfold extend. rewrite <- beq_id_refl. auto.
+  intros. unfold extend. rewrite eq_label_refl. auto.
 Qed.
 
 Lemma extend_neq : forall A (ctxt: partial_map A) x1 T x2,
-  beq_id x2 x1 = false ->
+  x1 <> x2 ->
   (extend ctxt x2 T) x1 = ctxt x1.
 Proof.
-  intros. unfold extend. rewrite H. auto.
+  intros. unfold extend. apply neq_label_refl; auto.
 Qed.
 
 End PartialMap.
@@ -586,15 +518,10 @@ Inductive has_type : context -> tm -> ty -> Prop :=
       Gamma |- t1 \in TArrow T11 T12 -> 
       Gamma |- t2 \in T11 -> 
       Gamma |- tapp t1 t2 \in T12
-  | T_True : forall Gamma,
-       Gamma |- ttrue \in TBool
-  | T_False : forall Gamma,
-       Gamma |- tfalse \in TBool
-  | T_If : forall t1 t2 t3 T Gamma,
-       Gamma |- t1 \in TBool ->
-       Gamma |- t2 \in T ->
-       Gamma |- t3 \in T ->
-       Gamma |- tif t1 t2 t3 \in T
+  | T_TAbs : forall Gamma X T t2 T2,
+      
+      extend Gamma X |- t2 \in T2 ->
+      Gamme |- tabs 
 
 where "Gamma '|-' t '\in' T" := (has_type Gamma t T).
 
