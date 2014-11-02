@@ -22,6 +22,15 @@ Proof.
   exists x0. exists t0.  auto.
 Qed.
 
+Lemma cannonical_forms_tabs : forall t T,
+  empty |- t \in TUniv T ->
+  value t ->
+  exists X t', t = ttabs X t'.
+Proof.
+  intros. inversion H0; subst.
+  inversion H; subst.
+  exists X. exists t0. reflexivity.
+Qed.
 
 (* ###################################################################### *)
 (** * Progress *)
@@ -102,12 +111,13 @@ Proof with eauto.
 
     SCase "t1 steps".
       inversion H as [t1' Hstp]. exists (tapp t1' t2)...
-
-  Case "T_If".
-    right. destruct IHHt1...
-    
+      
+  Case "T_TApp".
+    right. destruct IHHt...    
     SCase "t1 is a value".
-      destruct (cannonical_forms_bool t1); subst; eauto.
+      eapply ca.
+
+      destruct (cannonical_forms_tabs t1); subst; eauto.
 
     SCase "t1 also steps".
       inversion H as [t1' Hstp]. exists (tif t1' t2 t3)...
