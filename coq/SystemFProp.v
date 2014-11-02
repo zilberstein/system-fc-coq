@@ -184,23 +184,21 @@ Inductive appears_free_in : id -> tm -> Prop :=
       y <> x  ->
       appears_free_in x t12 ->
       appears_free_in x (tabs y T11 t12)
-  | afi_if1 : forall x t1 t2 t3,
-      appears_free_in x t1 ->
-      appears_free_in x (tif t1 t2 t3)
-  | afi_if2 : forall x t1 t2 t3,
-      appears_free_in x t2 ->
-      appears_free_in x (tif t1 t2 t3)
-  | afi_if3 : forall x t1 t2 t3,
-      appears_free_in x t3 ->
-      appears_free_in x (tif t1 t2 t3).
+  | afi_tapp : forall x t T,
+      appears_free_in x t ->
+      appears_free_in x (ttapp t T)
+  | afi_tabs : forall x X t,
+      x <> X ->
+      appears_free_in x t ->
+      appears_free_in x (ttabs X t).
 
 Tactic Notation "afi_cases" tactic(first) ident(c) :=
   first;
   [ Case_aux c "afi_var"
   | Case_aux c "afi_app1" | Case_aux c "afi_app2" 
   | Case_aux c "afi_abs" 
-  | Case_aux c "afi_if1" | Case_aux c "afi_if2" 
-  | Case_aux c "afi_if3" ].
+  | Case_aux c "afi_tapp"
+  | Case_aux c "afi_tabs" ].
 
 Hint Constructors appears_free_in.
 
@@ -208,6 +206,29 @@ Hint Constructors appears_free_in.
 
 Definition closed (t:tm) :=
   forall x, ~ appears_free_in x t.
+
+Inductive appears_free_in_type : id -> ty -> Prop :=
+  | afit_var : forall X,
+      appears_free_in_type X (TVar X)
+  | afit_arrow1 : forall X T1 T2,
+      appears_free_in_type X T1 ->
+      appears_free_in_type X (TArrow T1 T2)
+  | afit_arrow2 : forall X T1 T2,
+      appears_free_in_type X T2 ->
+      appears_free_in_type X (TArrow T1 T2).
+
+Tactic Notation "afit_cases" tactic(first) ident(c) :=
+  first;
+  [ Case_aux c "afit_var"
+  | Case_aux c "afit_arrow1" | Case_aux c "afit_arrow2" ].
+
+Hint Constructors appears_free_in_type.
+
+(** A term in which no variables appear free is said to be _closed_. *)
+
+Definition closed_type (T:ty) :=
+  forall X, ~ appears_free_in_type X T.
+
 
 (* ###################################################################### *)
 (** ** Substitution *)
@@ -260,6 +281,10 @@ Proof.
     inversion H1; subst.
     apply IHappears_free_in in H7.
     rewrite extend_neq in H7; assumption.
+  Case "afi_tabs".
+    inversion H0; subst. apply IHappears_free_in in H5.
+    rewrite extend_neq in H5. assumption.
+    
 Qed.
 
 (** Next, we'll need the fact that any term [t] which is well typed in
