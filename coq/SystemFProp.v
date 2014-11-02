@@ -115,57 +115,14 @@ Proof with eauto.
   Case "T_TApp".
     right. destruct IHHt...    
     SCase "t1 is a value".
-      eapply ca.
-
-      destruct (cannonical_forms_tabs t1); subst; eauto.
-
+      assert (exists X0 t0, t1 = ttabs X0 t0).
+      eapply cannonical_forms_tabs; eauto.
+      destruct H0 as [X0 [t0 Heq]]; subst.
+      exists ([X0 |= T2] t0)...
     SCase "t1 also steps".
-      inversion H as [t1' Hstp]. exists (tif t1' t2 t3)...
+      inversion H. exists (ttapp x0 T2)...
 Qed.
-
-(** **** Exercise: 3 stars, optional (progress_from_term_ind) *)
-(** Show that progress can also be proved by induction on terms
-    instead of induction on typing derivations. *)
-
-Theorem progress' : forall t T,
-     empty |- t \in T ->
-     value t \/ exists t', t ==> t'.
-Proof.
-  intros t.
-  t_cases (induction t) Case; intros T Ht; auto.
-  Case "tvar".
-    inversion Ht; subst. inversion H1.
-  Case "tapp".
-    right. inversion Ht; subst.
-    assert (IHt1':value t1 \/ (exists t' : tm, t1 ==> t'))
-      by (eapply IHt1; apply H2); clear IHt1.
-    assert (IHt2':value t2 \/ (exists t' : tm, t2 ==> t'))
-      by (eapply IHt2; apply H4); clear IHt2.
-    inversion IHt1'; clear IHt1'; subst.
-    SCase "value t1"; inversion IHt2'; clear IHt2'; subst.
-      SSCase "value t2".
-        inversion H2; subst; inversion H.
-        exists ([x0:=t2]t12). constructor. assumption.
-      SSCase "t2 takes a step".
-        inversion H0. exists (tapp t1 x0).
-        constructor. assumption. assumption.
-    SCase "t1 takes a step".
-      inversion H. exists (tapp x0 t2).
-      constructor. assumption.
-  Case "tif".
-    right. inversion Ht; subst.
-    assert (IHt1':value t1 \/ (exists t' : tm, t1 ==> t'))
-      by (eapply IHt1; apply H3); clear IHt1.
-    inversion IHt1'.
-    SCase "value t1". inversion H; subst.
-      SSCase "t1 = tabs". inversion H3.
-      SSCase "t1 = ttrue". exists t2. constructor.
-      SSCase "t1 = tfalse". exists t3. constructor.
-    SCase "t1 takes a step".
-      inversion H.  exists (tif x0 t2 t3).
-      constructor. assumption.
-Qed.
-(** [] *)
+(* [] *)
 
 (* ###################################################################### *)
 (** * Preservation *)
