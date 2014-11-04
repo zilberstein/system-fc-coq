@@ -188,7 +188,7 @@ Inductive appears_free_in : id -> tm -> Prop :=
       appears_free_in x t ->
       appears_free_in x (ttapp t T)
   | afi_tabs : forall x X t,
-      x <> X ->
+      X <> x ->
       appears_free_in x t ->
       appears_free_in x (ttabs X t).
 
@@ -282,9 +282,8 @@ Proof.
     apply IHappears_free_in in H7.
     rewrite extend_neq in H7; assumption.
   Case "afi_tabs".
-    inversion H0; subst. apply IHappears_free_in in H5.
-    rewrite extend_neq in H5. assumption.
-    
+    inversion H1; subst. apply IHappears_free_in in H6.
+    rewrite extend_neq in H6; assumption.
 Qed.
 
 (** Next, we'll need the fact that any term [t] which is well typed in
