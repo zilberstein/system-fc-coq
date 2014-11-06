@@ -122,6 +122,7 @@ Proof with eauto.
     SCase "t1 also steps".
       inversion H. exists (ttapp x0 T2)...
 Qed.
+
 (* [] *)
 
 (* ###################################################################### *)

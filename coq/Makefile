@@ -9,15 +9,6 @@ SystemFProp: SystemFProp.v SystemF
 SystemF: SystemF.v SfLib
 	$(CC) $(CFLAGS) SystemF.v
 
-Types: Types.v Smallstep
-	$(CC) $(CFLAGS) Types.v
-
-Smallstep: Smallstep.v Imp
-	$(CC) $(CFLAGS) Smallstep.v
-
-Imp: Imp.v SfLib
-	$(CC) $(CFLAGS) Imp.v
-
 SfLib: SfLib.v
 	$(CC) $(CFLAGS) SfLib.v
 
