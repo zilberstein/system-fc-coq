@@ -1,6 +1,6 @@
 (** * System F **)
 
-Require Export Types.
+Require Export SfLib.
 
 
 (* ###################################################################### *)
@@ -527,7 +527,7 @@ Inductive has_type : context -> tm -> ty -> Prop :=
   | T_TAbs : forall Gamma X T t2 T2,
       extend Gamma X T |- t2 \in T2 ->
       Gamma |- ttabs X t2 \in (TUniv T2)
-  | T_TApp : forall Gamma t1 T12 T2,
+  | T_TApp : forall Gamma X t1 T12 T2,
       Gamma |- t1 \in (TUniv T12) ->
       Gamma |- ttapp t1 T2 \in subst_type_in_type_fix X T12 T2
       

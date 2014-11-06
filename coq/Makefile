@@ -6,7 +6,7 @@ all: SystemF SystemFProp
 SystemFProp: SystemFProp.v SystemF
 	$(CC) $(CFLAGS) SystemFProp.v
 
-SystemF: SystemF.v Types
+SystemF: SystemF.v SfLib
 	$(CC) $(CFLAGS) SystemF.v
 
 Types: Types.v Smallstep

@@ -304,7 +304,6 @@ Proof.
     admit.
     admit.
     admit.
-    admit.
 Admitted.
 (** [] *)
 
@@ -376,7 +375,11 @@ Proof with eauto.
        instantiate is [extend Gamma x T11] *)
     unfold extend. destruct (eq_id_dec x0 x1)... 
   Case "T_App".
-    apply T_App with T11...  
+    apply T_App with T11...
+  Case "T_TAbs".
+    apply T_TAbs with T.
+    apply IHhas_type. intros x1 Hafi.
+    unfold extend. destruct (eq_id_dec X x1)...
 Qed.
 
 (** Now we come to the conceptual heart of the proof that reduction

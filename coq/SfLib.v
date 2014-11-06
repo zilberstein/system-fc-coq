@@ -200,7 +200,10 @@ Qed.
 Lemma neq_id : forall (T:Type) x y (p q:T), x <> y -> 
                (if eq_id_dec x y then p else q) = q. 
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros T x y p q H. destruct (eq_id_dec x y).
+  apply ex_falso_quodlibet. apply H. assumption.
+  reflexivity.
+Qed.
 
 Definition partial_map (A:Type) := id -> option A.
 
