@@ -1,4 +1,4 @@
-(** * StlcProp: Properties of STLC *)
+(** * SystemFProp: Properties of System F *)
 
 Require Export SystemF.
 
