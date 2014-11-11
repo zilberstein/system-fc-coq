@@ -12,7 +12,7 @@ Import SYSTEMF.
 (* ###################################################################### *)
 (** * Canonical Forms *)
 
-Lemma cannonical_forms_fun : forall t T1 T2,
+Lemma canonical_forms_fun : forall t T1 T2,
   empty |- t \in (TArrow T1 T2) ->
   value t ->
   exists x u, t = tabs x T1 u.
@@ -22,7 +22,7 @@ Proof.
   exists x0. exists t0.  auto.
 Qed.
 
-Lemma cannonical_forms_tabs : forall t T,
+Lemma canonical_forms_tabs : forall t T,
   empty |- t \in TUniv T ->
   value t ->
   exists X t', t = ttabs X t'.
@@ -102,7 +102,7 @@ Proof with eauto.
       destruct IHHt2...
       SSCase "t2 is also a value".
         assert (exists x0 t0, t1 = tabs x0 T11 t0).
-        eapply cannonical_forms_fun; eauto.
+        eapply canonical_forms_fun; eauto.
         destruct H1 as [x0 [t0 Heq]]. subst.
         exists ([x0:=t2]t0)...
 
@@ -116,7 +116,7 @@ Proof with eauto.
     right. destruct IHHt...    
     SCase "t1 is a value".
       assert (exists X0 t0, t1 = ttabs X0 t0).
-      eapply cannonical_forms_tabs; eauto.
+      eapply canonical_forms_tabs; eauto.
       destruct H0 as [X0 [t0 Heq]]; subst.
       exists ([X0 |= T2] t0)...
     SCase "t1 also steps".
@@ -192,6 +192,8 @@ Inductive appears_free_in : id -> tm -> Prop :=
       X <> x ->
       appears_free_in x t ->
       appears_free_in x (ttabs X t).
+
+
 
 Tactic Notation "afi_cases" tactic(first) ident(c) :=
   first;
@@ -1152,7 +1154,7 @@ Hint Constructors has_type.
 
 (** * Canonical Forms *)
 
-Lemma cannonical_forms_nat : forall t,
+Lemma canonical_forms_nat : forall t,
   empty |- t \in TNat ->
   value t ->
   exists n, t = tnat n.
@@ -1162,7 +1164,7 @@ Proof.
   exists n. reflexivity.
 Qed.
 
-Lemma cannonical_forms_fun : forall t T1 T2,
+Lemma canonical_forms_fun : forall t T1 T2,
   empty |- t \in (TArrow T1 T2) ->
   value t ->
   exists x u, t = tabs x T1 u.
@@ -1204,7 +1206,7 @@ Proof with eauto.
       destruct IHHt2...
       SSCase "t2 is also a value".
         assert (exists x0 t0, t1 = tabs x0 T11 t0).
-        eapply cannonical_forms_fun; eauto.
+        eapply canonical_forms_fun; eauto.
         destruct H1 as [x0 [t0 Heq]]. subst.
         exists ([x0:=t2]t0)...
 
