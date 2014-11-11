@@ -1,0 +1,40 @@
+Awful hack in STLC as presented in 500
+  - "Variable capture in substitution"
+  - Example.
+      - Issue: (\forall x. x -> y)[y |-> x] // what happens? 
+      - must do capture avoidance
+      - Solution: (\forall x'. x' -> x)
+  - Alpha equivalence
+    'forall a, a -> a' and 'forall b, b -> b' should be considered same type
+  - Possible solutions:
+    - For capture avoidance: 
+      - universal uniqueness of bindings: Difficult to maintain 
+      - In substitution: rename variable to currently free variable name upon binding
+    - Alpha equivalence:
+      - de Bruijn indexing
+      - Locally nameless representation: 
+        - two constructors for variables: one for bound, one for free
+        - indices for bound variables, names for free variables.
+    - S: Nominal versions?
+
+Subst term in term, type in term, type in type.
+   S, R: good
+
+Get out of overloading by defining an operator datatype that one then has to pattern 
+   match against?
+
+de Bruijn indexing gets hairy when one starts dealing with pattern matching, arbitrary 
+universal quantification / abstraction on types.
+
+= Presentation Tips = 
+
+- Talk about application possibilities for work
+   - Expect guarantees from a programming language, cannot trust if it is not type-sound
+   - Haskell is not just System F; difficult to verify by hand
+   - Have exploding rockets for graphics
+
+S: Type variables are most important part; can "cheat" a bit by focusing primarily on properties for type variables
+
+Error: term variables point to types, type variables just say "I'm a type variable"?
+
+Context with de Bruijn is considered an array; remember order of terms in context?
