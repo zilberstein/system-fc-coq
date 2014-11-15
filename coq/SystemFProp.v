@@ -118,7 +118,7 @@ Proof with eauto.
       assert (exists X0 t0, t1 = ttabs X0 t0).
       eapply canonical_forms_tabs; eauto.
       destruct H0 as [X0 [t0 Heq]]; subst.
-      exists ([X0 |= T2] t0)...
+      exists ([X0 := T2] t0)...
     SCase "t1 also steps".
       inversion H. exists (ttapp x0 T2)...
 Qed.
@@ -297,17 +297,23 @@ Corollary typable_empty__closed : forall t T,
     empty |- t \in T  ->
     closed t.
 Proof.
-  unfold closed, not. intros t T H i Hc.
-  has_type_cases (inversion H) Case; subst.
-  Case "T_Var".
-    inversion H; subst. inversion H3.
-  Case "T_Abs".
+  unfold closed, not. intros t.
+  t_cases (induction t) Case; intros T H x Hc; inversion H; subst.
+  Case "tvar".
+    inversion H2.
+  Case "tapp".
+    inversion Hc; subst.
+    SCase "afi t1".
+      eapply IHt1. apply H3. apply H2. 
+    SCase "afi t2".
+      eapply IHt2. apply H5. apply H2.
+  Case "tabs".
     admit.
-  Case "T_App".
+  Case "ttapp".
+    eapply IHt. apply H4. inversion Hc; subst. apply H2.
+  Case "ttabs".
     admit.
-    admit.
-    admit.
-Admitted.
+Qed.
 (** [] *)
 
 (** Sometimes, when we have a proof [Gamma |- t : T], we will need to

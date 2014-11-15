@@ -72,44 +72,31 @@ Hint Constructors value.
 (* ###################################################################### *)
 (** *** Free Variables and Substitution *)
 
+
+Class Subst (X S T : Type) := {
+  do_subst : X -> S -> T -> T
+}.
+Notation "'[' x ':=' s ']' t" := (do_subst x s t) (at level 20).
+
 (* Term Sustitution *)
-
-Reserved Notation "'[' x ':=' s ']' t" (at level 20).
-
 Fixpoint subst_term_fix (x:id) (s:tm) (t:tm) : tm :=
   match t with
   | tvar x' => 
       if eq_id_dec x x' then s else t
   | tabs x' T t1 => 
-      tabs x' T (if eq_id_dec x x' then t1 else ([x:=s] t1)) 
+      tabs x' T (if eq_id_dec x x' then t1 else subst_term_fix x s t1) 
   | tapp t1 t2 => 
-      tapp ([x:=s] t1) ([x:=s] t2)
+      tapp (subst_term_fix x s t1) (subst_term_fix x s t2)
   | ttabs X t =>
-      ttabs X ([x:=s] t)
+      ttabs X (subst_term_fix x s t)
   | ttapp t T =>
-      ttapp ([x:=s] t) T      
-  end
+      ttapp (subst_term_fix x s t) T
+  end.
 
-where "'[' x ':=' s ']' t" := (subst_term_fix x s t).
+Instance subst_tm_tm : Subst id tm tm := {
+  do_subst := subst_term_fix
+}.
 
-(** _Technical note_: Substitution becomes trickier to define if we
-    consider the case where [s], the term being substituted for a
-    variable in some other term, may itself contain free variables.
-    Since we are only interested here in defining the [step] relation
-    on closed terms (i.e., terms like [\x:Bool. x], that do not mention
-    variables are not bound by some enclosing lambda), we can skip
-    this extra complexity here, but it must be dealt with when
-    formalizing richer languages. *)
-
-(** *** *)
-(** **** Exercise: 3 stars (substi) *)  
-
-(** The definition that we gave above uses Coq's [Fixpoint] facility
-    to define substitution as a _function_.  Suppose, instead, we
-    wanted to define substitution as an inductive _relation_ [substi].
-    We've begun the definition by providing the [Inductive] header and
-    one of the constructors; your job is to fill in the rest of the
-    constructors. *)
 
 Inductive subst_term (s:tm) (x:id) : tm -> tm -> Prop := 
   | s_var1 :
@@ -172,9 +159,7 @@ Qed.
 (** [] *)
 
 
-(* Type Sustitution *)
-
-Reserved Notation "'[' X '|:=' T1 ']' T2" (at level 20).
+(* Type in Type Sustitution *)
 
 Fixpoint subst_type_in_type_fix (X:id) (T2:ty) (T1:ty) : ty :=
   match T2 with
@@ -183,46 +168,12 @@ Fixpoint subst_type_in_type_fix (X:id) (T2:ty) (T1:ty) : ty :=
   | TArrow T T' =>
       TArrow (subst_type_in_type_fix X T T1) (subst_type_in_type_fix X T' T1)
   | TUniv T => TUniv (subst_type_in_type_fix X T T1)
-  end
+  end.
 
-where "'[' X '|:=' T1 ']' T2" := (subst_type_in_type_fix X T2 T1).
+Instance subst_ty_ty : Subst id ty ty := {
+  do_subst := subst_type_in_type_fix
+}.
 
-Reserved Notation "'[' X '|=' s ']' t" (at level 20).
-
-Fixpoint subst_type_fix (X:id) (T:ty) (t:tm) : tm :=
-  match t with
-  | tvar x =>
-      tvar x
-  | tabs x T' t1 => 
-      tabs x (subst_type_in_type_fix X T' T) ([X|=T] t1) 
-  | tapp t1 t2 => 
-      tapp ([X|=T] t1) ([X|=T] t2)
-  | ttabs X' t1 =>
-      ttabs X' (if eq_id_dec X X' then t1 else ([X|=T] t1)) 
-  | ttapp t' T' =>
-      ttapp ([X|=T] t') (subst_type_in_type_fix X T' T)
-  end
-
-where "'[' x '|=' s ']' t" := (subst_type_fix x s t).
-
-(** _Technical note_: Substitution becomes trickier to define if we
-    consider the case where [s], the term being substituted for a
-    variable in some other term, may itself contain free variables.
-    Since we are only interested here in defining the [step] relation
-    on closed terms (i.e., terms like [\x:Bool. x], that do not mention
-    variables are not bound by some enclosing lambda), we can skip
-    this extra complexity here, but it must be dealt with when
-    formalizing richer languages. *)
-
-(** *** *)
-(** **** Exercise: 3 stars (substi) *)  
-
-(** The definition that we gave above uses Coq's [Fixpoint] facility
-    to define substitution as a _function_.  Suppose, instead, we
-    wanted to define substitution as an inductive _relation_ [substi].
-    We've begun the definition by providing the [Inductive] header and
-    one of the constructors; your job is to fill in the rest of the
-    constructors. *)
 
 Inductive subst_type_in_type (T:ty) (X:id) : ty -> ty -> Prop :=
   | s_var_eq :
@@ -239,7 +190,7 @@ Inductive subst_type_in_type (T:ty) (X:id) : ty -> ty -> Prop :=
       subst_type_in_type T X (TUniv T1) (TUniv T2).
 
 Lemma subst_type_in_type_correct : forall T X T1 T2,
-  subst_type_in_type_fix X T1 T = T2 <-> subst_type_in_type T X T1 T2.
+  [X:=T1]T = T2 <-> subst_type_in_type T X T1 T2.
 Proof.
   intros. split.
   Case "->".
@@ -262,6 +213,27 @@ Proof.
     try (rewrite -> eq_id); try (rewrite -> neq_id);
     subst; try reflexivity; try assumption.
 Qed.
+
+
+(* Type in Term Substitution *)
+
+Fixpoint subst_type_fix (X:id) (T:ty) (t:tm) : tm :=
+  match t with
+  | tvar x =>
+      tvar x
+  | tabs x T' t1 => 
+      tabs x ([X := T'] T) (subst_type_fix X T t1) 
+  | tapp t1 t2 => 
+      tapp (subst_type_fix X T t1) (subst_type_fix X T t2)
+  | ttabs X' t1 =>
+      ttabs X' (if eq_id_dec X X' then t1 else (subst_type_fix X T t1)) 
+  | ttapp t' T' =>
+      ttapp (subst_type_fix X T t') ([X := T'] T)
+  end.
+
+Instance subst_ty_tm : Subst id ty tm := {
+  do_subst := subst_type_fix
+}.
 
 Inductive subst_type (T:ty) (X:id) : tm -> tm -> Prop := 
   | st_var : forall x,
@@ -288,7 +260,7 @@ Inductive subst_type (T:ty) (X:id) : tm -> tm -> Prop :=
 Hint Constructors subst_type.
 
 Theorem subst_type_correct : forall T X t t',
-  [X|=T]t = t' <-> subst_type T X t t'.
+  [X := T] t = t' <-> subst_type T X t t'.
 Proof.
   intros. split.
   Case "->".
@@ -316,7 +288,9 @@ Proof.
     intro H. induction H; simpl;
     try (rewrite -> eq_id); try (rewrite -> neq_id);
     subst; try reflexivity; try assumption;
-    apply subst_type_in_type_correct in H0; rewrite H0; reflexivity.    
+    apply subst_type_in_type_correct in H0;
+    unfold do_subst in H0; unfold subst_ty_ty in H0;
+    rewrite -> H0; reflexivity.    
 Qed.
 
 (** [] *)
@@ -368,7 +342,7 @@ Inductive step : tm -> tm -> Prop :=
          t1 ==> t1' ->
          ttapp t1 T2 ==> ttapp t1' T2
   | E_TAappTabs : forall X t12 T2,
-         ttapp (ttabs X t12) T2 ==> [X|=T2] t12
+         ttapp (ttabs X t12) T2 ==> [X:=T2] t12
 
 where "t1 '==>' t2" := (step t1 t2).
 
