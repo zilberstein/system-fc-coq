@@ -508,6 +508,10 @@ Proof with eauto.
       intros z Hafi. unfold extend.
       destruct (eq_id_dec y z)...
       subst. rewrite neq_id... 
+    Case "ttabs".
+      eapply T_TAbs. 
+
+
 Qed.
 
 (** The substitution lemma can be viewed as a kind of "commutation"

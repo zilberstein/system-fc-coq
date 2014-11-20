@@ -161,13 +161,15 @@ Qed.
 
 (* Type in Type Sustitution *)
 
-Fixpoint subst_type_in_type_fix (X:nat) (T2:ty) (T1:ty) : ty :=
-  match T2 with
-  | TVar X' =>
-      if eq_nat_dec X X' then T1 else T2
-  | TArrow T T' =>
-      TArrow (subst_type_in_type_fix X T T1) (subst_type_in_type_fix X T' T1)
-  | TUniv T => TUniv (subst_type_in_type_fix (X+1) T T1)
+Fixpoint subst_type_in_type_fix (I:nat) (P:ty) (T:ty) : ty :=
+  match T with
+  | TVar N =>
+      if eq_nat_dec I N then P
+      else if le_lt_dec I N then TVar (N-1)
+           else TVar N
+  | TArrow T1 T2 =>
+      TArrow (subst_type_in_type_fix I P T1) (subst_type_in_type_fix I P T2)
+  | TUniv T' => TUniv (subst_type_in_type_fix (I + 1) P T')
   end.
 
 Instance subst_ty_ty : Subst nat ty ty := {
@@ -175,33 +177,42 @@ Instance subst_ty_ty : Subst nat ty ty := {
 }.
 
 
-Inductive subst_type_in_type (T:ty) (X:nat) : ty -> ty -> Prop :=
+Inductive subst_type_in_type (T:ty) (I:nat) : ty -> ty -> Prop :=
   | s_var_eq :
-      subst_type_in_type T X (TVar X) T
-  | s_var_neq : forall X',
-      X <> X' ->
-      subst_type_in_type T X (TVar X') (TVar X')
+      subst_type_in_type T I (TVar I) T
+  | s_var_lt : forall N,
+      N < I ->
+      subst_type_in_type T I (TVar N) (TVar N)
+  | s_var_gt : forall N,
+      N > I ->
+      subst_type_in_type T I (TVar N) (TVar (N-1))
   | s_arrow : forall T1 T2 T1' T2',
-      subst_type_in_type T X T1 T1' ->
-      subst_type_in_type T X T2 T2' ->
-      subst_type_in_type T X (TArrow T1 T2) (TArrow T1' T2')
+      subst_type_in_type T I T1 T1' ->
+      subst_type_in_type T I T2 T2' ->
+      subst_type_in_type T I (TArrow T1 T2) (TArrow T1' T2')
   | u_univ : forall T1 T2,
-      subst_type_in_type T (X+1) T1 T2 ->
-      subst_type_in_type T X (TUniv T1) (TUniv T2).
+      subst_type_in_type T (I+1) T1 T2 ->
+      subst_type_in_type T I (TUniv T1) (TUniv T2).
 
-Lemma subst_type_in_type_correct : forall T X T1 T2,
-  [X:=T1]T = T2 <-> subst_type_in_type T X T1 T2.
+Lemma subst_type_in_type_correct : forall N P T1 T2,
+  [N:=P]T1 = T2 <-> subst_type_in_type P N T1 T2.
 Proof.
   intros. split.
   Case "->".
-    generalize dependent X; generalize dependent T2;
-    induction T1; intros T2 X H; simpl in H.
-    SCase "T1 = TVar n".
-      destruct (eq_nat_dec X n) in H; subst.
-      SSCase "X = n".
+    generalize dependent N; generalize dependent T2;
+    induction T1; intros T2 N H; simpl in H.
+    SCase "T1 = TVar n". SearchAbout eq_nat.
+      destruct (eq_nat_dec N n); subst.
+      SSCase "N = n".
         constructor.
-      SSCase "X <> n".
-        constructor. assumption.
+      SSCase "N <> n".
+        destruct (le_lt_dec N n); subst.
+        SSSCase "N <= n".
+          apply s_var_gt. unfold gt.
+          apply le_lt_or_eq in l. inversion l; subst.
+          assumption. apply ex_falso_quodlibet; apply n0; reflexivity.
+        SSSCase "N > n".
+          apply s_var_lt. assumption.
     SCase "T1 = TArrow T11 T12".
       rewrite <- H. constructor.
       apply IHT1_1. reflexivity.
@@ -211,8 +222,15 @@ Proof.
   Case "<-".
     intro H. induction H; simpl;
     subst; try reflexivity; try assumption.
-    destruct (eq_nat_dec X X); try reflexivity. apply ex_falso_quodlibet; auto.
-    destruct (eq_nat_dec X X'); try reflexivity. apply ex_falso_quodlibet; auto.
+    destruct (eq_nat_dec I I); try reflexivity. apply ex_falso_quodlibet; auto.
+    destruct (eq_nat_dec I N); try reflexivity. apply ex_falso_quodlibet; auto.
+    subst; unfold lt in H; eapply le_Sn_n; apply H.
+    destruct (le_lt_dec I N); try reflexivity.
+    apply ex_falso_quodlibet. eapply lt_not_le. apply H; assumption. assumption.
+    destruct (eq_nat_dec I N). apply ex_falso_quodlibet; subst. eapply gt_irrefl.
+    apply H.
+    destruct (le_lt_dec I N); try reflexivity. unfold gt in H.
+    apply ex_falso_quodlibet. eapply lt_asym. apply H. assumption.
 Qed.
 
 (* Type in Term Substitution *)
