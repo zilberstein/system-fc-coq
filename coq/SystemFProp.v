@@ -25,11 +25,11 @@ Qed.
 Lemma canonical_forms_tabs : forall t T,
   empty |- t \in TUniv T ->
   value t ->
-  exists X t', t = ttabs X t'.
+  exists t', t = ttabs t'.
 Proof.
   intros. inversion H0; subst.
   inversion H; subst.
-  exists X. exists t0. reflexivity.
+  exists t0. reflexivity.
 Qed.
 
 (* ###################################################################### *)
@@ -87,7 +87,7 @@ Theorem progress : forall t T,
 
 Proof with eauto.
   intros t T Ht.
-  remember (@empty ty) as Gamma.
+  remember (@empty) as Gamma.
   has_type_cases (induction Ht) Case; subst Gamma...
   Case "T_Var".
     (* contradictory: variables cannot be typed in an 
@@ -115,10 +115,10 @@ Proof with eauto.
   Case "T_TApp".
     right. destruct IHHt...    
     SCase "t1 is a value".
-      assert (exists X0 t0, t1 = ttabs X0 t0).
+      assert (exists t0, t1 = ttabs t0).
       eapply canonical_forms_tabs; eauto.
-      destruct H0 as [X0 [t0 Heq]]; subst.
-      exists ([X0 := T2] t0)...
+      destruct H0; subst.
+      exists ([0 := T2] x0)...
     SCase "t1 also steps".
       inversion H. exists (ttapp x0 T2)...
 Qed.

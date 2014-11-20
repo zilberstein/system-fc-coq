@@ -201,7 +201,7 @@ Proof.
   Case "->".
     generalize dependent N; generalize dependent T2;
     induction T1; intros T2 N H; simpl in H.
-    SCase "T1 = TVar n". SearchAbout eq_nat.
+    SCase "T1 = TVar n".
       destruct (eq_nat_dec N n); subst.
       SSCase "N = n".
         constructor.
@@ -377,22 +377,22 @@ Notation "t1 '==>*' t2" := (multistep t1 t2) (at level 40).
 (* Reimplementing this as in the DeBruijn Indices paper *)
 
 Inductive context : Set :=
-  | e_empty : context
-  | e_var : context -> id -> ty -> context
-  | e_tvar : context -> ty -> context.
+  | empty : context
+  | ext_var : context -> id -> ty -> context
+  | ext_tvar : context -> ty -> context.
 
-Fixpoint get_evar (E : context) (x : id) : option ty :=
+Fixpoint get_var (E : context) (x : id) : option ty :=
   match E with
-    | e_empty => None
-    | e_var E' y T => if eq_id_dec x y then Some T else get_evar E' x
-    | e_tvar E' _  => get_evar E' x
+    | empty => None
+    | ext_var E' y T => if eq_id_dec x y then Some T else get_var E' x
+    | ext_tvar E' _  => get_var E' x
   end.
 
 Fixpoint get_tvar (E : context) (N : nat) : option ty :=
   match E with
-    | e_empty => None
-    | e_var E' _ _ => get_tvar E' N
-    | e_tvar E' T  =>
+    | empty => None
+    | ext_var E' _ _ => get_tvar E' N
+    | ext_tvar E' T  =>
       match N with
         | O => Some T
         | S N' => get_tvar E' N'
@@ -438,17 +438,17 @@ Reserved Notation "Gamma '|-' t '\in' T" (at level 40).
     
 Inductive has_type : context -> tm -> ty -> Prop :=
   | T_Var : forall Gamma x T,
-      get_evar Gamma x = Some T ->
+      get_var Gamma x = Some T ->
       Gamma |- tvar x \in T
   | T_Abs : forall Gamma x T11 T12 t12,
-      e_var Gamma x T11 |- t12 \in T12 -> 
+      ext_var Gamma x T11 |- t12 \in T12 -> 
       Gamma |- tabs x T11 t12 \in TArrow T11 T12
   | T_App : forall T11 T12 Gamma t1 t2,
       Gamma |- t1 \in TArrow T11 T12 -> 
       Gamma |- t2 \in T11 -> 
       Gamma |- tapp t1 t2 \in T12
   | T_TAbs : forall Gamma T t2 T2,
-      e_tvar Gamma T |- t2 \in T2 ->
+      ext_tvar Gamma T |- t2 \in T2 ->
       Gamma |- ttabs t2 \in (TUniv T2)
   | T_TApp : forall Gamma X t1 T12 T2,
       Gamma |- t1 \in (TUniv T12) ->
@@ -474,7 +474,7 @@ Qed.
 
 Example typing_nonexample :
   ~ (exists S, exists T,
-        e_empty |- 
+        empty |- 
           (tabs x S
              (tapp (tvar x) (tvar x))) \in
           T).
