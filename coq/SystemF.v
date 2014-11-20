@@ -240,47 +240,47 @@ Fixpoint subst_type_fix (X:nat) (T:ty) (t:tm) : tm :=
   | tvar x =>
       tvar x
   | tabs x T' t1 => 
-      tabs x ([X := T'] T) (subst_type_fix X T t1) 
+      tabs x ([X := T] T') (subst_type_fix X T t1) 
   | tapp t1 t2 => 
       tapp (subst_type_fix X T t1) (subst_type_fix X T t2)
   | ttabs t1 =>
-      ttabs (subst_type_fix (X+1) T t1) 
+      ttabs (subst_type_fix (X-1) T t1) 
   | ttapp t' T' =>
-      ttapp (subst_type_fix X T t') ([X := T'] T)
+      ttapp (subst_type_fix X T t') ([X := T] T')
   end.
 
 Instance subst_ty_tm : Subst nat ty tm := {
   do_subst := subst_type_fix
 }.
 
-Inductive subst_type (T:ty) (X:nat) : tm -> tm -> Prop := 
+Inductive subst_type (P:ty) (I:nat) : tm -> tm -> Prop := 
   | st_var : forall x,
-      subst_type T X (tvar x) (tvar x)
+      subst_type P I (tvar x) (tvar x)
   | st_tabs : forall T1 T2 x t t',
-      subst_type T X t t' ->
-      subst_type_in_type T X T1 T2 ->
-      subst_type T X (tabs x T1 t) (tabs x T2 t')
+      subst_type P I t t' ->
+      subst_type_in_type P I T1 T2 ->
+      subst_type P I (tabs x T1 t) (tabs x T2 t')
   | st_tapp : forall t1 t2 t1' t2',
-      subst_type T X t1 t1' ->
-      subst_type T X t2 t2' ->
-      subst_type T X (tapp t1 t2) (tapp t1' t2')
+      subst_type P I t1 t1' ->
+      subst_type P I t2 t2' ->
+      subst_type P I (tapp t1 t2) (tapp t1' t2')
   | st_ttabs : forall t t',
-      subst_type T (X+1) t t' ->
-      subst_type T X (ttabs t) (ttabs t')
+      subst_type P (I-1) t t' ->
+      subst_type P I (ttabs t) (ttabs t')
   | st_ttapp : forall t t' T1 T2,
-      subst_type T X t t' ->
-      subst_type_in_type T X T1 T2 ->
-      subst_type T X (ttapp t T1) (ttapp t' T2).
+      subst_type P I t t' ->
+      subst_type_in_type P I T1 T2 ->
+      subst_type P I (ttapp t T1) (ttapp t' T2).
 
 Hint Constructors subst_type.
 
-Theorem subst_type_correct : forall T X t t',
-  [X := T] t = t' <-> subst_type T X t t'.
+Theorem subst_type_correct : forall P I t t',
+  [I := P] t = t' <-> subst_type P I t t'.
 Proof.
   intros. split.
   Case "->".
-    generalize dependent X. generalize dependent t'.
-    induction t; intros t' X H; simpl in H.
+    generalize dependent I. generalize dependent t'.
+    induction t; intros t' I H; simpl in H.
     SCase "t = tvar i".
       rewrite <- H. constructor.
     SCase "t = tapp t1 t2".
@@ -374,94 +374,7 @@ Notation "t1 '==>*' t2" := (multistep t1 t2) (at level 40).
 (* ################################### *)
 (** *** Contexts *)
 
-(** _Question_: What is the type of the term "[x y]"?
 
-    _Answer_: It depends on the types of [x] and [y]!  
-
-    I.e., in order to assign a type to a term, we need to know
-    what assumptions we should make about the types of its free
-    variables.
-
-    This leads us to a three-place "typing judgment", informally
-    written [Gamma |- t : T], where [Gamma] is a
-    "typing context" -- a mapping from variables to their types. *)
-
-(** We hide the definition of partial maps in a module since it is
-    actually defined in [SfLib]. *)
-
-Module PartialMap.
-
-Inductive label := tm_var : id -> label
-                 | ty_var : id -> label.
-
-Definition partial_map (A:Type) := label -> option A.
-
-Definition empty {A:Type} : partial_map A := (fun _ => None). 
-
-(** Informally, we'll write [Gamma, x:T] for "extend the partial
-    function [Gamma] to also map [x] to [T]."  Formally, we use the
-    function [extend] to add a binding to a partial map. *)
-
-Theorem eq_label_dec : forall l1 l2 : label, {l1 = l2} + {l1 <> l2}.
-Proof.
-   intros.
-   destruct l1; destruct l2.
-   Case "l1 is term, l2 is term".
-     destruct (eq_id_dec i i0).
-     SCase "i = i0".
-       subst. left. reflexivity. 
-     SCase "i <> i0".
-       right. unfold not. unfold not in n.
-       intros H. apply n. inversion H. reflexivity.
-   Case "l1 is term, l2 is type".
-     right. unfold not. intros H. inversion H.
-   Case "l1 is type, l2 is term".
-     right. unfold not. intros H. inversion H.     
-   Case "l1 is type, l2 is type".
-     destruct (eq_id_dec i i0).
-     SCase "i = i0".
-       subst. left. reflexivity. 
-     SCase "i <> i0".
-       right. unfold not. unfold not in n.
-       intros H. apply n. inversion H. reflexivity.
-Qed.
-
-Definition eq_label_refl := fun (T:Type) (l:label) (p q : T) =>
-  let s := eq_label_dec l l in
-  match s as s0 return ((if s0 then p else q) = p) with
-  | left _ => eq_refl
-  | right n => ex_falso_quodlibet (q = p) (n eq_refl)
-  end.
-
-Lemma neq_label_refl : forall (T:Type) (l1 l2 : label) (p q : T),
-  l1 <> l2 -> (if eq_label_dec l1 l2 then p else q) = q.
-Proof.
-  intros. destruct (eq_label_dec l1 l2).
-  Case "l1 = l2".  
-    unfold not in H. apply ex_falso_quodlibet. apply H. assumption.
-  Case "l1 <> l2".
-    reflexivity.
-Qed.
-
-Definition extend {A:Type} (Gamma : partial_map A) (x:label) (T : A) :=
-  fun x' => if eq_label_dec x x' then Some T else Gamma x'.
-
-Lemma extend_eq : forall A (ctxt: partial_map A) x T,
-  (extend ctxt x T) x = Some T.
-Proof.
-  intros. unfold extend. rewrite eq_label_refl. auto.
-Qed.
-
-Lemma extend_neq : forall A (ctxt: partial_map A) x1 T x2,
-  x1 <> x2 ->
-  (extend ctxt x2 T) x1 = ctxt x1.
-Proof.
-  intros. unfold extend. apply neq_label_refl; auto.
-Qed.
-
-End PartialMap.
-
-Definition context := partial_map ty.
 
 (* ################################### *)
 (** *** Typing Relation *)
