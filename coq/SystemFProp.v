@@ -174,24 +174,24 @@ Qed.
       - both [x] and [y] appear free in [(\x:T->U. x y) x] 
       - no variables appear free in [\x:T->U. \y:T. x y]  *)
 
-Inductive appears_free_in : id -> tm -> Prop :=
+Inductive term_appears_free_in_term : id -> tm -> Prop :=
   | afi_var : forall x,
-      appears_free_in x (tvar x)
+      term_appears_free_in_term x (tvar x)
   | afi_app1 : forall x t1 t2,
-      appears_free_in x t1 -> appears_free_in x (tapp t1 t2)
+      term_appears_free_in_term x t1 -> term_appears_free_in_term x (tapp t1 t2)
   | afi_app2 : forall x t1 t2,
-      appears_free_in x t2 -> appears_free_in x (tapp t1 t2)
+      term_appears_free_in_term x t2 -> term_appears_free_in_term x (tapp t1 t2)
   | afi_abs : forall x y T11 t12,
-      y <> x  ->
-      appears_free_in x t12 ->
-      appears_free_in x (tabs y T11 t12)
+      y <> x ->
+      term_appears_free_in_term x t12 ->
+      term_appears_free_in_term x (tabs y T11 t12)
   | afi_tapp : forall x t T,
-      appears_free_in x t ->
-      appears_free_in x (ttapp t T)
+      term_appears_free_in_term x t ->
+      term_appears_free_in_term x (ttapp t T)
   | afi_tabs : forall x X t,
       X <> x ->
-      appears_free_in x t ->
-      appears_free_in x (ttabs X t).
+      term_appears_free_in_term x t ->
+      term_appears_free_in_term x (ttabs t).
 
 
 
@@ -203,35 +203,72 @@ Tactic Notation "afi_cases" tactic(first) ident(c) :=
   | Case_aux c "afi_tapp"
   | Case_aux c "afi_tabs" ].
 
-Hint Constructors appears_free_in.
+Hint Constructors term_appears_free_in_term.
 
 (** A term in which no variables appear free is said to be _closed_. *)
 
 Definition closed (t:tm) :=
-  forall x, ~ appears_free_in x t.
+  forall x, ~ term_appears_free_in_term x t.
 
-Inductive appears_free_in_type : id -> ty -> Prop :=
-  | afit_var : forall X,
-      appears_free_in_type X (TVar X)
+Inductive type_appears_free_in_type : nat -> ty -> Prop :=
+  | afit_ty_var : forall X,
+      type_appears_free_in_type X (TVar X)
   | afit_arrow1 : forall X T1 T2,
-      appears_free_in_type X T1 ->
-      appears_free_in_type X (TArrow T1 T2)
+      type_appears_free_in_type X T1 ->
+      type_appears_free_in_type X (TArrow T1 T2)
   | afit_arrow2 : forall X T1 T2,
-      appears_free_in_type X T2 ->
-      appears_free_in_type X (TArrow T1 T2).
+      type_appears_free_in_type X T2 ->
+      type_appears_free_in_type X (TArrow T1 T2).
 
 Tactic Notation "afit_cases" tactic(first) ident(c) :=
   first;
   [ Case_aux c "afit_var"
   | Case_aux c "afit_arrow1" | Case_aux c "afit_arrow2" ].
 
-Hint Constructors appears_free_in_type.
+Hint Constructors type_appears_free_in_type.
 
 (** A term in which no variables appear free is said to be _closed_. *)
 
 Definition closed_type (T:ty) :=
-  forall X, ~ appears_free_in_type X T.
+  forall X, ~ type_appears_free_in_type X T.
 
+Inductive type_appears_free_in_term : nat -> tm -> Prop :=
+  | afit_var : forall n x,
+      type_appears_free_in_term n (tvar x)
+  | afit_app1 : forall n t1 t2,
+      type_appears_free_in_term n t1 ->
+      type_appears_free_in_term n (tapp t1 t2)
+  | afit_app2 : forall n t1 t2,
+      type_appears_free_in_term n t2 ->
+      type_appears_free_in_term n (tapp t1 t2)
+  | afit_abs1 : forall n x T11 t12,
+      type_appears_free_in_type n T11 ->
+      type_appears_free_in_term n (tabs x T11 t12)
+  | afit_abs2 : forall n x T11 t12,
+      type_appears_free_in_term n t12 ->
+      type_appears_free_in_term n (tabs x T11 t12)
+  | afit_tapp1 : forall n t T,
+      type_appears_free_in_term n t ->
+      type_appears_free_in_term n (ttapp t T)
+  | afit_tapp2 : forall n t T,
+      type_appears_free_in_type n T ->
+      type_appears_free_in_term n (ttapp t T)
+  | afit_tabs : forall n t,
+      type_appears_free_in_term n t ->
+      type_appears_free_in_term n (ttabs t).
+
+Tactic Notation "afi_tt_ cases" tactic(first) ident(c) :=
+  first;
+  [ Case_aux c "afit_var"
+  | Case_aux c "afit_app1"  | Case_aux c "afit_app2" 
+  | Case_aux c "afit_abs1"  | Case_aux c "afit_abs2" 
+  | Case_aux c "afit_tapp1" | Case_aux c "afit_app2"
+  | Case_aux c "afit_tabs" ].
+
+Hint Constructors type_appears_free_in_term.
+
+Definition closed_type_term (t:tm) :=
+  forall X, ~ type_appears_free_in_term X t.
 
 (* ###################################################################### *)
 (** ** Substitution *)
@@ -242,9 +279,9 @@ Definition closed_type (T:ty) :=
     be the case that [Gamma] assigns a type to [x]. *)
 
 Lemma free_in_context : forall x t T Gamma,
-   appears_free_in x t ->
+   term_appears_free_in_term x t ->
    Gamma |- t \in T ->
-   exists T', Gamma x = Some T'.
+   exists T', get_var Gamma x = Some T'.
 
 (** _Proof_: We show, by induction on the proof that [x] appears free
       in [t], that, for all contexts [Gamma], if [t] is well typed
@@ -282,11 +319,13 @@ Proof.
          intros; try solve [inversion H0; eauto].
   Case "afi_abs".
     inversion H1; subst.
-    apply IHappears_free_in in H7.
-    rewrite extend_neq in H7; assumption.
+    apply IHterm_appears_free_in_term in H7.
+    inversion H7. inversion H2. destruct (eq_id_dec x0 y0); subst.
+    apply ex_falso_quodlibet; apply H; reflexivity.
+    exists x1; assumption.
   Case "afi_tabs".
-    inversion H1; subst. apply IHappears_free_in in H6.
-    rewrite extend_neq in H6; assumption.
+    inversion H1; subst. apply IHterm_appears_free_in_term in H4.
+    inversion H4. inversion H2. exists x1; assumption.
 Qed.
 
 (** Next, we'll need the fact that any term [t] which is well typed in
@@ -308,7 +347,8 @@ Proof.
     SCase "afi t2".
       eapply IHt2. apply H5. apply H2.
   Case "tabs".
-    admit.
+    inversion Hc; subst. eapply IHt. 
+    
   Case "ttapp".
     eapply IHt. apply H4. inversion Hc; subst. apply H2.
   Case "ttabs".
