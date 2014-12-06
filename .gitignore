@@ -1,7 +1,7 @@
-proposal/*.aux
-proposal/*.log
-proposal/*.bbl
-proposal/*.bbg
-proposal/*eps-converted-to.pdf
-proposal/*.epds
-proposal/*.pdf
+*/*.aux
+*/*.log
+*/*.bbl
+*/*.bbg
+*/*eps-converted-to.pdf
+*/*.epds
+*/*.pdf
