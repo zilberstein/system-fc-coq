@@ -3,8 +3,8 @@
 # Make-file for the CIS400/4001 Project Proposal Specification
 
 	# Filenames to be-used in compilation
-MAIN=prop_spec
-TEX=prop_spec.tex
+MAIN=prog_rep
+TEX=prog_rep.tex
 
 	# Core compilation commands
 CC=pdflatex
