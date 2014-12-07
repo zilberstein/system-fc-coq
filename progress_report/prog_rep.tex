@@ -334,7 +334,12 @@ The primary criterion for evaluation would be how much of the specification of S
 \section{System Model}
 \section{System Implementation}
 \section{System Performance}
+\label{sec:performance}
+A formal proof has no real notion of performance beyond its validity. The system described uses the Coq Proof Assistant to verify properties of System FC, so given that Coq accepts these properties, the validity is guaranteed for this formalization of the language. The evaluation criteria for the system as a whole mentions that Coq allows for one to add axioms to a system in order to ease the burden of proving known properties. The system as it stands does not declare any axioms, meaning all theorems used in the proofs are themselves fully proven from scratch.
+
 \section{Remaining Work}
+\label{sec:remaining}
+At this point, the system is on track to meet the timeline outlined in the project proposal. The system is close to having a formalized proof of the substitution lemma which is to be done by the end of the calendar year. What remains is an incremental addition of features accompanied by modification of the proofs of all properties contained in the formalization. These features include coercions, type families, and datatypes. These concepts are explained in more detail in Section \ref{sec:background}. When these are completed and the properties involving them are proven, the result is a full formalization and verification of System FC.
 
 % We next move onto the bibliography.
 \bibliographystyle{plain} % Please do not change the bib-style
