@@ -74,6 +74,7 @@ To accomplish this, GHC Core is verified in a series of steps. First, System F i
 
 \section{Background}
 \label{sec:background}
+\subsection{Progress and Preservation}
 Progress, preservation, and soundness are the most basic indications of safety for any type system~\cite{Pierce:TAPL}. To understand these, it is important to define how the operational semantics of a language are formalized. Types are descriptors for data and terms are well-typed expressions under a given context, or set of typing assumptions. When specifying the operational semantics of a programming language, one defines a step relation that relates a term of a particular type in the language to another term of the same type. Terms make steps in order to reach a simplified form, see Figure~\ref{fig:step-ex} for an example. The evaluation of any expression in the language can be modeled in a series of discrete ``steps'', where in each step one takes a term in the expression and replaces it with the resulting term per the step relation. In a well-typed program, this process continues until the expression evaluates to a value, a unique representation of a value for a particular type (e.g. `1' for the type of integers).
 
 \begin{figure}
@@ -151,38 +152,8 @@ System FC is built on top of the simpler language System F. System F, also known
   \label{fig:typing}
 \end{figure}
 
-
-\section{Related Work}
-\label{sec:related_work}
-This work is built upon the idea of formal verification, wherein one generates a formal
-model of the system under study using a theorem-proving system such as Coq, and then proves 
-that this model satisfies certain desired properties~\cite{series/natosec/CousotC10}. This 
-methodology has been developed as an alternative to other program verification methods, such as 
-model-checking, static analysis, or unit testing. This development was intended to sidestep the 
-issue that it is either computationally infeasible or impossible to provide a guarantee of the 
-system's correctness and safety using other verification methods.
-
-Prior work has demonstrated that programming languages are targets for verification using 
-formal methods. There exist full specifications and verifications for simple programming
-models, such as the simply-typed lambda calculus, as proven in~\cite{Pierce:SF} for example. In particular, it is desirable to verify the intermediate representation languages for compilers because the correctness of compilers is crucial in order to correctly execute and reason about programs written in that language~\cite{Zhao:2012:FLI:2103656.2103709}.
-
-Further, some work has gone into formalizing the specification for System FC, including a basic 
-Coq translation provided with the initial proposal of System FC~\cite{conf/tldi/SulzmannCJD07}. 
-Progress for System F has a non-mechanized proof~\cite{Girard:1989:PT:64805}. To our knowledge, however, there has not been any substantial progress in a formal 
-proof of the soundness of System FC.
-
-% Here we see our first citations. It's just a simple command, the
-% body of which is the keyword-label assigned to resources over in the
-% *.bib file
-%\newpage
-\section{Project Proposal}
-\label{sec:project_proposal}
-This section describes the proposed approach. It begins by detailing the set of steps we plan to follow in order to successfully verify System FC. Next, it describes the technical challenges that are involved in the project and finally, it explains the evaluation criteria.
-
-\subsection{Anticipated Approach}
-\label{subsec:approach}
-To begin, the semantics of System F as defined in~\cite{Pierce:SF} are formalized in Coq. Progress and preservation are then proven to hold for this formalization. Once the proofs of these theorems have been generated and mechanically verified, the formalization is extended to include the remaining features of System FC that are absent from System F.  At each step the proofs are be adjusted to account for the features that have been added. In this way, the proofs are incrementally built until there is a complete proof for a formalized version of System FC. This approach is outlined in Figure~\ref{fig:block-diagram}.
-The first feature that is added to the formalization of System F is type coercions without datatypes. Coercions are responsible for most of the power of System FC over System F. They allow a conversion from one type to another. A basic example of the usefulness of coercions is provided in Figures~\ref{fig:coercion-ex} and~\ref{fig:coercion-fc}.
+\subsection{Coercions}
+Coercions are responsible for most of the power of System FC over System F. They allow a conversion from one type to another. A basic example of the usefulness of coercions is provided in Figures~\ref{fig:coercion-ex} and~\ref{fig:coercion-fc}.
 
 \begin{figure}
 \begin{verbatim}
@@ -210,15 +181,13 @@ case x of
   G1 c $\rightarrow$ 5 $\triangleright$ sym c
   G2 c $\rightarrow$ True $\triangleright$ sym c
 \end{lstlisting}
-\caption{Translation of Haskell code in Figure~\ref{fig:coercion-ex} to System FC. The necessity of is demonstrated here.}
+\caption{Translation of Haskell code in Figure~\ref{fig:coercion-ex} to System FC. The necessity of coercions is demonstrated here.}
 \label{fig:coercion-fc}
 \end{figure}
 
 This is a basic example of datatypes in Haskell and a trivial use of them. \texttt{G} is a parameterized datatype with kind {\tt *} $\rightarrow$ {\tt *}. A \textit{kind} in Haskell represents the type of a type constructor. In Haskell, the types \texttt{Int} and \texttt{Bool} both have kind \texttt{*}. \texttt{f} is a function that takes something of type \texttt{G a} and returns something of type \texttt{a}. In Haskell, this only compiles because of coercions.
 
 Here, \texttt{G1} is stating that for all types \texttt{a} of kind \texttt{*}, if \texttt{a} can be coerced to an \texttt{Int}, then one can obtain something of type \texttt{G a}. \texttt{G2} is defined similarly. Now, in the \texttt{G1} case, in order for the function \texttt{f} to correctly yield something of type \texttt{a}, \texttt{5} needs to be coerced to be of type \texttt{a}. This is accomplished using the rule from the construction of \texttt{G1}, since \texttt{G1} requires that an \texttt{a} can be coerced to an \texttt{Int}. The symmetry of this rule allows for \texttt{5} to be coerced to an \texttt{a}, which is required in the body of \texttt{f}. 
-
-Note here that datatypes are used to demonstrate the power of coercions. However, at this point in the implementation, there will not be datatypes. Datatypes are much more complicated to formalize than are coercions and type families, and it is easier to formalize datatypes after formalizing coercions and type families.
 
 %For example, the standard Haskell function map shown below acts over a list of generic type \texttt{a}, applying a transformation function to each element and returns a list of type \texttt{b}.
 %\begin{verbatim}
@@ -228,7 +197,8 @@ Note here that datatypes are used to demonstrate the power of coercions. However
 %\end{verbatim}
 %In order to type check \texttt{map} in System FC, the generic type variables \texttt{a} and \texttt{b} must be coerced to match the types of the arguments to \texttt{map}.  In the expression \texttt{map (> 0) [-1,0,1]}, the abstract types \texttt{a} and \texttt{b} must be coerced to the concrete types \texttt{Int} and \texttt{Bool} respectively.
 
-After adding type coercions without data types, and verifying correctness using the progress and preservation theorems, the type family feature is added. At the most basic level, type families are just functions at the type-level. Figure~\ref{fig:ty-fam-ex} gives an example of a type family. In this example~\cite{DBLP:conf/icfp/WeirichHE13}, the type \texttt{Ty} is defined to be either a \texttt{TInt} or \texttt{TBool}. Then, the type family \texttt{I} is defined to act on something of type \texttt{Ty}, either a \texttt{TInt} or \texttt{TBool}. This returns something of kind \texttt{*}. So, this type family \texttt{I} can map the data constructor \texttt{TInt} to \texttt{Int} and \texttt{TBool} to \texttt{Bool}.
+\subsection{Type Families}
+Type families are another feature that is present in System FC. At the most basic level, type families are just functions at the type-level. Figure~\ref{fig:ty-fam-ex} gives an example of a type family. In this example~\cite{DBLP:conf/icfp/WeirichHE13}, the type \texttt{Ty} is defined to be either a \texttt{TInt} or \texttt{TBool}. Then, the type family \texttt{I} is defined to act on something of type \texttt{Ty}, either a \texttt{TInt} or \texttt{TBool}. This returns something of kind \texttt{*}. So, this type family \texttt{I} can map the data constructor \texttt{TInt} to \texttt{Int} and \texttt{TBool} to \texttt{Bool}.
 
 \begin{figure}
 \begin{lstlisting}[language=Haskell]
@@ -243,14 +213,44 @@ type instance I TBool = Bool
 \label{fig:ty-fam-ex}
 \end{figure}
 
-Next, datatypes are added to the formalization of System FC. Datatypes are another very powerful construct in Haskell that allow programmers to define their own algebraic types. Types defined in such ways can be used to represent many constructs. For example, datatypes can be used to define generic lists as follows:
+\subsection{Datatypes}
+Datatypes are also part of the formalization of System FC. Datatypes are another very powerful construct in Haskell that allow programmers to define their own algebraic types. Types defined in such ways can be used to represent many constructs. For example, datatypes can be used to define generic lists as follows:
 \begin{verbatim}
 data List a = Nil
             | Cons a (List a)
 \end{verbatim}
 Here, a list is parameterized by the generic type variable \texttt{a} and is constructed as either \texttt{Nil}, the empty list, or an element of type \texttt{a} consed on to a list of type \texttt{a}. This construct is extremely simple, but also very powerful. It is another very important addition to System FC.
 
-The language resulting from adding the features described above to System F is a formalization of the language System FC. A translation to the core language that is actually implemented in GHC is then be proven. This verified translation then proves that the formalized language is indeed equivalent to System FC and therefore the proofs on the formalized language hold on the actual language.
+The language resulting from adding the features described above to System F is a complete formalization of the language System FC. 
+
+
+
+\section{Related Work}
+\label{sec:related_work}
+This work is built upon the idea of formal verification, wherein one generates a formal
+model of the system under study using a theorem-proving system such as Coq, and then proves 
+that this model satisfies certain desired properties~\cite{series/natosec/CousotC10}. This 
+methodology has been developed as an alternative to other program verification methods, such as 
+model-checking, static analysis, or unit testing. This development was intended to sidestep the 
+issue that it is either computationally infeasible or impossible to provide a guarantee of the 
+system's correctness and safety using other verification methods.
+
+Prior work has demonstrated that programming languages are targets for verification using 
+formal methods. There exist full specifications and verifications for simple programming
+models, such as the simply-typed lambda calculus, as proven in~\cite{Pierce:SF} for example. In particular, it is desirable to verify the intermediate representation languages for compilers because the correctness of compilers is crucial in order to correctly execute and reason about programs written in that language~\cite{Zhao:2012:FLI:2103656.2103709}.
+
+Further, some work has gone into formalizing the specification for System FC, including a basic 
+Coq translation provided with the initial proposal of System FC~\cite{conf/tldi/SulzmannCJD07}. 
+Progress for System F has a non-mechanized proof~\cite{Girard:1989:PT:64805}. To our knowledge, however, there has not been any substantial progress in a formal 
+proof of the soundness of System FC.
+
+% Here we see our first citations. It's just a simple command, the
+% body of which is the keyword-label assigned to resources over in the
+% *.bib file
+%\newpage
+\section{Project Proposal}
+\label{sec:project_proposal}
+This section describes the proposed approach. It begins by detailing the set of steps we plan to follow in order to successfully verify System FC. Next, it describes the technical challenges that are involved in the project and finally, it explains the evaluation criteria.
 
 \tikzstyle{int}=[draw, fill=blue!20, minimum size=2em]
 \tikzstyle{thm}=[draw, fill=green!20, minimum size=2em]
@@ -371,7 +371,12 @@ After formalizing syntax and substitutions for System F, it is possible to forma
 
 
 \section{System Performance}
+\label{sec:performance}
+A formal proof has no real notion of performance beyond its validity. The system described uses the Coq Proof Assistant to verify properties of System FC, so given that Coq accepts these properties, the validity is guaranteed for this formalization of the language. The evaluation criteria for the system as a whole mentions that Coq allows for one to add axioms to a system in order to ease the burden of proving known properties. The system as it stands does not declare any axioms, meaning all theorems used in the proofs are themselves fully proven from scratch.
+
 \section{Remaining Work}
+\label{sec:remaining}
+At this point, the system is on track to meet the timeline outlined in the project proposal. The system is close to having a formalized proof of the substitution lemma which is to be done by the end of the calendar year. What remains is an incremental addition of features accompanied by modification of the proofs of all properties contained in the formalization. These features include coercions, type families, and datatypes. These concepts are explained in more detail in Section \ref{sec:background}. When these are completed and the properties involving them are proven, the result is a full formalization and verification of System FC.
 
 % We next move onto the bibliography.
 \bibliographystyle{plain} % Please do not change the bib-style
