@@ -92,7 +92,7 @@ The progress, preservation, and soundness theorems can now be defined. Progress 
 
 Together, these properties guarantee that a well-typed program in the specified language will always be able to continue evaluation until it reaches a value; the result of the program ending up in a stuck state will only result from the program logic leading to an infinite loop, and not from the language falling into some invalid state. After formalizing the operational semantics for System FC, it will be demonstrated that preservation, progress, and soundness hold for the specification.
 
-System FC is built on top of the simpler language System F. System F, also known as the polymorphic lambda calculus, is an extension of the simply-typed lambda calculus to include the abstraction and application of type terms~\cite{Pierce:TAPL}. This feature essentially allows for functions to take types as parameters, granting the ability to define functions whose actual types vary based on these input types. System F is formalized in Coq and then additional features are added in order to transform System F into a full formalization of System FC. These features include type coercion, type families, and datatypes. In particular, type coercions allow for type families and generalized algebraic datatypes to exist in System FC by acting as a witness for equality between syntactically different types~\cite{DBLP:conf/rta/VytiniotisJ13}. For an example of coercions, see Figure 4. Types can be equal in different ways and therefore there is a complex set of coercion rules that can be used to construct correct equality proofs~\cite{Breitner:2014:SZC:2628136.2628141}. System F, with these added features, becomes system FC. A translation to System FC is then proven which shows that the core language of GHC has indeed been verified. The syntax for System F is provided in Figure~\ref{fig:syntax}, the evaluation semantics are outlined in Figure~\ref{fig:evaluation}, and type relations are stated in Figure~\ref{fig:typing}.
+System FC is built on top of the simpler language System F. System F, also known as the polymorphic lambda calculus, is an extension of the simply-typed lambda calculus to include the abstraction and application of type terms~\cite{Pierce:TAPL}. This feature essentially allows for functions to take types as parameters, granting the ability to define functions whose actual types vary based on these input types. System F is formalized in Coq and then additional features are added in order to transform System F into a full formalization of System FC. These features include type coercion, type families, and datatypes. In particular, type coercions allow for type families and generalized algebraic datatypes to exist in System FC by acting as a witness for equality between syntactically different types~\cite{DBLP:conf/rta/VytiniotisJ13}. For an example of coercions, see Figure~\ref{fig:coercion-ex}. Types can be equal in different ways and therefore there is a complex set of coercion rules that can be used to construct correct equality proofs~\cite{Breitner:2014:SZC:2628136.2628141}. System F, with these added features, becomes system FC. A translation to System FC is then proven which shows that the core language of GHC has indeed been verified. The syntax for System F is provided in Figure~\ref{fig:syntax}, the evaluation semantics are outlined in Figure~\ref{fig:evaluation}, and type relations are stated in Figure~\ref{fig:typing}.
 \newcommand\mybox[2][]{#2}%\tikz[overlay]\node[fill=white!20,inner sep=2pt, anchor=text, rectangle, rounded corners=1mm,#1] {#2};\phantom{#2}}
 
 \begin{figure}
@@ -201,14 +201,14 @@ Here, \texttt{G1} is stating that for all types \texttt{a} of kind \texttt{*}, i
 Type families are another feature that is present in System FC. At the most basic level, type families are just functions at the type-level. Figure~\ref{fig:ty-fam-ex} gives an example of a type family. In this example~\cite{DBLP:conf/icfp/WeirichHE13}, the type \texttt{Ty} is defined to be either a \texttt{TInt} or \texttt{TBool}. Then, the type family \texttt{I} is defined to act on something of type \texttt{Ty}, either a \texttt{TInt} or \texttt{TBool}. This returns something of kind \texttt{*}. So, this type family \texttt{I} can map the data constructor \texttt{TInt} to \texttt{Int} and \texttt{TBool} to \texttt{Bool}.
 
 \begin{figure}
-\begin{verbatim}
+\begin{lstlisting}[language=Haskell]
 data Ty = Tint
         | TBool
 
 type family I (t : Ty) :: *
 type instance I TInt  = Int
 type instance I TBool = Bool
-\end{verbatim}
+\end{lstlisting}
 \caption{Type family example}
 \label{fig:ty-fam-ex}
 \end{figure}
@@ -331,18 +331,10 @@ Additionally, since the formalization of System FC has never been performed befo
 This formalization for System FC has never been done. Upon completion, assurance of the formal correctness of this language will be provided, which is essential to the compilation of Haskell. This would also form a building block for verifications of other features of System FC.
 The primary criterion for evaluation would be how much of the specification of System FC is formalized; given that there exists no precedent for formalizing System FC, the completion of the full specification is not assured. The formalization of the base specification for System FC can be done in several parts, meaning the progress of this project can be judged based on what sections of the language specification are completed. Completing this, the project could be arbitrarily extended to formalize proposed extensions to System FC; evaluation of this could again be based on how many of these extensions are completed. Additionally, another criterion for evaluation would be how many axioms are used in the formalization. The fewer axioms assumed, the stronger the result becomes.
 
-\section{Research Timeline}
-\label{sec:research_timeline}
-% The 'itemize' environment shown here, and its friend 'enumerate'
-% (shown below), are used to create indented\bulleted\outline style
-% lists.
-\begin{itemize*}
-	\item {\sc already completed}: Understand the formal definition of System F.
-	\item {\sc prior-to thanksgiving} : Formalize System F in Coq.
-	\item {\sc prior-to christmas} : Prove the substitution lemma holds in System F.
-	\item {\sc completion tasks} : Complete verification of System F with coercions and type families.
-	\item {\sc if there's time} : Complete formalization of System FC, verify formal language, prove translation between formal language and System FC as implemented in GHC. Also verify other GHC features, such as optimizations and extensions.
-\end{itemize*}
+\section{System Model}
+\section{System Implementation}
+\section{System Performance}
+\section{Remaining Work}
 
 % We next move onto the bibliography.
 \bibliographystyle{plain} % Please do not change the bib-style
