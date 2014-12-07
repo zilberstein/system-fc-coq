@@ -333,6 +333,43 @@ The primary criterion for evaluation would be how much of the specification of S
 
 \section{System Model}
 \section{System Implementation}
+The formalization of System F in Coq follows directly from the definitions in~\cite{Pierce:TAPL}. First, types, terms, and values are defined as inductive datatypes based on Figure~\ref{fig:syntax}. Inductive datatypes are datatypes over which Coq can perform induction proofs. This property is quite useful when proving the Progress and Preservation theorems. The formalization of System F syntax is shown in Figure~\ref{fig:syntax-coq} where \texttt{tm} represents the type of a System F term and \texttt{ty} represents the type of a System F type.
+
+\begin{figure}
+\begin{lstlisting}
+(** *** Types *)
+Inductive ty : Type := 
+  | TVar   : nat -> ty 
+  | TArrow : ty -> ty -> ty
+  | TUniv  : forall (X : ty),ty.
+
+(** *** Terms *)
+Inductive tm : Type :=
+  | tvar  : id -> tm
+  | tapp  : tm -> tm -> tm
+  | tabs  : id -> ty -> tm -> tm
+  | ttapp : tm -> ty -> tm
+  | ttabs : tm -> tm.
+
+(** *** Values *)
+Inductive value : tm -> Prop :=
+  | v_abs : forall x T t,
+      value (tabs x T t)
+  | v_tabs : forall t,
+      value (ttabs t).
+
+\end{lstlisting}
+\caption{System F syntax defined in Coq}
+\label{fig:syntax-coq}
+\end{figure}
+In this implementation, type variables are parameterized by a \texttt{nat} or natural number. This value represents the de Bruijn index of the variable: how many layers deep the variable is from where it was bound~\cite{Vouillon12}. Type abstractions do not need to explicitly bind inputs since the de Bruijn index is implicitly 0. For example, the polymorphic identity function is represented as \texttt{ttabs (tabs x (TVar 0) (tvar x))} where \texttt{ttabs} indicates a type abstraction, \texttt{tabs} is a term abstraction, \texttt{x} is the identifier that the input term is bound to, \texttt{TVar 0} indicates that the type of \texttt{x} is the type that was last bound, and \texttt{tvar x} is the return term.
+
+Next, substitution is defined as Coq Notation. Notation in Coq allows the user to refer to fixpoints (functions) and dataypes using operators instead of names. In this implementation the notation for substitutions is \texttt{[x := s]t} meaning substitute the identifier \texttt{x} with \texttt{s} in \texttt{t}, There are three different kinds of substitutions that must be performed throughout the proofs meaning that \texttt{s} and \texttt{t} are not always the same type. These substitutions are of terms in terms, types in terms, and types in types. Terms cannot be substituted in types because terms never appear is types. In order for the substitution notation to be reusable for the three different kinds of substitutions, there is a \texttt{Subst} type class that has instances for the different combinations of types for \texttt{x}, \texttt{s}, and \texttt{t}. In addition to being defined using fixpoints, substitutions are defined inductively. Fixpoints provide a nice notation for substitutions while the inductive definition is useful in proofs. In order to reconcile this, several lemmas are proven that verify the equivalence between the fixpoint and inductive definitions for substitutions. This allows theorems to use the more readable notation, while the proofs of those theorems use the inductive definitions.
+
+After formalizing syntax and substitutions for System F, it is possible to formalize the evaluation semantics. This is defined inductively with the associated notation \texttt{t1 ==> t2} meaning that term \texttt{t1} steps to term \texttt{t2}. The evaluation semantics follow directly from Figure~\ref{fig:evaluation} and are directly translated into Coq using the syntax shown in Figure~\ref{fig:syntax-coq}.
+
+
+
 \section{System Performance}
 \section{Remaining Work}
 
