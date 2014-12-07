@@ -368,7 +368,23 @@ Next, substitution is defined as Coq Notation. Notation in Coq allows the user t
 
 After formalizing syntax and substitutions for System F, it is possible to formalize the evaluation semantics. This is defined inductively with the associated notation \texttt{t1 ==> t2} meaning that term \texttt{t1} steps to term \texttt{t2}. The evaluation semantics follow directly from Figure~\ref{fig:evaluation} and are directly translated into Coq using the syntax shown in Figure~\ref{fig:syntax-coq}.
 
+Variable binding contexts are implemented as an inductive datatype where \texttt{empty} represents the empty context (shown as $\varnothing$ in Figure~\ref{fig:syntax}) and the data constructors \texttt{ext\textunderscore var} and \texttt{ext\textunderscore tvar} extend a context with a term or type variable binding respectively. Term variable bindings identify the bound variable using an identifier or \texttt{id}. This \texttt{id} is associated with a type. A fixpoint is defined to find the type of a term variable by searching through the context for the specified \texttt{id}.
 
+Type variable binding works signifigantly differently. Since type variables are identified by de Bruijn indices, there is no need to specify any kind of identifier when binding a type variable. By definition, a type variable with de Bruijn index $n$ is bound $n$ levels up from the current scope. This means that the binding is the $n^\text{th}$ deep type variable binding in the context \texttt{Gamma}~\cite{Vouillon12}. Notice also that in Figure~\ref{fig:syntax}, type variables are not bound with an associated value like term variables are. There is no meaningful value to associate with a type variable in a context because a type variable simply represents a unique type in the program context and the purpose of binding it is to show that the type exists.
+
+With contexts defined, it is possible to define the final piece of the System F formaluzation, typing. Typing is defined as an inductive proposition based on the inference rules in Figure~\ref{fig:typing}. A notation is also defined for the typing relation: \texttt{Gamma |- t \textbackslash in T} means that the term \texttt{t} has type \texttt{T} under the context \texttt{Gamma}. Since the type of this expression in Coq is \texttt{Prop} (short for proposition), it is an expression that can be proven (but is not necessarily true). Given the formalization presented above, it is possible to prove that any well typed term \texttt{t} with type \texttt{T} has type \texttt{T}. If \texttt{t} is not well-typed, then it is impossible to prove that it has any type.
+
+\begin{figure}
+\begin{lstlisting}
+Theorem progress : $\forall$ t T, 
+     $\varnothing$ |- t $\in$ T $\rightarrow$
+     value t $\wedge$ $\exists$ t', t ==> t'.
+\end{lstlisting}
+\caption{The Progress Theorem written in Coq}
+\label{fig:progress-coq}
+\end{figure}
+
+The next step after fully formalizing System F is to prove the Progress theorem. The formal definition of Progress in Coq can be seen in Figure~\ref{fig:progress-coq}.
 
 \section{System Performance}
 \label{sec:performance}
