@@ -361,7 +361,7 @@ Qed.
     that appear free in [t]. In fact, this is the only condition that
     is needed. *)
 
-Lemma context_invariance_term_term : forall Gamma Gamma' t T,
+Lemma context_invariance_term : forall Gamma Gamma' t T,
      Gamma |- t \in T  ->
      (forall x, term_appears_free_in_term x t ->
                 get_var Gamma x = get_var Gamma' x) ->
@@ -532,7 +532,7 @@ Proof with eauto.
     rename i into y. destruct (eq_id_dec x y).
     SCase "x=y".
       subst. simpl in H2; rewrite eq_id in H2; inversion H2; subst.
-      eapply context_invariance_term_term. apply Ht'. intros x Hcontra.
+      eapply context_invariance_term. apply Ht'. intros x Hcontra.
       destruct (free_in_context _ _ T empty Hcontra) as [T' HT']...
       inversion HT'.
     SCase "x<>y".
@@ -541,14 +541,14 @@ Proof with eauto.
     rename i into y. apply T_Abs.
     destruct (eq_id_dec x y).
     SCase "x=y".
-      eapply context_invariance_term_term...
+      eapply context_invariance_term...
       subst.
       intros x Hafi. unfold extend.
       destruct (eq_id_dec y x); subst.
       simpl; repeat (rewrite eq_id)...
       simpl; repeat (rewrite neq_id)...
     SCase "x<>y".
-      apply IHt. eapply context_invariance_term_term...
+      apply IHt. eapply context_invariance_term...
       intros z Hafi. unfold extend.
       destruct (eq_id_dec y z); subst.
         simpl; repeat (rewrite eq_id); rewrite neq_id...
@@ -556,7 +556,7 @@ Proof with eauto.
           simpl; repeat (rewrite eq_id); rewrite neq_id...
           simpl; repeat (rewrite neq_id)...
   Case "ttabs".
-    apply T_TAbs. apply IHt. eapply context_invariance_term_term...
+    apply T_TAbs. apply IHt. eapply context_invariance_term...
 Qed.
 
 Lemma substitution_preserves_typing_type : forall t T T' Gamma,
@@ -564,6 +564,8 @@ Lemma substitution_preserves_typing_type : forall t T T' Gamma,
   Gamma |- [0 := T'] t \in [0 := T'] T.
 Proof.
 Admitted.
+
+
 (*  intros. generalize dependent Gamma.
   induction T; intros Gamma H; subst.
   Case "TVar".
