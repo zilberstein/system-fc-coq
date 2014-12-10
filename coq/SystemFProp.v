@@ -188,8 +188,7 @@ Inductive term_appears_free_in_term : id -> tm -> Prop :=
   | afi_tapp : forall x t T,
       term_appears_free_in_term x t ->
       term_appears_free_in_term x (ttapp t T)
-  | afi_tabs : forall x X t,
-      X <> x ->
+  | afi_tabs : forall x t,
       term_appears_free_in_term x t ->
       term_appears_free_in_term x (ttabs t).
 
@@ -324,8 +323,8 @@ Proof.
     apply ex_falso_quodlibet; apply H; reflexivity.
     exists x1; assumption.
   Case "afi_tabs".
-    inversion H1; subst. apply IHterm_appears_free_in_term in H4.
-    inversion H4. inversion H2. exists x1; assumption.
+    inversion H0; subst. apply IHterm_appears_free_in_term in H3.
+    inversion H3. inversion H0. exists x1; assumption.
 Qed.
 
 (** Next, we'll need the fact that any term [t] which is well typed in
@@ -347,8 +346,7 @@ Proof.
     SCase "afi t2".
       eapply IHt2. apply H5. apply H2.
   Case "tabs".
-    inversion Hc; subst. eapply IHt. 
-    
+    admit.
   Case "ttapp".
     eapply IHt. apply H4. inversion Hc; subst. apply H2.
   Case "ttabs".
@@ -363,9 +361,10 @@ Qed.
     that appear free in [t]. In fact, this is the only condition that
     is needed. *)
 
-Lemma context_invariance : forall Gamma Gamma' t T,
+Lemma context_invariance_term_term : forall Gamma Gamma' t T,
      Gamma |- t \in T  ->
-     (forall x, appears_free_in x t -> Gamma x = Gamma' x) ->
+     (forall x, term_appears_free_in_term x t ->
+                get_var Gamma x = get_var Gamma' x) ->
      Gamma' |- t \in T.
 
 (** _Proof_: By induction on the derivation of [Gamma |- t \in T].
@@ -422,14 +421,19 @@ Proof with eauto.
     apply IHhas_type. intros x1 Hafi.
     (* the only tricky step... the [Gamma'] we use to 
        instantiate is [extend Gamma x T11] *)
-    unfold extend. destruct (eq_id_dec x0 x1)... 
+    destruct (eq_id_dec x0 x1); subst; simpl.
+    SCase "x0 = x1".
+      repeat (rewrite eq_id)...
+    SCase "x0 <> x1".
+      repeat (rewrite neq_id)...
   Case "T_App".
     apply T_App with T11...
   Case "T_TAbs".
-    apply T_TAbs with T.
-    apply IHhas_type. intros x1 Hafi.
-    unfold extend. destruct (eq_id_dec X x1)...
+    apply T_TAbs.
+    apply IHhas_type. intros x1 Hafi. simpl.
+    apply H0. apply afi_tabs...
 Qed.
+
 
 (** Now we come to the conceptual heart of the proof that reduction
     preserves types -- namely, the observation that _substitution_
@@ -447,8 +451,8 @@ Qed.
 (** _Lemma_: If [Gamma,x:U |- t \in T] and [|- v \in U], then [Gamma |-
     [x:=v]t \in T]. *)
 
-Lemma substitution_preserves_typing : forall Gamma x U t v T,
-     extend Gamma x U |- t \in T ->
+Lemma substitution_preserves_typing_term_term : forall Gamma x U t v T,
+     ext_var Gamma x U |- t \in T ->
      empty |- v \in U   ->
      Gamma |- [x:=v]t \in T.
 
@@ -527,31 +531,32 @@ Proof with eauto.
   Case "tvar".
     rename i into y. destruct (eq_id_dec x y).
     SCase "x=y".
-      subst. 
-      rewrite extend_eq in H2.
-      inversion H2; subst. clear H2.
-                  eapply context_invariance... intros x Hcontra.
+      subst. simpl in H2; rewrite eq_id in H2; inversion H2; subst.
+      eapply context_invariance_term_term. apply Ht'. intros x Hcontra.
       destruct (free_in_context _ _ T empty Hcontra) as [T' HT']...
       inversion HT'.
     SCase "x<>y".
-      apply T_Var. rewrite extend_neq in H2... 
+      apply T_Var. simpl in H2; rewrite neq_id in H2...
   Case "tabs".
     rename i into y. apply T_Abs.
     destruct (eq_id_dec x y).
     SCase "x=y".
-      eapply context_invariance...
+      eapply context_invariance_term_term...
       subst.
       intros x Hafi. unfold extend.
-      destruct (eq_id_dec y x)...
+      destruct (eq_id_dec y x); subst.
+      simpl; repeat (rewrite eq_id)...
+      simpl; repeat (rewrite neq_id)...
     SCase "x<>y".
-      apply IHt. eapply context_invariance...
+      apply IHt. eapply context_invariance_term_term...
       intros z Hafi. unfold extend.
-      destruct (eq_id_dec y z)...
-      subst. rewrite neq_id... 
-    Case "ttabs".
-      eapply T_TAbs. 
-
-
+      destruct (eq_id_dec y z); subst.
+        simpl; repeat (rewrite eq_id); rewrite neq_id...
+        destruct (eq_id_dec x z); subst.
+          simpl; repeat (rewrite eq_id); rewrite neq_id...
+          simpl; repeat (rewrite neq_id)...
+  Case "ttabs".
+    apply T_TAbs. apply IHt. eapply context_invariance_term_term...
 Qed.
 
 (** The substitution lemma can be viewed as a kind of "commutation"
@@ -1421,7 +1426,7 @@ Proof with eauto.
     rename i into y. destruct (eq_id_dec x y).
     SCase "x=y".
       subst. 
-      rewrite extend_eq in H2.
+      
       inversion H2; subst. clear H2.
                   eapply context_invariance... intros x Hcontra.
       destruct (free_in_context _ _ T empty Hcontra) as [T' HT']...

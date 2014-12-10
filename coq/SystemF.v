@@ -379,22 +379,22 @@ Notation "t1 '==>*' t2" := (multistep t1 t2) (at level 40).
 Inductive context : Set :=
   | empty : context
   | ext_var : context -> id -> ty -> context
-  | ext_tvar : context -> ty -> context.
+  | ext_tvar : context -> context.
 
 Fixpoint get_var (E : context) (x : id) : option ty :=
   match E with
     | empty => None
     | ext_var E' y T => if eq_id_dec x y then Some T else get_var E' x
-    | ext_tvar E' _  => get_var E' x
+    | ext_tvar E'  => get_var E' x
   end.
 
-Fixpoint get_tvar (E : context) (N : nat) : option ty :=
+Fixpoint get_tvar (E : context) (N : nat) : bool :=
   match E with
-    | empty => None
+    | empty => false
     | ext_var E' _ _ => get_tvar E' N
-    | ext_tvar E' T  =>
+    | ext_tvar E'  =>
       match N with
-        | O => Some T
+        | O => true
         | S N' => get_tvar E' N'
       end
   end.
@@ -447,8 +447,8 @@ Inductive has_type : context -> tm -> ty -> Prop :=
       Gamma |- t1 \in TArrow T11 T12 -> 
       Gamma |- t2 \in T11 -> 
       Gamma |- tapp t1 t2 \in T12
-  | T_TAbs : forall Gamma T t2 T2,
-      ext_tvar Gamma T |- t2 \in T2 ->
+  | T_TAbs : forall Gamma t2 T2,
+      ext_tvar Gamma |- t2 \in T2 ->
       Gamma |- ttabs t2 \in (TUniv T2)
   | T_TApp : forall Gamma X t1 T12 T2,
       Gamma |- t1 \in (TUniv T12) ->
