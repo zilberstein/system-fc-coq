@@ -559,6 +559,29 @@ Proof with eauto.
     apply T_TAbs. apply IHt. eapply context_invariance_term_term...
 Qed.
 
+Lemma substitution_preserves_typing_type : forall t T T' Gamma,
+  ext_tvar Gamma |- t \in T ->
+  Gamma |- [0 := T'] t \in [0 := T'] T.
+Proof.
+Admitted.
+(*  intros. generalize dependent Gamma.
+  induction T; intros Gamma H; subst.
+  Case "TVar".
+    destruct n.
+    SCase "n = 0".
+      simpl. inversion H; subst. constructor. inversion H0; subst.
+
+  t_cases (induction T) Case. Gamma H;
+  inversion H; subst; simpl...
+  Case "tvar".
+    admit.
+  Case "tapp".
+    eapply T_App.
+
+remember (subst_type_in_type_fix 0 T' T) as T0.
+    symmetry in HeqT0. rewrite subst_type_in_type_correct in HeqT0.
+    inversion HeqT0; subst.*)
+
 (** The substitution lemma can be viewed as a kind of "commutation"
     property.  Intuitively, it says that substitution and typing can
     be done in either order: we can either assign types to the terms
@@ -614,7 +637,7 @@ Theorem preservation : forall t t' T,
 *)
 
 Proof with eauto.
-  remember (@empty ty) as Gamma. 
+  remember (@empty) as Gamma. 
   intros t t' T HT. generalize dependent t'.   
   has_type_cases (induction HT) Case;
        intros t' HE; subst Gamma; subst; 
@@ -624,8 +647,12 @@ Proof with eauto.
     (* Most of the cases are immediate by induction, 
        and [eauto] takes care of them *)
     SCase "ST_AppAbs".
-      apply substitution_preserves_typing with T11...
-      inversion HT1...  
+      apply substitution_preserves_typing_term_term with T11...
+      inversion HT1... 
+  Case "T_TApp".
+    inversion HE; subst...
+    inversion HT; subst. apply substitution_preserves_typing_type.
+    assumption.
 Qed.
 
 (** **** Exercise: 2 stars (subject_expansion_stlc) *)

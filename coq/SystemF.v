@@ -450,9 +450,9 @@ Inductive has_type : context -> tm -> ty -> Prop :=
   | T_TAbs : forall Gamma t2 T2,
       ext_tvar Gamma |- t2 \in T2 ->
       Gamma |- ttabs t2 \in (TUniv T2)
-  | T_TApp : forall Gamma X t1 T12 T2,
+  | T_TApp : forall Gamma t1 T12 T2,
       Gamma |- t1 \in (TUniv T12) ->
-      Gamma |- ttapp t1 T2 \in subst_type_in_type_fix X T12 T2
+      Gamma |- ttapp t1 T2 \in [0 := T2] T12
       
 where "Gamma '|-' t '\in' T" := (has_type Gamma t T).
 
