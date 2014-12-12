@@ -77,7 +77,7 @@ To accomplish this, GHC Core is verified in a series of steps. First, System F i
 \subsection{Progress and Preservation}
 Progress, preservation, and soundness are the most basic indications of safety for any type system~\cite{Pierce:TAPL}. To understand these, it is important to define how the operational semantics of a language are formalized. Types are descriptors for data and terms are well-typed expressions under a given context, or set of typing assumptions. When specifying the operational semantics of a programming language, one defines a step relation that relates a term of a particular type in the language to another term of the same type. Terms make steps in order to reach a simplified form, see Figure~\ref{fig:step-ex} for an example. The evaluation of any expression in the language can be modeled in a series of discrete ``steps'', where in each step one takes a term in the expression and replaces it with the resulting term per the step relation. In a well-typed program, this process continues until the expression evaluates to a value, a unique representation of a value for a particular type (e.g. `1' for the type of integers).
 
-\begin{figure}
+\begin{figure}[h!]
   $$(\lambda x .\; \lambda y .\;x+y)\; 3 \rightarrow \lambda y.\;3+y$$
   \caption{Concrete example of a the step relation for a function application, known formally as Beta Reduction}
   \label{fig:step-ex}
@@ -95,7 +95,7 @@ Together, these properties guarantee that a well-typed program in the specified 
 System FC is built on top of the simpler language System F. System F, also known as the polymorphic lambda calculus, is an extension of the simply-typed lambda calculus to include the abstraction and application of type terms~\cite{Pierce:TAPL}. This feature essentially allows for functions to take types as parameters, granting the ability to define functions whose actual types vary based on these input types. System F is formalized in Coq and then additional features are added in order to transform System F into a full formalization of System FC. These features include type coercion, type families, and datatypes. In particular, type coercions allow for type families and generalized algebraic datatypes to exist in System FC by acting as a witness for equality between syntactically different types~\cite{DBLP:conf/rta/VytiniotisJ13}. For an example of coercions, see Figure~\ref{fig:coercion-ex}. Types can be equal in different ways and therefore there is a complex set of coercion rules that can be used to construct correct equality proofs~\cite{Breitner:2014:SZC:2628136.2628141}. System F, with these added features, becomes system FC. A translation to System FC is then proven which shows that the core language of GHC has indeed been verified. The syntax for System F is provided in Figure~\ref{fig:syntax}, the evaluation semantics are outlined in Figure~\ref{fig:evaluation}, and type relations are stated in Figure~\ref{fig:typing}.
 \newcommand\mybox[2][]{#2}%\tikz[overlay]\node[fill=white!20,inner sep=2pt, anchor=text, rectangle, rounded corners=1mm,#1] {#2};\phantom{#2}}
 
-\begin{figure}
+\begin{figure}[h!]
   \noindent{\large\it Syntax}\\
   \begin{tabular}{l l r}
     \hline
@@ -122,7 +122,7 @@ System FC is built on top of the simpler language System F. System F, also known
   \label{fig:syntax}
 \end{figure}
 
-\begin{figure}
+\begin{figure}[h!]
   \noindent{\large\it Evaluation}\\
   \begin{tabular}{c r}
     \hline
@@ -137,7 +137,7 @@ System FC is built on top of the simpler language System F. System F, also known
   \label{fig:evaluation}
 \end{figure}
 
-\begin{figure}
+\begin{figure}[h!]
   {\large\it Typing}\\
   \begin{tabular}{c r}
     \hline
@@ -155,7 +155,7 @@ System FC is built on top of the simpler language System F. System F, also known
 \subsection{Coercions}
 Coercions are responsible for most of the power of System FC over System F. They allow a conversion from one type to another. A basic example of the usefulness of coercions is provided in Figures~\ref{fig:coercion-ex} and~\ref{fig:coercion-fc}.
 
-\begin{figure}
+\begin{figure}[h!]
 \begin{verbatim}
 data G a where
   G1 :: G Int
@@ -169,7 +169,7 @@ f G2 = True
 \label{fig:coercion-ex}
 \end{figure}
 
-\begin{figure}
+\begin{figure}[h!]
 \begin{lstlisting}
 G :: * $\rightarrow$ *
 G1 :: $\forall$ (a :: *). a $\sim$ Int $\rightarrow$ G a
@@ -200,7 +200,7 @@ Here, \texttt{G1} is stating that for all types \texttt{a} of kind \texttt{*}, i
 \subsection{Type Families}
 Type families are another feature that is present in System FC. At the most basic level, type families are just functions at the type-level. Figure~\ref{fig:ty-fam-ex} gives an example of a type family. In this example~\cite{DBLP:conf/icfp/WeirichHE13}, the type \texttt{Ty} is defined to be either a \texttt{TInt} or \texttt{TBool}. Then, the type family \texttt{I} is defined to act on something of type \texttt{Ty}, either a \texttt{TInt} or \texttt{TBool}. This returns something of kind \texttt{*}. So, this type family \texttt{I} can map the data constructor \texttt{TInt} to \texttt{Int} and \texttt{TBool} to \texttt{Bool}.
 
-\begin{figure}
+\begin{figure}[h!]
 \begin{lstlisting}[language=Haskell]
 data Ty = Tint
         | TBool
@@ -256,7 +256,7 @@ This section describes the proposed approach. It begins by detailing the set of 
 \tikzstyle{thm}=[draw, fill=green!20, minimum size=2em]
 \tikzstyle{init} = [pin edge={to-,thick,black}]
 
-\begin{figure}
+\begin{figure}[h!]
 \begin{tikzpicture}[node distance=2.75cm and 1cm,text width=1.75cm,minimum height=3cm,text centered, rounded corners,auto,>=latex']
 \tikzstyle{every node}=[font=\small]
     % System FC
@@ -338,7 +338,7 @@ This formalization and proof of the type soundness of System FC is constructed i
 \section{System Implementation}
 The formalization of System F in Coq follows directly from the definitions in~\cite{Pierce:TAPL}. First, types, terms, and values are defined as inductive datatypes based on Figure~\ref{fig:syntax}. Inductive datatypes are datatypes over which Coq can perform induction proofs. This property is quite useful when proving the Progress and Preservation theorems. The formalization of System F syntax is shown in Figure~\ref{fig:syntax-coq} where \texttt{tm} represents the type of a System F term and \texttt{ty} represents the type of a System F type.
 
-\begin{figure}[ht]
+\begin{figure}[h!]
 \begin{lstlisting}
 (** *** Types *)
 Inductive ty : Type := 
@@ -377,7 +377,7 @@ Type variable binding works signifigantly differently. Since type variables are 
 
 With contexts defined, it is possible to define the final piece of the System F formalization, typing. Typing is defined as an inductive proposition called \texttt{has\textunderscore type} based on the inference rules in Figure~\ref{fig:typing}. A notation is also defined for the typing relation: \texttt{Gamma |- t \textbackslash in T} means that the term \texttt{t} has type \texttt{T} under the context \texttt{Gamma}. Since the type of this expression in Coq is \texttt{Prop} (short for proposition), it is an expression that must be true if it can be proven Coq. Given the formalization presented above, it is possible to prove that any well typed term \texttt{t} with type \texttt{T} indeed has type \texttt{T}. If \texttt{t} is not well-typed, then it is impossible to prove that it has any type.
 
-\begin{figure}
+\begin{figure}[h!]
 %\begin{lstlisting}
 %Theorem progress : $\forall$ t T, 
 %     $\varnothing$ $\vdash$ t $\in$ T $\rightarrow$
@@ -398,7 +398,7 @@ The proof is laid out so as to have a separate case for every constructor in the
 
 The proof of Preservation is significantly more involved than the proof of Progress. Several lemmata must be proven before Preservation itself can be proven. First, the idea of free variables must be encoded in Coq. A free variable is a variable that is not bound by a lambda abstraction within a term. A term that contains no free variables is called a closed term. The first lemma that is proven is the Free in Context Lemma which states that if an id $x$ appears free in the term $t$ and $\Gamma \vdash t: T$ then $x$ is bound in the context $\Gamma$. This lemma has a basic induction proof. The next lemma is the Context Invariance Lemma which states that for any two contexts $\Gamma$ and $\Gamma'$, if all of the free variables in some term $t$ have the same type under $\Gamma$ and $\Gamma'$, then $t$ has the same type under $\Gamma$ and $\Gamma'$. The main lemma that is integral to proof of preservation is called the Substitution Lemma and states that for any term $t$ and free variable $x$ if $t$ is typable under the assumption that $x$ has some type $U$, and if some term $v$ also has type $U$, then $x$ can be substituted with $v$ in $t$ and the result will have the same type as $t$. Recall that System F has three different kinds of substitutions therefore three different Substitution Lemmata are needed. The Substitution Lemma for terms can be seen in Figure~\ref{fig:substitution-lemma-coq}. These lemmata essentially take care of the most involved case in the proof of the Preservation theorem.
 
-\begin{figure}
+\begin{figure}[h!]
 \begin{verbatim}
 Lemma substitution_preserves_typing : 
   forall Gamma x U t v T,
