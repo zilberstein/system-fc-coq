@@ -20,6 +20,7 @@
 \usepackage{tabularx}
 \usepackage{tikz}
 \usetikzlibrary{shapes,arrows}
+\usepackage[export]{adjustbox}
 \usepackage{lipsum,adjustbox}
 \usepackage{listings}% http://ctan.org/pkg/listings
 \lstset{
@@ -64,9 +65,16 @@ There are two main benefits to this project. First, the verification would provi
 % changes.
 \section{Introduction}
 \label{sec:intro}
-Haskell has one of the strongest type systems of any mainstream programming language with features such as type families, typeclasses, and generalized algebraic datatypes (datatypes that have non-standard constructors). When writing Haskell, there are many guarantees of correctness encoded in the type system. Ensuring that the type safety of features like these is preserved in Haskell would be greatly beneficial as it would act as a proof of correctness for the language. Haskell is compiled using the Glasgow Haskell Compiler (GHC) into an intermediate language called GHC-Core. A core language, such as GHC-Core, is the result of a translation from a surface language, such as Haskell, to a language that a compiler can better reason about. Whereas types are important in programming languages to prevent a user from making errors, types are important in core languages to prevent the compiler from making errors. GHC Core is an implementation of a language specification called System FC. A first step in proving the type safety of Haskell is proving the type safety of System FC. This type safety is ensured by proving the progress, preservation, and soundness theorems using the formalized definition of System FC.
+Haskell has one of the strongest type systems of any mainstream programming language with features such as type families, typeclasses, and generalized algebraic datatypes (datatypes that have non-standard constructors). When writing Haskell, there are many guarantees of correctness encoded in the type system. Ensuring that the type safety of features like these is preserved in Haskell would be greatly beneficial as it would act as a proof of correctness for the language.
 
+The Glasgow Haskell Compiler (GHC) is used to compile Haskell code into native executables. The entire GHC compilation process is outlined in Figure~\ref{fig:desgar}. First, Haskell code is typechecked and then desugared to obtain code in an intermediate language called GHC-Core. The desugaring process removes specialized syntax that is helpful for programmers. A core language, such as GHC-Core, is the result of a translation from a surface language, such as Haskell, to a language that a compiler can better reason about. Whereas types are important in programming languages to prevent a user from making errors, types are important in core languages to prevent the compiler from making errors. GHC Core is an implementation of a language specification called System FC. A first step in proving the type safety of Haskell is proving the type safety of System FC. This type safety is ensured by proving the progress, preservation, and soundness theorems using the formalized definition of System FC.
 
+\begin{figure}[h!]
+  \centering
+  \includegraphics[max width=3in]{desgar.png}
+  \caption{The GHC compilation process}
+  \label{fig:desgar}
+\end{figure}
 
 There is no formal proof that GHC Core is type safe. Formally verifying System FC allows for future work in the formal verification of GHC. Once the core language is verified, it becomes possible to verify that transformations of this core language preserve the typing and progression semantics of the original language~\cite{zhao2013formalizing}. One particularly relevant class of transformations on the core language is the set of compiler optimizations performed by GHC. While these transformations can improve the runtime of one's code, they can also introduce bugs due to the semantics of the original code not being preserved under the optimization. With the semantics of the source language formalized and verified, it becomes easy to extend the formalizations to encompass the changes made under these optimizations, and thus verify their correctness~\cite{Zhao:2012:FLI:2103656.2103709}. Another major use is the ability to extend the proof, in order to verify extensions to System FC. Such extensions to System FC are used to add new features to the surface language.
 
@@ -250,14 +258,6 @@ Coq translation provided with the initial proposal of System FC~\cite{conf/tldi/
 Progress for System F has a non-mechanized proof~\cite{Girard:1989:PT:64805}. To our knowledge, however, there has not been any substantial progress in a formal 
 proof of the soundness of System FC.
 
-% Here we see our first citations. It's just a simple command, the
-% body of which is the keyword-label assigned to resources over in the
-% *.bib file
-%\newpage
-\section{Project Proposal}
-\label{sec:project_proposal}
-This section describes the proposed approach. It begins by detailing the set of steps we plan to follow in order to successfully verify System FC. Next, it describes the technical challenges that are involved in the project and finally, it explains the evaluation criteria.
-
 \tikzstyle{int}=[draw, fill=blue!20, minimum size=2em]
 \tikzstyle{thm}=[draw, fill=green!20, minimum size=2em]
 \tikzstyle{init} = [pin edge={to-,thick,black}]
@@ -322,20 +322,6 @@ This section describes the proposed approach. It begins by detailing the set of 
 \caption{Block diagram depicting the anticipated approach. The arrows on the left side represent work required to complete each given step}
 \label{fig:block-diagram}
 \end{figure}
-
-
-\subsection{Technical Challenges}
-\label{subsec:tech_challenges}
-One of the primary challenges in completing this project is deciding on an order to iteratively add features in order to sensibly formalize System FC and GHC Core. Currently, the plan is to add coercion first, followed by type families, followed by datatypes. However, there may be unforeseen dependencies that make this ordering impractical. For example, it may be impossible or infeasible to add coercions before adding datatypes. Further, GHC Core would prove difficult to formalize due to the fact that the operational and typing semantics of this language are geared toward making it easy to perform compiler optimizations on the language, rather than making it easy to analyze its semantics. In order to obviate this, the semantics of System FC will be formalized and then a direct translation between these formalized semantics and the semantics of GHC Core will be proven.
-
-One specific challenge may arise regarding the proofs of progress, preservation, and soundness in some instances after coercions, datatypes, and type families have been added. Recall Figures~\ref{fig:coercion-ex} and~\ref{fig:coercion-fc}. Here, a coercion could be added in the scrutinee of the case statement of \texttt{f}, where the scrutinee of a case statement represents that which is being broken down into cases. With this addition, progress, preservation, and soundness may be very difficult to prove.
-
-Additionally, since the formalization of System FC has never been performed before, it is difficult to estimate how long it will take to formalize different parts of System FC. In fact, axioms may be required in order to bypass rather large or unwieldy proofs that are obvious, but necessary to achieve the primary goals. Further, progress, preservation, and soundness may be, in fact, impossible to prove. This would be a result of the inconsistency in the specifications of System FC, which would be a major unexpected result.
-
-\subsection{Evaluation Criteria}
-\label{subsec:eval_criteria}
-This formalization for System FC has never been done. Upon completion, assurance of the formal correctness of this language will be provided, which is essential to the compilation of Haskell. This would also form a building block for verifications of other features of System FC.
-The primary criterion for evaluation would be how much of the specification of System FC is formalized; given that there exists no precedent for formalizing System FC, the completion of the full specification is not assured. The formalization of the base specification for System FC can be done in several parts, meaning the progress of this project can be judged based on what sections of the language specification are completed. Completing this, the project could be arbitrarily extended to formalize proposed extensions to System FC; evaluation of this could again be based on how many of these extensions are completed. Additionally, another criterion for evaluation would be how many axioms are used in the formalization. The fewer axioms assumed, the stronger the result becomes.
 
 \section{System Model}
 At a high-level, the system is composed of a formalization of the semantics of System FC, and a series of proofs of the properties of this formalization. The formalization itself is a representation of the System FC language using the language features of Coq. This is accomplished by defining inductive datatypes to serve as Coq correlates to the types (universally quantified types, function types, etc.) and terms (variables, type abstractions, etc.) introduced in System FC.  With these, one can in theory construct a representation of the source for any System FC program. Actually modeling the execution of this is accomplished by translating the execution semantics of System FC to Coq. This is done by creating Coq a series of relations and fixpoints (the Coq terminology for a function, like those defined in Haskell or OCaml) that map terms to terms and types to terms according to the execution rules of System FC. With this formalization of the execution semantics, one is able to create a representation of any System FC program and then simulate its execution in the context of Coq. More importantly, the complete formalization of the operational semantics for System FC allows for proofs to be written in Coq about these operational semantics which are essential to mechanically demonstrating the type soundness of System FC.
