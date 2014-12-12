@@ -74,7 +74,9 @@ To accomplish this, GHC Core is verified in a series of steps. First, System F i
 
 \section{Background}
 \label{sec:background}
+In order to understand the goals of verification, it is necessary to define some background concepts and terminology. In Section~\ref{sec:prog-pres}, the idea of language semantics is defined and the specific samantics of System F are provided.  Type-safety is next defined as the union of two theorems: Progress and Preservation. If these two theorems are proven given the specification of a language such as System F, then the language is considered to be type-safe. Next, the features that appear in System FC but are absent from System F are defined. These features are coercions (Section~\ref{sec:coercions}), type families (Section~\ref{sec:type-fam}), and datatypes (Section~\ref{sec:datatypes}).
 \subsection{Progress and Preservation}
+\label{sec:prog-pres}
 Progress, preservation, and soundness are the most basic indications of safety for any type system~\cite{Pierce:TAPL}. To understand these, it is important to define how the operational semantics of a language are formalized. Types are descriptors for data and terms are well-typed expressions under a given context, or set of typing assumptions. When specifying the operational semantics of a programming language, one defines a step relation that relates a term of a particular type in the language to another term of the same type. Terms make steps in order to reach a simplified form, see Figure~\ref{fig:step-ex} for an example. The evaluation of any expression in the language can be modeled in a series of discrete ``steps'', where in each step one takes a term in the expression and replaces it with the resulting term per the step relation. In a well-typed program, this process continues until the expression evaluates to a value, a unique representation of a value for a particular type (e.g. `1' for the type of integers).
 
 \begin{figure}[h!]
@@ -153,6 +155,7 @@ System FC is built on top of the simpler language System F. System F, also known
 \end{figure}
 
 \subsection{Coercions}
+\label{sec:coercions}
 Coercions are responsible for most of the power of System FC over System F. They allow a conversion from one type to another. A basic example of the usefulness of coercions is provided in Figures~\ref{fig:coercion-ex} and~\ref{fig:coercion-fc}.
 
 \begin{figure}[h!]
@@ -198,6 +201,7 @@ Here, \texttt{G1} is stating that for all types \texttt{a} of kind \texttt{*}, i
 %In order to type check \texttt{map} in System FC, the generic type variables \texttt{a} and \texttt{b} must be coerced to match the types of the arguments to \texttt{map}.  In the expression \texttt{map (> 0) [-1,0,1]}, the abstract types \texttt{a} and \texttt{b} must be coerced to the concrete types \texttt{Int} and \texttt{Bool} respectively.
 
 \subsection{Type Families}
+\label{sec:type-fam}
 Type families are another feature that is present in System FC. At the most basic level, type families are just functions at the type-level. Figure~\ref{fig:ty-fam-ex} gives an example of a type family. In this example~\cite{DBLP:conf/icfp/WeirichHE13}, the type \texttt{Ty} is defined to be either a \texttt{TInt} or \texttt{TBool}. Then, the type family \texttt{I} is defined to act on something of type \texttt{Ty}, either a \texttt{TInt} or \texttt{TBool}. This returns something of kind \texttt{*}. So, this type family \texttt{I} can map the data constructor \texttt{TInt} to \texttt{Int} and \texttt{TBool} to \texttt{Bool}.
 
 \begin{figure}[h!]
@@ -214,6 +218,7 @@ type instance I TBool = Bool
 \end{figure}
 
 \subsection{Datatypes}
+\label{sec:datatypes}
 Datatypes are also part of the formalization of System FC. Datatypes are another very powerful construct in Haskell that allow programmers to define their own algebraic types. Types defined in such ways can be used to represent many constructs. For example, datatypes can be used to define generic lists as follows:
 \begin{verbatim}
 data List a = Nil
