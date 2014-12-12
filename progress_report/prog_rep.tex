@@ -47,7 +47,7 @@
 % executive summary of the motivation and contributions of the work.
 \begin{abstract}
   \textit{
-Haskell's compiler, the Glasgow Haskell Compiler (GHC), generates code in GHC Core. The Coq proof assistant will be used to verify a formalized version of System FC, the basis for GHC Core. A translation from the formal language to GHC Core, the concrete implementation of System FC that is used in GHC, will then be proven. The goals of verification are to prove that the evaluation semantics of System FC are sound.
+Haskell's compiler, the Glasgow Haskell Compiler (GHC), generates code in GHC Core. The Coq proof assistant will be used to verify a formalized version of System FC, the basis for GHC Core. A translation from the formal language to GHC Core, the concrete implementation of System FC that is used in GHC, will then be proven. The goal of verification is to prove that the evaluation semantics of System FC are sound.
   }
 
   \textit{
@@ -64,7 +64,7 @@ There are two main benefits to this project. First, the verification would provi
 % changes.
 \section{Introduction}
 \label{sec:intro}
-Haskell has one of the strongest type systems of any mainstream programming language with features such as type families, typeclasses, and generalized algebraic datatypes (datatypes that have non-standard constructors). When writing Haskell, there are many guarantees of correctness encoded in the type system. Ensuring that the type safety of features like these is preserved in System FC would be greatly beneficial as it would act as a proof of correctness for the language. A core language is a translation from a surface language (a language that a programmer can better reason about) to a language that a compiler can better reason about. Whereas types are important in programming languages to prevent a user from making errors, types are important in core languages to prevent the compiler from making errors. This type safety will be ensured by proving the progress, preservation, and soundness theorems using the formalized definition of System FC.
+Haskell has one of the strongest type systems of any mainstream programming language with features such as type families, typeclasses, and generalized algebraic datatypes (datatypes that have non-standard constructors). When writing Haskell, there are many guarantees of correctness encoded in the type system. Ensuring that the type safety of features like these is preserved in Haskell would be greatly beneficial as it would act as a proof of correctness for the language. Haskell is compiled using the Glasgow Haskell Compiler (GHC) into an intermediate language called GHC-Core. A core language, such as GHC-Core, is the result of a translation from a surface language, such as Haskell, to a language that a compiler can better reason about. Whereas types are important in programming languages to prevent a user from making errors, types are important in core languages to prevent the compiler from making errors. GHC-Core is an implementation of a language specification called System FC. A first step in proving the type safety of Haskell is proving the type safety of System FC. This type safety is ensured by proving the progress, preservation, and soundness theorems using the formalized definition of System FC.
 
 
 
