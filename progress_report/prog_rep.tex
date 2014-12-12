@@ -100,13 +100,10 @@ The progress, preservation, and soundness theorems can now be defined. Progress 
 
 \noindent\textbf{Theorem (Soundness)} \textit{Any well-typed program will never reach a stuck state during evaluation.}\\\\
 
-Together, these properties guarantee that a well-typed program in the specified language will always be able to continue evaluation until it reaches a value; the result of the program ending up in a stuck state will only result from the program logic leading to an infinite loop, and not from the language falling into some invalid state. After formalizing the operational semantics for System FC, it is demonstrated that preservation, progress, and soundness hold for the specification.
 
-%%% al;sdfj;alksdjflk;asdjf;lkasjdfkl
-System FC is built on top of the simpler language System F. System F, also known as the polymorphic lambda calculus, is an extension of the simply-typed lambda calculus to include the abstraction and application of type terms~\cite{Pierce:TAPL}. This feature essentially allows for functions to take types as parameters, granting the ability to define functions whose actual types vary based on these input types. System F is formalized in Coq and then additional features are added in order to transform System F into a full formalization of System FC. These features include type coercion, type families, and datatypes. In particular, type coercions allow for type families and generalized algebraic datatypes to exist in System FC by acting as a witness for equality between syntactically different types~\cite{DBLP:conf/rta/VytiniotisJ13}. For an example of coercions, see Figure~\ref{fig:coercion-ex}. Types can be equal in different ways and therefore there is a complex set of coercion rules that can be used to construct correct equality proofs~\cite{Breitner:2014:SZC:2628136.2628141}. System F, with these added features, becomes System FC. A translation to System FC is then proven which shows that the core language of GHC has indeed been verified. The syntax for System F is provided in Figure~\ref{fig:syntax}, the evaluation semantics are outlined in Figure~\ref{fig:evaluation}, and type relations are stated in Figure~\ref{fig:typing}.
 \newcommand\mybox[2][]{#2}%\tikz[overlay]\node[fill=white!20,inner sep=2pt, anchor=text, rectangle, rounded corners=1mm,#1] {#2};\phantom{#2}}
 
-\begin{figure}[h!]
+\begin{figure}[ht]
   \noindent{\large\it Syntax}\\
   \begin{tabular}{l l r}
     \hline
@@ -133,7 +130,7 @@ System FC is built on top of the simpler language System F. System F, also known
   \label{fig:syntax}
 \end{figure}
 
-\begin{figure}[h!]
+\begin{figure}[ht]
   \noindent{\large\it Evaluation}\\
   \begin{tabular}{c r}
     \hline
@@ -148,7 +145,7 @@ System FC is built on top of the simpler language System F. System F, also known
   \label{fig:evaluation}
 \end{figure}
 
-\begin{figure}[h!]
+\begin{figure}[ht]
   {\large\it Typing}\\
   \begin{tabular}{c r}
     \hline
@@ -162,6 +159,12 @@ System FC is built on top of the simpler language System F. System F, also known
   \caption{Typing relations for System F}
   \label{fig:typing}
 \end{figure}
+
+
+Together, these properties guarantee that a well-typed program in the specified language will always be able to continue evaluation until it reaches a value; the result of the program ending up in a stuck state will only result from the program logic leading to an infinite loop, and not from the language falling into some invalid state. After formalizing the operational semantics for System FC, it is demonstrated that preservation, progress, and soundness hold for the specification.
+
+%%% al;sdfj;alksdjflk;asdjf;lkasjdfkl
+System FC is built on top of the simpler language System F. System F, also known as the polymorphic lambda calculus, is an extension of the simply-typed lambda calculus to include the abstraction and application of type terms~\cite{Pierce:TAPL}. This feature essentially allows for functions to take types as parameters, granting the ability to define functions whose actual types vary based on these input types. System F is formalized in Coq and then additional features are added in order to transform System F into a full formalization of System FC. These features include type coercion, type families, and datatypes. In particular, type coercions allow for type families and generalized algebraic datatypes to exist in System FC by acting as a witness for equality between syntactically different types~\cite{DBLP:conf/rta/VytiniotisJ13}. For an example of coercions, see Figure~\ref{fig:coercion-ex}. Types can be equal in different ways and therefore there is a complex set of coercion rules that can be used to construct correct equality proofs~\cite{Breitner:2014:SZC:2628136.2628141}. System F, with these added features, becomes System FC. A translation to System FC is then proven which shows that the core language of GHC has indeed been verified. The syntax for System F is provided in Figure~\ref{fig:syntax}, the evaluation semantics are outlined in Figure~\ref{fig:evaluation}, and type relations are stated in Figure~\ref{fig:typing}.
 
 \subsection{Coercions}
 \label{sec:coercions}
