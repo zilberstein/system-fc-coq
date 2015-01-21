@@ -19,11 +19,11 @@ Lemma canonical_forms_fun : forall t T1 T2,
 Proof.
   intros t T1 T2 HT HVal.
   inversion HVal; intros; subst; try inversion HT; subst; auto.
-  exists x0. exists t0.  auto.
+  exists x. exists t0.  auto.
 Qed.
 
-Lemma canonical_forms_tabs : forall t T,
-  empty |- t \in TUniv T ->
+Lemma canonical_forms_tabs : forall t T1 T2,
+  empty |- t \in TUniv T1 T2 ->
   value t ->
   exists t', t = ttabs t'.
 Proof.
@@ -118,9 +118,9 @@ Proof with eauto.
       assert (exists t0, t1 = ttabs t0).
       eapply canonical_forms_tabs; eauto.
       destruct H0; subst.
-      exists ([0 := T2] x0)...
+      exists ([0 := T2] x)...
     SCase "t1 also steps".
-      inversion H. exists (ttapp x0 T2)...
+      inversion H. exists (ttapp x T2)...
 Qed.
 
 (* [] *)
@@ -319,12 +319,15 @@ Proof.
   Case "afi_abs".
     inversion H1; subst.
     apply IHterm_appears_free_in_term in H7.
-    inversion H7. inversion H2. destruct (eq_id_dec x0 y0); subst.
+    inversion H7. inversion H2. destruct (eq_id_dec x y); subst.
     apply ex_falso_quodlibet; apply H; reflexivity.
-    exists x1; assumption.
+    exists x0; assumption.
   Case "afi_tabs".
     inversion H0; subst. apply IHterm_appears_free_in_term in H3.
-    inversion H3. inversion H0. exists x1; assumption.
+    inversion H3. simpl in H1. exists x0. unfold opt_map in H1.
+    destruct (get_var Gamma x).
+      inversion H1. admit.
+      trivial.
 Qed.
 
 (** Next, we'll need the fact that any term [t] which is well typed in
@@ -421,7 +424,7 @@ Proof with eauto.
     apply IHhas_type. intros x1 Hafi.
     (* the only tricky step... the [Gamma'] we use to 
        instantiate is [extend Gamma x T11] *)
-    destruct (eq_id_dec x0 x1); subst; simpl.
+    destruct (eq_id_dec x x1); subst; simpl.
     SCase "x0 = x1".
       repeat (rewrite eq_id)...
     SCase "x0 <> x1".
@@ -455,7 +458,6 @@ Lemma substitution_preserves_typing_term_term : forall Gamma x U t v T,
      ext_var Gamma x U |- t \in T ->
      empty |- v \in U   ->
      Gamma |- [x:=v]t \in T.
-
 (** One technical subtlety in the statement of the lemma is that we
     assign [v] the type [U] in the _empty_ context -- in other words,
     we assume [v] is closed.  This assumption considerably simplifies
@@ -559,6 +561,65 @@ Proof with eauto.
     apply T_TAbs. apply IHt. eapply context_invariance_term...
 Qed.
 
+
+Lemma tvar_subst : forall Gamma Gamma' n T1 T2 x,
+  [n := T1] Gamma = Gamma' ->
+  get_var Gamma x = Some T2 ->
+  get_var Gamma' x = Some ([n := T1] T2).
+Proof with auto.
+  intros. generalize dependent x. apply subst_context_correct in H.
+  induction H; intros; subst.
+  Case "1".
+    simpl. inversion H0.
+  Case "2".
+    simpl. destruct (eq_id_dec x0 x1).
+    SCase "x0 = x1".
+      simpl in H0; subst. rewrite eq_id in H0. inversion H0.
+      subst. apply subst_type_in_type_correct in H1.
+      subst. trivial.
+    SCase "x0 <> i".
+      apply IHsubst_context. inversion H0.
+      rewrite neq_id. trivial. assumption. assumption.
+  Case "3".
+    admit.
+  Case "4".
+    simpl. simpl in IHsubst_context.
+    assert (type_appears_free_in_term n (tvar x0)).
+
+destruct n.
+    SCase "n = 0".
+      assert ([0 := T1]ext_tvar Gamma = ext_tvar Gamma) by trivial.
+      assert ([0 := T1] T2 = T2).
+        
+      rewrite H1. simpl. simpl in H0. trivial.
+
+      rewrite <- H in H0.
+    SCase "n = S n'".
+      apply IHGamma. auto.
+
+      simpl in H0. 
+        trivial.
+      rewrite H. eapply IHGamma with ([0 := T1]Gamma) in H0.
+      simpl in H0. rewrite <- H0. 
+      
+eapply IHGamma in H0. apply H0.
+    SCase "n = S n'".
+      simpl. 
+
+apply IHGamma. inversion H0. trivial.
+
+
+Lemma substitution_preserves_typing_ind : forall Gamma Gamma' t U T n,
+  [n := T]Gamma = Gamma' ->
+  Gamma |- t \in U ->
+  Gamma' |- [n := T]t \in [n := T]U.
+Proof.
+  intros Gamma Gamma' t U T n H1 H2. generalize dependent Gamma'.
+  generalize dependent n. generalize dependent T.
+  has_type_cases (induction H2) Case; intros.
+  Case "T_Var".
+    simpl. constructor. subst. unfold get_var.
+
 Lemma substitution_preserves_typing_type : forall t T T' Gamma,
   ext_tvar Gamma |- t \in T ->
   Gamma |- [0 := T'] t \in [0 := T'] T.
@@ -566,7 +627,7 @@ Proof.
 Admitted.
 
 
-(*  intros. generalize dependent Gamma.
+(*  Intros. generalize dependent Gamma.
   induction T; intros Gamma H; subst.
   Case "TVar".
     destruct n.

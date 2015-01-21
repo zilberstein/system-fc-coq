@@ -14,7 +14,15 @@ Module SYSTEMF.
 Inductive ty : Type := 
   | TVar   : nat -> ty 
   | TArrow : ty -> ty -> ty
-  | TUniv  : forall (X : ty),ty.
+  | TUniv  : ty -> ty -> ty.
+
+
+Fixpoint tshift (X : nat) (T : ty) : ty :=
+  match T with
+  | TVar Y       => TVar (if le_gt_dec X Y then 1 + Y else Y)
+  | TArrow T1 T2 => TArrow (tshift X T1) (tshift X T2)
+  | TUniv T1 T2  => TUniv (tshift X T1) (tshift (1 + X) T2)
+  end.
 
 (* ################################### *)
 (** *** Terms *)
@@ -37,16 +45,6 @@ Tactic Notation "t_cases" tactic(first) ident(c) :=
     to Coq (and other functional languages like ML, Haskell, etc.),
     which use _type inference_ to fill in missing annotations.  We're
     not considering type inference here, to keep things simple. *)
-
-(** Some examples... *)
-
-Definition x := (Id 0).
-Definition y := (Id 1).
-Definition z := (Id 2).
-Hint Unfold x.
-Hint Unfold y.
-Hint Unfold z.
-
 
 (* ###################################################################### *)
 (** ** Operational Semantics *)
@@ -169,7 +167,8 @@ Fixpoint subst_type_in_type_fix (I:nat) (P:ty) (T:ty) : ty :=
            else TVar N
   | TArrow T1 T2 =>
       TArrow (subst_type_in_type_fix I P T1) (subst_type_in_type_fix I P T2)
-  | TUniv T' => TUniv (subst_type_in_type_fix (I + 1) P T')
+  | TUniv T1 T2 => TUniv (subst_type_in_type_fix I P T1)
+                         (subst_type_in_type_fix (I + 1) (tshift 0 P) T2)
   end.
 
 Instance subst_ty_ty : Subst nat ty ty := {
@@ -190,17 +189,19 @@ Inductive subst_type_in_type (T:ty) (I:nat) : ty -> ty -> Prop :=
       subst_type_in_type T I T1 T1' ->
       subst_type_in_type T I T2 T2' ->
       subst_type_in_type T I (TArrow T1 T2) (TArrow T1' T2')
-  | u_univ : forall T1 T2,
-      subst_type_in_type T (I+1) T1 T2 ->
-      subst_type_in_type T I (TUniv T1) (TUniv T2).
+  | s_univ : forall T11 T12 T21 T22,
+      subst_type_in_type T I T11 T12 ->
+      subst_type_in_type (tshift 0 T) (I+1) T21 T22 ->
+      subst_type_in_type T I (TUniv T11 T21) (TUniv T12 T22).
 
 Lemma subst_type_in_type_correct : forall N P T1 T2,
   [N:=P]T1 = T2 <-> subst_type_in_type P N T1 T2.
 Proof.
   intros. split.
   Case "->".
-    generalize dependent N; generalize dependent T2;
-    induction T1; intros T2 N H; simpl in H.
+    generalize dependent N; generalize dependent P;
+    generalize dependent T2;
+    induction T1; intros T2 P N H; simpl in H.
     SCase "T1 = TVar n".
       destruct (eq_nat_dec N n); subst.
       SSCase "N = n".
@@ -217,8 +218,9 @@ Proof.
       rewrite <- H. constructor.
       apply IHT1_1. reflexivity.
       apply IHT1_2. reflexivity.
-    SCase "T2 = TUniv T1".
-      rewrite <- H. constructor. apply IHT1. reflexivity.
+    SCase "T2 = TUniv T1 T2".
+      rewrite <- H. constructor. apply IHT1_1. reflexivity.
+      apply IHT1_2. reflexivity.
   Case "<-".
     intro H. induction H; simpl;
     subst; try reflexivity; try assumption.
@@ -230,7 +232,7 @@ Proof.
     destruct (eq_nat_dec I N). apply ex_falso_quodlibet; subst. eapply gt_irrefl.
     apply H.
     destruct (le_lt_dec I N); try reflexivity. unfold gt in H.
-    apply ex_falso_quodlibet. eapply lt_asym. apply H. assumption.
+    apply ex_falso_quodlibet. eapply lt_asym. apply H. trivial.
 Qed.
 
 (* Type in Term Substitution *)
@@ -244,7 +246,7 @@ Fixpoint subst_type_fix (X:nat) (T:ty) (t:tm) : tm :=
   | tapp t1 t2 => 
       tapp (subst_type_fix X T t1) (subst_type_fix X T t2)
   | ttabs t1 =>
-      ttabs (subst_type_fix (X-1) T t1) 
+      ttabs (subst_type_fix (X+1) (tshift 0 T) t1) 
   | ttapp t' T' =>
       ttapp (subst_type_fix X T t') ([X := T] T')
   end.
@@ -265,7 +267,7 @@ Inductive subst_type (P:ty) (I:nat) : tm -> tm -> Prop :=
       subst_type P I t2 t2' ->
       subst_type P I (tapp t1 t2) (tapp t1' t2')
   | st_ttabs : forall t t',
-      subst_type P (I-1) t t' ->
+      subst_type (tshift 0 P) (I+1) t t' ->
       subst_type P I (ttabs t) (ttabs t')
   | st_ttapp : forall t t' T1 T2,
       subst_type P I t t' ->
@@ -279,8 +281,9 @@ Theorem subst_type_correct : forall P I t t',
 Proof.
   intros. split.
   Case "->".
-    generalize dependent I. generalize dependent t'.
-    induction t; intros t' I H; simpl in H.
+    generalize dependent I. generalize dependent P.
+    generalize dependent t'.
+    induction t; intros t' P I H; simpl in H.
     SCase "t = tvar i".
       rewrite <- H. constructor.
     SCase "t = tapp t1 t2".
@@ -381,11 +384,17 @@ Inductive context : Set :=
   | ext_var : context -> id -> ty -> context
   | ext_tvar : context -> context.
 
+Definition opt_map {A B : Type} (f : A -> B) (x : option A) :=
+  match x with
+  | Some x => Some (f x)
+  | None => None
+  end.
+
 Fixpoint get_var (E : context) (x : id) : option ty :=
   match E with
     | empty => None
     | ext_var E' y T => if eq_id_dec x y then Some T else get_var E' x
-    | ext_tvar E'  => get_var E' x
+    | ext_tvar E'  => opt_map (tshift 0) (get_var E' x)
   end.
 
 Fixpoint get_tvar (E : context) (N : nat) : bool :=
@@ -400,6 +409,63 @@ Fixpoint get_tvar (E : context) (N : nat) : bool :=
   end.
 
 (* Should maybe have some proofs *)
+
+(* Term Sustitution *)
+Fixpoint subst_context_fix (n:nat) (T':ty) (Gamma:context) : context :=
+  match Gamma with
+    | empty => empty
+    | ext_var Gamma' x T => ext_var (subst_context_fix n T' Gamma') x ([n:=T']T)
+    | ext_tvar Gamma' =>
+      match n with
+        | S n' => ext_tvar (subst_context_fix n' T' Gamma')
+        | 0 => Gamma'
+      end
+  end.
+
+Instance subst_ctx : Subst nat ty context := {
+  do_subst := subst_context_fix
+}.
+
+Inductive subst_context : ty -> nat -> context -> context -> Prop := 
+  | s_empty : forall T n,
+      subst_context T n empty empty
+  | s_ext_var : forall T n Gamma Gamma' x U U',
+      subst_context T n Gamma Gamma' ->
+      subst_type_in_type T n U U' ->
+      subst_context T n (ext_var Gamma x U) (ext_var Gamma' x U')
+  | s_ext_tvar0 : forall T Gamma,
+      (* the variable is removed because it has been replaced *)
+      subst_context T 0 (ext_tvar Gamma) Gamma
+  | s_ext_tvar : forall T n Gamma Gamma',
+      subst_context T n Gamma Gamma' ->
+      subst_context T (S n) (ext_tvar Gamma) (ext_tvar Gamma').
+
+Hint Constructors subst_context.
+
+Theorem subst_context_correct : forall T n Gamma Gamma',
+  [n := T] Gamma = Gamma' <-> subst_context T n Gamma Gamma'.
+Proof with auto.
+  intros; split.
+  Case "->".
+    generalize dependent Gamma'. generalize dependent n.
+    induction Gamma; intros; rewrite <- H...
+    SCase "Gamma = ext_var Gamma i t".
+      constructor. apply IHGamma. reflexivity.
+      apply subst_type_in_type_correct. trivial.
+    SCase "Gamma = ext_tvar Gamma".
+      destruct n.
+      SSCase "n = 0".
+        simpl...
+      SSCase "n = S n'".
+        constructor. apply IHGamma. reflexivity.
+  Case "<-".
+    intro H. induction H; simpl;
+    subst; try reflexivity; try assumption.
+    apply subst_type_in_type_correct in H0. subst...
+Qed.
+
+(** [] *)
+
 
 (* ################################### *)
 (** *** Typing Relation *)
@@ -447,11 +513,11 @@ Inductive has_type : context -> tm -> ty -> Prop :=
       Gamma |- t1 \in TArrow T11 T12 -> 
       Gamma |- t2 \in T11 -> 
       Gamma |- tapp t1 t2 \in T12
-  | T_TAbs : forall Gamma t2 T2,
+  | T_TAbs : forall Gamma t2 T1 T2,
       ext_tvar Gamma |- t2 \in T2 ->
-      Gamma |- ttabs t2 \in (TUniv T2)
-  | T_TApp : forall Gamma t1 T12 T2,
-      Gamma |- t1 \in (TUniv T12) ->
+      Gamma |- ttabs t2 \in (TUniv T1 T2)
+  | T_TApp : forall Gamma t1 T11 T12 T2,
+      Gamma |- t1 \in (TUniv T11 T12) ->
       Gamma |- ttapp t1 T2 \in [0 := T2] T12
       
 where "Gamma '|-' t '\in' T" := (has_type Gamma t T).
@@ -475,8 +541,8 @@ Qed.
 Example typing_nonexample :
   ~ (exists S, exists T,
         empty |- 
-          (tabs x S
-             (tapp (tvar x) (tvar x))) \in
+          (tabs (Id 0) S
+             (tapp (tvar (Id 0)) (tvar (Id 0)))) \in
           T).
 Proof.
   intros H.
