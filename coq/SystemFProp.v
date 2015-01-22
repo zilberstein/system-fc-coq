@@ -324,10 +324,13 @@ Proof.
     exists x0; assumption.
   Case "afi_tabs".
     inversion H0; subst. apply IHterm_appears_free_in_term in H3.
-    inversion H3. simpl in H1. exists x0. unfold opt_map in H1.
+    inversion H3. simpl in H1. unfold opt_map in H1.
     destruct (get_var Gamma x).
-      inversion H1. admit.
-      trivial.
+      inversion H1. destruct t0. 
+        SCase "TVar". exists (TVar n).  reflexivity. 
+        SCase "TArrow". exists (TArrow t0_1 t0_2). reflexivity.
+        SCase "TUniv". exists (TUniv t0_1 t0_2). reflexivity.
+      inversion H1.
 Qed.
 
 (** Next, we'll need the fact that any term [t] which is well typed in
@@ -434,9 +437,11 @@ Proof with eauto.
   Case "T_TAbs".
     apply T_TAbs.
     apply IHhas_type. intros x1 Hafi. simpl.
-    apply H0. apply afi_tabs...
+    rewrite H0. reflexivity.
+    apply afi_tabs...
+  Case "T_TApp".
+    eapply T_TApp. apply IHhas_type...
 Qed.
-
 
 (** Now we come to the conceptual heart of the proof that reduction
     preserves types -- namely, the observation that _substitution_
@@ -559,6 +564,7 @@ Proof with eauto.
           simpl; repeat (rewrite neq_id)...
   Case "ttabs".
     apply T_TAbs. apply IHt. eapply context_invariance_term...
+    intros. eapply free_in_context in H0...
 Qed.
 
 
