@@ -443,6 +443,33 @@ Proof with eauto.
     eapply T_TApp. apply IHhas_type...
 Qed.
 
+
+Lemma typing_weakening : forall Gamma Gamma' t T n,
+  Gamma  |- t \in T ->
+  Gamma' |- shift_typ n t \in tshift n T.
+Proof.
+  intros. generalize dependent n. generalize dependent T.
+  t_cases (induction t) Case; 
+  intros; inversion H; subst.
+  Case "tvar".
+    inversion H2.
+  Case "tapp".
+    simpl. eapply T_App with (tshift n T11).
+    assert (TArrow (tshift n T11) (tshift n T) = tshift n (TArrow T11 T)) by trivial.
+    rewrite H0. apply IHt1. trivial. apply IHt2. trivial.
+  Case "tabs".
+    simpl. apply T_Abs. eapply IHt. 
+
+
+
+    simpl. rename T into 
+
+admit.
+  Case "tabs".
+    simpl. constructor. apply IHt. 
+
+unfold shift_teapply T_TApp.
+
 (** Now we come to the conceptual heart of the proof that reduction
     preserves types -- namely, the observation that _substitution_
     preserves types.
@@ -531,15 +558,16 @@ Lemma substitution_preserves_typing_term_term : forall Gamma x U t v T,
 
 Proof with eauto.
   intros Gamma x U t v T Ht Ht'.
-  generalize dependent Gamma. generalize dependent T. 
-  t_cases (induction t) Case; intros T Gamma H;
+  generalize dependent Gamma. generalize dependent T.
+  generalize dependent U. generalize dependent v. 
+  t_cases (induction t) Case; intros v U Ht T Gamma H;
     (* in each case, we'll want to get at the derivation of H *)
     inversion H; subst; simpl...
   Case "tvar".
     rename i into y. destruct (eq_id_dec x y).
     SCase "x=y".
       subst. simpl in H2; rewrite eq_id in H2; inversion H2; subst.
-      eapply context_invariance_term. apply Ht'. intros x Hcontra.
+      eapply context_invariance_term. apply Ht. intros x Hcontra.
       destruct (free_in_context _ _ T empty Hcontra) as [T' HT']...
       inversion HT'.
     SCase "x<>y".
@@ -555,16 +583,23 @@ Proof with eauto.
       simpl; repeat (rewrite eq_id)...
       simpl; repeat (rewrite neq_id)...
     SCase "x<>y".
-      apply IHt. eapply context_invariance_term...
-      intros z Hafi. unfold extend.
-      destruct (eq_id_dec y z); subst.
+      eapply IHt. apply Ht. eapply context_invariance_term...      
+      intros z Hafi. destruct (eq_id_dec y z); subst.
         simpl; repeat (rewrite eq_id); rewrite neq_id...
         destruct (eq_id_dec x z); subst.
           simpl; repeat (rewrite eq_id); rewrite neq_id...
           simpl; repeat (rewrite neq_id)...
   Case "ttabs".
-    apply T_TAbs. apply IHt. eapply context_invariance_term...
-    intros. eapply free_in_context in H0...
+    apply T_TAbs. apply IHt with (tshift 0 U). 
+
+    eapply context_invariance_term...
+    intros. simpl. destruct (eq_id_dec x0 x). trivial.
+    trivial.
+
+ apply IHt. 
+
+
+    intros. 
 Qed.
 
 

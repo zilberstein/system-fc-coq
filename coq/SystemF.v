@@ -40,6 +40,15 @@ Tactic Notation "t_cases" tactic(first) ident(c) :=
   | Case_aux c "tabs" | Case_aux c "ttapp" 
   | Case_aux c "ttabs" ].
 
+Fixpoint shift_typ (X : nat) (t : tm) {struct t} : tm :=
+  match t with
+    | tvar y       => tvar y
+    | tabs x T1 t2 => tabs x (tshift X T1) (shift_typ X t2)
+    | tapp t1 t2   => tapp (shift_typ X t1) (shift_typ X t2)
+    | ttabs t2     => ttabs (shift_typ (1 + X) t2)
+    | ttapp t1 T2  => ttapp (shift_typ X t1) (tshift X T2)
+  end.
+
 (** Note that an abstraction [\x:T.t] (formally, [tabs x T t]) is
     always annotated with the type [T] of its parameter, in contrast
     to Coq (and other functional languages like ML, Haskell, etc.),
@@ -86,7 +95,7 @@ Fixpoint subst_term_fix (x:id) (s:tm) (t:tm) : tm :=
   | tapp t1 t2 => 
       tapp (subst_term_fix x s t1) (subst_term_fix x s t2)
   | ttabs t =>
-      ttabs (subst_term_fix x s t)
+      ttabs (subst_term_fix x (shift_typ 0 s) t)
   | ttapp t T =>
       ttapp (subst_term_fix x s t) T
   end.
@@ -96,26 +105,26 @@ Instance subst_tm_tm : Subst id tm tm := {
 }.
 
 
-Inductive subst_term (s:tm) (x:id) : tm -> tm -> Prop := 
-  | s_var1 :
+Inductive subst_term : tm -> id -> tm -> tm -> Prop := 
+  | s_var1 : forall s x,
       subst_term s x (tvar x) s
-  | s_var2 : forall x',
+  | s_var2 : forall s x x',
       x <> x' ->
       subst_term s x (tvar x') (tvar x')
-  | s_tabs1 : forall T t,
+  | s_tabs1 : forall s x T t,
       subst_term s x (tabs x T t) (tabs x T t)
-  | s_tabs2 : forall x' T t t',
+  | s_tabs2 : forall s x x' T t t',
       x <> x' ->
       subst_term s x t t' ->
       subst_term s x (tabs x' T t) (tabs x' T t')
-  | s_tapp : forall t1 t2 t1' t2',
+  | s_tapp : forall s x t1 t2 t1' t2',
       subst_term s x t1 t1' ->
       subst_term s x t2 t2' ->
       subst_term s x (tapp t1 t2) (tapp t1' t2')
-  | s_ttabs : forall t t',
-      subst_term s x t t' ->
+  | s_ttabs : forall s x t t',
+      subst_term (shift_typ 0 s) x t t' ->
       subst_term s x (ttabs t) (ttabs t')
-  | s_ttapp : forall t t' T,
+  | s_ttapp : forall s x t t' T,
       subst_term s x t t' ->
       subst_term s x (ttapp t T) (ttapp t' T).
 
@@ -126,7 +135,8 @@ Theorem subst_term_correct : forall s x t t',
 Proof.
   intros s x t. split.
   Case "->".
-    generalize dependent t'. induction t; intros t' H; simpl in H.
+    generalize dependent t'. generalize dependent s.
+    induction t; intros s t' H; simpl in H.
     SCase "t = tvar i".
       destruct (eq_id_dec x i) in H; subst.
       SSCase "x = i".
