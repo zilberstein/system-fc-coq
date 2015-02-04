@@ -14,14 +14,14 @@ Module SYSTEMF.
 Inductive ty : Type := 
   | TVar   : nat -> ty 
   | TArrow : ty -> ty -> ty
-  | TUniv  : ty -> ty -> ty.
+  | TUniv  : ty -> ty.
 
 
 Fixpoint tshift (X : nat) (T : ty) : ty :=
   match T with
   | TVar Y       => TVar (if le_gt_dec X Y then 1 + Y else Y)
   | TArrow T1 T2 => TArrow (tshift X T1) (tshift X T2)
-  | TUniv T1 T2  => TUniv (tshift X T1) (tshift (1 + X) T2)
+  | TUniv T2     => TUniv (tshift (1 + X) T2)
   end.
 
 (* ################################### *)
@@ -177,8 +177,7 @@ Fixpoint subst_type_in_type_fix (I:nat) (P:ty) (T:ty) : ty :=
            else TVar N
   | TArrow T1 T2 =>
       TArrow (subst_type_in_type_fix I P T1) (subst_type_in_type_fix I P T2)
-  | TUniv T1 T2 => TUniv (subst_type_in_type_fix I P T1)
-                         (subst_type_in_type_fix (I + 1) (tshift 0 P) T2)
+  | TUniv T => TUniv (subst_type_in_type_fix (I + 1) (tshift 0 P) T)
   end.
 
 Instance subst_ty_ty : Subst nat ty ty := {
@@ -199,10 +198,9 @@ Inductive subst_type_in_type (T:ty) (I:nat) : ty -> ty -> Prop :=
       subst_type_in_type T I T1 T1' ->
       subst_type_in_type T I T2 T2' ->
       subst_type_in_type T I (TArrow T1 T2) (TArrow T1' T2')
-  | s_univ : forall T11 T12 T21 T22,
-      subst_type_in_type T I T11 T12 ->
-      subst_type_in_type (tshift 0 T) (I+1) T21 T22 ->
-      subst_type_in_type T I (TUniv T11 T21) (TUniv T12 T22).
+  | s_univ : forall T1 T2,
+      subst_type_in_type (tshift 0 T) (I+1) T1 T2 ->
+      subst_type_in_type T I (TUniv T1) (TUniv T2).
 
 Lemma subst_type_in_type_correct : forall N P T1 T2,
   [N:=P]T1 = T2 <-> subst_type_in_type P N T1 T2.
@@ -228,9 +226,8 @@ Proof.
       rewrite <- H. constructor.
       apply IHT1_1. reflexivity.
       apply IHT1_2. reflexivity.
-    SCase "T2 = TUniv T1 T2".
-      rewrite <- H. constructor. apply IHT1_1. reflexivity.
-      apply IHT1_2. reflexivity.
+    SCase "T2 = TUniv T".
+      rewrite <- H. constructor. apply IHT1. reflexivity.
   Case "<-".
     intro H. induction H; simpl;
     subst; try reflexivity; try assumption.
@@ -510,24 +507,72 @@ Qed.
     the free variables of [t] the ones specified in the context 
     [Gamma]." *)
 
+Fixpoint wf_ty (Gamma : context) (T : ty) : Prop :=
+  match T with
+  | TVar X       => get_tvar Gamma X = true
+  | TArrow T1 T2 => wf_ty Gamma T1 /\ wf_ty Gamma T2
+  | TUniv  T     => wf_ty (ext_tvar Gamma) T
+  end.
+
+Inductive well_formed_type (Gamma : context) : ty -> Prop :=
+  | WF_TVar : forall X,
+      get_tvar Gamma X = true ->
+      well_formed_type Gamma (TVar X)
+  | WF_TArrow : forall T1 T2,
+      well_formed_type Gamma T1 ->
+      well_formed_type Gamma T2 ->
+      well_formed_type Gamma (TArrow T1 T2)
+  | WF_TUniv : forall T,
+      well_formed_type (ext_tvar Gamma) T ->
+      well_formed_type Gamma (TUniv T).
+
+Lemma wf_type_correct : forall Gamma T,
+  well_formed_type Gamma T <-> wf_ty Gamma T.
+Proof.
+  split; intros.
+  Case "->".
+    induction H; try split; trivial.
+  Case "<-".
+    generalize dependent Gamma. induction T.
+    constructor. simpl in H. trivial.
+    constructor; simpl in H; inversion H. apply IHT1. trivial.
+      apply IHT2. trivial.
+    constructor. simpl in H. apply IHT. trivial.
+Qed.
+
+
+Inductive well_formed_context : context -> Prop :=
+  | WFC_empty :
+      well_formed_context empty
+  | WFC_ext_var : forall x T Gamma,
+      well_formed_type Gamma T ->
+      well_formed_context Gamma ->
+      well_formed_context (ext_var Gamma x T)
+  | WFC_ext_tvar : forall Gamma,
+      well_formed_context Gamma ->
+      well_formed_context (ext_tvar Gamma).
+
 Reserved Notation "Gamma '|-' t '\in' T" (at level 40).
     
 Inductive has_type : context -> tm -> ty -> Prop :=
   | T_Var : forall Gamma x T,
+      well_formed_context Gamma ->
       get_var Gamma x = Some T ->
       Gamma |- tvar x \in T
   | T_Abs : forall Gamma x T11 T12 t12,
+      well_formed_type Gamma T11 ->
       ext_var Gamma x T11 |- t12 \in T12 -> 
       Gamma |- tabs x T11 t12 \in TArrow T11 T12
   | T_App : forall T11 T12 Gamma t1 t2,
       Gamma |- t1 \in TArrow T11 T12 -> 
       Gamma |- t2 \in T11 -> 
       Gamma |- tapp t1 t2 \in T12
-  | T_TAbs : forall Gamma t2 T1 T2,
-      ext_tvar Gamma |- t2 \in T2 ->
-      Gamma |- ttabs t2 \in (TUniv T1 T2)
-  | T_TApp : forall Gamma t1 T11 T12 T2,
-      Gamma |- t1 \in (TUniv T11 T12) ->
+  | T_TAbs : forall Gamma t T,
+      ext_tvar Gamma |- t \in T ->
+      Gamma |- ttabs t \in (TUniv T)
+  | T_TApp : forall Gamma t1 T12 T2,
+      well_formed_type Gamma T2 ->
+      Gamma |- t1 \in (TUniv T12) ->
       Gamma |- ttapp t1 T2 \in [0 := T2] T12
       
 where "Gamma '|-' t '\in' T" := (has_type Gamma t T).
@@ -559,11 +604,11 @@ Proof.
   inversion H. clear H.
   inversion H0. clear H0.
   inversion H; subst. clear H.
-  inversion H5; subst. clear H5.
+  inversion H6; subst. clear H6.
   inversion H4; subst. clear H4.
   inversion H2; subst. clear H2.
-  rewrite H3 in H1. inversion H1. 
-  apply (type_unique T11 T12). symmetry. assumption.
+  rewrite H3 in H6. inversion H6. 
+  apply (type_unique T11 T12). assumption.
 Qed.  
 
 (** [] *)
