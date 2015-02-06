@@ -22,8 +22,8 @@ Proof.
   exists x. exists t0.  auto.
 Qed.
 
-Lemma canonical_forms_tabs : forall t T1 T2,
-  empty |- t \in TUniv T1 T2 ->
+Lemma canonical_forms_tabs : forall t T,
+  empty |- t \in TUniv T ->
   value t ->
   exists t', t = ttabs t'.
 Proof.
@@ -92,7 +92,7 @@ Proof with eauto.
   Case "T_Var".
     (* contradictory: variables cannot be typed in an 
        empty context *)
-    inversion H. 
+    inversion H0. 
 
   Case "T_App". 
     (* [t] = [t1 t2].  Proceed by cases on whether [t1] is a 
@@ -210,73 +210,6 @@ Hint Constructors term_appears_free_in_term.
 Definition closed (t:tm) :=
   forall x, ~ term_appears_free_in_term x t.
 
-Inductive type_appears_free_in_type : nat -> ty -> Prop :=
-  | afit_ty_var : forall X,
-      type_appears_free_in_type X (TVar X)
-  | afit_arrow1 : forall X T1 T2,
-      type_appears_free_in_type X T1 ->
-      type_appears_free_in_type X (TArrow T1 T2)
-  | afit_arrow2 : forall X T1 T2,
-      type_appears_free_in_type X T2 ->
-      type_appears_free_in_type X (TArrow T1 T2)
-  | afit_univ1 : forall X T1 T2,
-      type_appears_free_in_type X T1 ->
-      type_appears_free_in_type X (TUniv T1 T2)
-  | afit_univ2 : forall X T1 T2,
-      type_appears_free_in_type X T2 ->
-      type_appears_free_in_type (X + 1) (TUniv T1 T2).
-
-
-Tactic Notation "afit_cases" tactic(first) ident(c) :=
-  first;
-  [ Case_aux c "afit_var"
-  | Case_aux c "afit_arrow1" | Case_aux c "afit_arrow2"
-  | Case_aux c "afit_univ1" | Case_aux c "afit_univ2" ].
-
-Hint Constructors type_appears_free_in_type.
-
-(** A term in which no variables appear free is said to be _closed_. *)
-
-Definition closed_type (T:ty) :=
-  forall X, ~ type_appears_free_in_type X T.
-
-Inductive type_appears_free_in_term : nat -> tm -> Prop :=
-  | afit_var : forall n x,
-      type_appears_free_in_term n (tvar x)
-  | afit_app1 : forall n t1 t2,
-      type_appears_free_in_term n t1 ->
-      type_appears_free_in_term n (tapp t1 t2)
-  | afit_app2 : forall n t1 t2,
-      type_appears_free_in_term n t2 ->
-      type_appears_free_in_term n (tapp t1 t2)
-  | afit_abs1 : forall n x T11 t12,
-      type_appears_free_in_type n T11 ->
-      type_appears_free_in_term n (tabs x T11 t12)
-  | afit_abs2 : forall n x T11 t12,
-      type_appears_free_in_term n t12 ->
-      type_appears_free_in_term n (tabs x T11 t12)
-  | afit_tapp1 : forall n t T,
-      type_appears_free_in_term n t ->
-      type_appears_free_in_term n (ttapp t T)
-  | afit_tapp2 : forall n t T,
-      type_appears_free_in_type n T ->
-      type_appears_free_in_term n (ttapp t T)
-  | afit_tabs : forall n t,
-      type_appears_free_in_term n t ->
-      type_appears_free_in_term n (ttabs t).
-
-Tactic Notation "afi_tt_ cases" tactic(first) ident(c) :=
-  first;
-  [ Case_aux c "afit_var"
-  | Case_aux c "afit_app1"  | Case_aux c "afit_app2" 
-  | Case_aux c "afit_abs1"  | Case_aux c "afit_abs2" 
-  | Case_aux c "afit_tapp1" | Case_aux c "afit_app2"
-  | Case_aux c "afit_tabs" ].
-
-Hint Constructors type_appears_free_in_term.
-
-Definition closed_type_term (t:tm) :=
-  forall X, ~ type_appears_free_in_term X t.
 
 (* ###################################################################### *)
 (** ** Substitution *)
@@ -285,6 +218,139 @@ Definition closed_type_term (t:tm) :=
     typing contexts.  If a variable [x] appears free in a term [t],
     and if we know [t] is well typed in context [Gamma], then it must
     be the case that [Gamma] assigns a type to [x]. *)
+
+Lemma wf_empty_implies_wf : forall Gamma U,
+  well_formed_type empty U ->
+  well_formed_type Gamma U.
+Proof.
+  intros. generalize dependent Gamma. induction U; inversion H; subst.
+  Case "TVar".
+    inversion H1.
+  Case "TArrow".
+    constructor. apply IHU1. trivial.
+    apply IHU2. trivial.
+  Case "TUniv".
+    constructor. apply IHU. admit.
+Qed.    
+
+Lemma context_subst_ge : forall Gamma X X' T,
+  X' < X ->
+  get_tvar ([X' := T] Gamma) (X - 1) = get_tvar Gamma X. 
+Admitted.
+
+Lemma context_subst_lt : forall Gamma X X' T,
+  X' > X ->
+  get_tvar ([X' := T] Gamma) X = get_tvar Gamma X. 
+Admitted.
+
+Lemma empty_shift_wf : forall Gamma X U,
+  well_formed_type empty U ->
+  well_formed_type Gamma (tshift X U).
+Admitted.(*
+Proof with trivial.
+  intros. generalize dependent X. generalize dependent Gamma.
+  
+  induction U; inversion H.
+  Case "TVar".
+    inversion H1.
+  Case "TArrow".
+    simpl. constructor. apply IHU1...
+    apply IHU2...
+  Case "TUniv".
+    intros. simpl. constructor. apply IHU.
+ *)
+Lemma context_subst_wf : forall Gamma X U,
+  well_formed_context ([X := U] Gamma) ->
+  well_formed_type ([X := U] Gamma) U.
+Proof with trivial.
+  intros. induction X.
+  inversion H. simpl. rewrite <- H1.
+
+Lemma subst_preserves_well_formed_type : forall Gamma Gamma' X U T,
+  well_formed_type Gamma T   ->
+  [X := U] Gamma = Gamma'    ->
+  well_formed_context Gamma' ->
+  well_formed_type Gamma' ([X := U] T).
+Proof.
+  intros. generalize dependent Gamma. generalize dependent Gamma'. 
+  generalize dependent X. generalize dependent U.
+  induction T; intros.
+  Case "TVar".
+    simpl. destruct (eq_nat_dec X n).
+    SCase "X = n".
+      apply wf_empty_implies_wf. assumption.
+    SCase "X <> n".
+      inversion H0; subst. destruct (le_lt_dec X n).
+      SSCase "X < n".
+        constructor. rewrite <- H3. apply context_subst_ge.
+        omega.
+      SSCase "X > n".
+        constructor. rewrite <- H3. apply context_subst_lt.
+        omega.
+  Case "TArrow".
+    inversion H0; subst. simpl. constructor. eapply IHT1; trivial. trivial.
+    eapply IHT2; trivial. trivial.
+  Case "TUniv".
+    simpl. constructor. eapply IHT. induction U; inversion H.
+      inversion H3.
+      simpl. constructor. apply IHU1. trivial. rewrite subst_type_in_type_correct in H1. inversion H1.
+
+assert (ext_tvar ([X := U] Gamma) = [(X+1) := U] (ext_tvar Gamma)). 
+      simpl. destruct X. trivial. assert (S X + 1 = S (S X)) by omega.
+      rewrite H2. trivial.
+    assert (subst_context_fix X U Gamma = [X := U]Gamma) by trivial. 
+    
+    
+rewrite H1. apply IHT.
+
+eapply IHT. 
+
+Lemma subst_in_ctx_well_formed : forall Gamma X U,
+  well_formed_context Gamma ->
+  well_formed_type empty U  ->
+  well_formed_context ([X := U] Gamma).
+Proof.
+  intros. generalize dependent X. induction H; intros.
+  Case "empty".
+    simpl. constructor.
+  Case "ext_var".
+    simpl. constructor. apply IHwell_formed_context.
+
+
+
+Lemma substitution_preserves_well_formedness : forall Gamma X T T',
+  well_formed_type Gamma T ->
+  well_formed_context Gamma ->
+  well_formed_type empty T' ->
+  well_formed_type Gamma ([X := T'] T).
+Admitted.
+
+Lemma ty_sustitution_preserves_typing : forall Gamma X t T U,
+  well_formed_type empty U ->
+  Gamma |- t \in T ->
+  [X := U] Gamma |- [X := U] t \in [X := U] T.
+Proof.
+  intros. generalize dependent Gamma.
+  t_cases (induction t) Case; intros.
+  Case "tvar".
+    simpl. inversion H0; subst. constructor.
+    destruct Gamma; simpl. trivial.
+    constructor. inversion H; subst.
+    inversion H. inversion H5. 
+
+    simpl. destruct (eq_nat_dec X n).
+    SCase "X = n".
+      inversion H.
+
+Gamma |- t \in T ->
+  well_formed_type empty T' ->
+  Gamma |- [X := T'] t \in [X := T'] T.
+Proof.
+  intros. generalize dependent Gamma. generalize dependent T.
+  t_cases (induction t) Case; intros T Gamma Ht.
+  Case "tvar".
+    simpl. constructor. inversion Ht; subst. trivial.
+    inversion Ht; subst. 
 
 Lemma free_in_context_type : forall X T Gamma,
    type_appears_free_in_type X T ->
