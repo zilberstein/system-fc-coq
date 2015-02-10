@@ -1,6 +1,7 @@
 (** * SystemFProp: Properties of System F *)
 
 Require Export SystemF.
+Require Export Coq.Logic.Decidable.
 
 Module SYSTEMFPROP.
 Import SYSTEMF.
@@ -246,7 +247,8 @@ Admitted.
 Lemma empty_shift_wf : forall Gamma X U,
   well_formed_type empty U ->
   well_formed_type Gamma (tshift X U).
-Admitted.(*
+Admitted.
+(*
 Proof with trivial.
   intros. generalize dependent X. generalize dependent Gamma.
   
@@ -259,12 +261,43 @@ Proof with trivial.
   Case "TUniv".
     intros. simpl. constructor. apply IHU.
  *)
+
+Lemma true_iff_not_false : forall a,
+  a = true <-> a <> false.
+
+
+Lemma context_invariance_types : forall T Gamma Gamma',
+  (forall X, get_tvar Gamma' X = false -> get_tvar Gamma X = false) ->
+  well_formed_type Gamma T -> well_formed_type Gamma' T.
+Proof.
+  intro T. induction T; intros.
+  Case "TVar".
+    constructor. inversion H0; subst.
+    assert (get_tvar Gamma' n = false -> get_tvar Gamma n = false) by apply H.
+    rewrite <- contrapositive in H1. 
+  assert (get_tvar Gamma n <> false). 
+    intro. rewrite H2 in H3.
+    inversion H3.
+  apply ex_falso_quodlibet. apply H1 in H3. inversion H3.
+  
+    assert (
+      apply ex_falso_quodlibet. apply H1. apply H.
+  Case "TArrow T1 T2".
+    constructor; inversion H0. eapply IHT1. intros. apply H. trivial. trivial.
+    eapply IHT2. intros. apply H. trivial. trivial.
+  Case "TUniv".
+    constructor; inversion H0. apply IHT with (ext_tvar Gamma). intros. 
+    induction X. simpl in H3. inversion H3.
+      simpl in H3. simpl. apply H. trivial.
+    trivial.
+
 Lemma context_subst_wf : forall Gamma X U,
   well_formed_context ([X := U] Gamma) ->
   well_formed_type ([X := U] Gamma) U.
 Proof with trivial.
   intros. induction X.
   inversion H. simpl. rewrite <- H1.
+  
 
 Lemma subst_preserves_well_formed_type : forall Gamma Gamma' X U T,
   well_formed_type Gamma T   ->
