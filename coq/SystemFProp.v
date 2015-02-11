@@ -262,11 +262,8 @@ Proof with trivial.
     intros. simpl. constructor. apply IHU.
  *)
 
-Lemma true_iff_not_false : forall a,
-  a = true <-> a <> false.
 
-
-Lemma context_invariance_types : forall T Gamma Gamma',
+Lemma wf_type_context_weaken : forall T Gamma Gamma',
   (forall X, get_tvar Gamma' X = false -> get_tvar Gamma X = false) ->
   well_formed_type Gamma T -> well_formed_type Gamma' T.
 Proof.
@@ -275,13 +272,8 @@ Proof.
     constructor. inversion H0; subst.
     assert (get_tvar Gamma' n = false -> get_tvar Gamma n = false) by apply H.
     rewrite <- contrapositive in H1. 
-  assert (get_tvar Gamma n <> false). 
-    intro. rewrite H2 in H3.
-    inversion H3.
-  apply ex_falso_quodlibet. apply H1 in H3. inversion H3.
-  
-    assert (
-      apply ex_falso_quodlibet. apply H1. apply H.
+  apply not_false_is_true. intro. apply not_false_iff_true in H2. apply H1.
+  apply H2. apply H3. right. apply not_false_iff_true. trivial.
   Case "TArrow T1 T2".
     constructor; inversion H0. eapply IHT1. intros. apply H. trivial. trivial.
     eapply IHT2. intros. apply H. trivial. trivial.
@@ -290,12 +282,68 @@ Proof.
     induction X. simpl in H3. inversion H3.
       simpl in H3. simpl. apply H. trivial.
     trivial.
+Qed.
+
+Lemma context_invariance_types : forall T Gamma Gamma',
+  (forall X, get_tvar Gamma' X = get_tvar Gamma X) ->
+  well_formed_type Gamma T -> well_formed_type Gamma' T.
+Proof.
+  intros T Gamma Gamma' H. eapply wf_type_context_weaken. intros.
+  rewrite <- H. trivial. 
+Qed.    
+
+Lemma wf_weakening_var : forall Gamma U x T,
+  well_formed_type Gamma U ->
+  well_formed_type (ext_var Gamma x T) U.
+Proof.  
+  intros. eapply context_invariance_types with Gamma. intros. 
+  simpl. trivial. trivial.
+Qed.
+
+Lemma larger_context_true : forall Gamma X,
+  get_tvar Gamma X = true ->
+  get_tvar (ext_tvar Gamma) X = true.
+Proof.
+  intros. generalize dependent X. induction Gamma; intros.
+    inversion H.
+    assert ((get_tvar (ext_tvar (ext_var Gamma i t)) X = true) =
+            (get_tvar (ext_tvar Gamma) X = true)) by trivial.
+    rewrite H0. apply IHGamma. simpl in H. trivial.
+    destruct X. trivial.
+    apply IHGamma. simpl in H. trivial.
+Qed.
+
+Lemma wf_weakening_tvar : forall Gamma U,
+  well_formed_type Gamma U ->
+  well_formed_type (ext_tvar Gamma) (tshift 0 U).
+Proof.
+  intros. generalize 0. generalize dependent Gamma. induction U; intros;
+    inversion H. constructor. destruct (le_gt_dec n0 n).
+      simpl. trivial.
+      apply larger_context_true. trivial.
+    simpl. constructor. apply IHU1. trivial.
+      apply IHU2. trivial.
+    simpl. constructor. apply IHU. trivial.
+Qed.
 
 Lemma context_subst_wf : forall Gamma X U,
   well_formed_context ([X := U] Gamma) ->
   well_formed_type ([X := U] Gamma) U.
-Proof with trivial.
-  intros. induction X.
+Proof with auto.
+  intros. induction Gamma.
+   simpl. simpl in H. inversion H.
+simpl. trivial. inversion H.
+    simpl in H0. apply wf_weakening_var. apply IHGamma.
+
+inversion H0; subst.
+    apply IHGamma. eapply wf_weakening_var in H.
+
+simpl in H0.
+      inversion H0; subst. inversion H3; subst.
+
+ induction Gamma.
+    simpl. simpl in H.
+
   inversion H. simpl. rewrite <- H1.
   
 
