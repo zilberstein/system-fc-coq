@@ -24,6 +24,14 @@ Fixpoint tshift (X : nat) (T : ty) : ty :=
   | TUniv T2     => TUniv (tshift (1 + X) T2)
   end.
 
+Fixpoint tunshift (X : nat) (T : ty) : ty :=
+  match T with
+  | TVar Y       => TVar (if le_gt_dec X Y then Y - 1 else Y)
+  | TArrow T1 T2 => TArrow (tunshift X T1) (tunshift X T2)
+  | TUniv T2     => TUniv (tunshift (X + 1) T2)
+  end.
+
+
 (* ################################### *)
 (** *** Terms *)
 
@@ -417,96 +425,6 @@ Fixpoint get_tvar (E : context) (N : nat) : bool :=
 
 (* Should maybe have some proofs *)
 
-(* Term Sustitution *)
-Fixpoint subst_context_fix (n:nat) (T':ty) (Gamma:context) : context :=
-  match Gamma with
-    | empty => empty
-    | ext_var Gamma' x T => ext_var (subst_context_fix n T' Gamma') x ([n:=T']T)
-    | ext_tvar Gamma' =>
-      match n with
-        | S n' => ext_tvar (subst_context_fix n' T' Gamma')
-        | 0 => Gamma'
-      end
-  end.
-
-Instance subst_ctx : Subst nat ty context := {
-  do_subst := subst_context_fix
-}.
-
-Inductive subst_context : ty -> nat -> context -> context -> Prop := 
-  | s_empty : forall T n,
-      subst_context T n empty empty
-  | s_ext_var : forall T n Gamma Gamma' x U U',
-      subst_context T n Gamma Gamma' ->
-      subst_type_in_type T n U U' ->
-      subst_context T n (ext_var Gamma x U) (ext_var Gamma' x U')
-  | s_ext_tvar0 : forall T Gamma,
-      (* the variable is removed because it has been replaced *)
-      subst_context T 0 (ext_tvar Gamma) Gamma
-  | s_ext_tvar : forall T n Gamma Gamma',
-      subst_context T n Gamma Gamma' ->
-      subst_context T (S n) (ext_tvar Gamma) (ext_tvar Gamma').
-
-Hint Constructors subst_context.
-
-Theorem subst_context_correct : forall T n Gamma Gamma',
-  [n := T] Gamma = Gamma' <-> subst_context T n Gamma Gamma'.
-Proof with auto.
-  intros; split.
-  Case "->".
-    generalize dependent Gamma'. generalize dependent n.
-    induction Gamma; intros; rewrite <- H...
-    SCase "Gamma = ext_var Gamma i t".
-      constructor. apply IHGamma. reflexivity.
-      apply subst_type_in_type_correct. trivial.
-    SCase "Gamma = ext_tvar Gamma".
-      destruct n.
-      SSCase "n = 0".
-        simpl...
-      SSCase "n = S n'".
-        constructor. apply IHGamma. reflexivity.
-  Case "<-".
-    intro H. induction H; simpl;
-    subst; try reflexivity; try assumption.
-    apply subst_type_in_type_correct in H0. subst...
-Qed.
-
-(** [] *)
-
-
-(* ################################### *)
-(** *** Typing Relation *)
-
-(** 
-                             Gamma x = T
-                            --------------                              (T_Var)
-                            Gamma |- x \in T
-
-                      Gamma , x:T11 |- t12 \in T12
-                     ----------------------------                       (T_Abs)
-                     Gamma |- \x:T11.t12 \in T11->T12
-
-                        Gamma |- t1 \in T11->T12
-                          Gamma |- t2 \in T11
-                        ----------------------                          (T_App)
-                         Gamma |- t1 t2 \in T12
-
-                         --------------------                          (T_True)
-                         Gamma |- true \in Bool
-
-                        ---------------------                         (T_False)
-                        Gamma |- false \in Bool
-
-       Gamma |- t1 \in Bool    Gamma |- t2 \in T    Gamma |- t3 \in T
-       --------------------------------------------------------          (T_If)
-                  Gamma |- if t1 then t2 else t3 \in T
-
-
-    We can read the three-place relation [Gamma |- t \in T] as: 
-    "to the term [t] we can assign the type [T] using as types for
-    the free variables of [t] the ones specified in the context 
-    [Gamma]." *)
-
 Fixpoint wf_ty (Gamma : context) (T : ty) : Prop :=
   match T with
   | TVar X       => get_tvar Gamma X = true
@@ -551,6 +469,114 @@ Inductive well_formed_context : context -> Prop :=
   | WFC_ext_tvar : forall Gamma,
       well_formed_context Gamma ->
       well_formed_context (ext_tvar Gamma).
+
+
+(* Context Substitution *)
+(* Fixpoint subst_context_fix (n:nat) (T':ty) (Gamma:context) : context := *)
+(*   match Gamma with *)
+(*     | empty => empty *)
+(*     | ext_var Gamma' x T => ext_var (subst_context_fix n T' Gamma') x ([n:=T']T) *)
+(*     | ext_tvar Gamma' => *)
+(*       match n with *)
+(*         | S n' => ext_tvar (subst_context_fix n' (tunshift 0 T') Gamma') *)
+(*         | 0    => Gamma' *)
+(*       end *)
+(*   end. *)
+
+(* Instance subst_ctx : Subst nat ty context := { *)
+(*   do_subst := subst_context_fix *)
+(* }. *)
+
+Inductive subst_context : ty -> nat -> context -> context -> Prop := 
+  | s_empty : forall T n,
+      subst_context T n empty empty
+  | s_ext_var : forall T n Gamma Gamma' x U U',
+      subst_context T n Gamma Gamma' ->
+      subst_type_in_type T n U U' ->
+      subst_context T n (ext_var Gamma x U) (ext_var Gamma' x U')
+  | s_ext_tvar0 : forall T Gamma,
+      (* the variable is removed because it has been replaced *)
+      subst_context T 0 (ext_tvar Gamma) Gamma
+  | s_ext_tvar : forall T n Gamma Gamma',
+      subst_context T n Gamma Gamma' ->
+      subst_context (tshift 0 T) (S n) (ext_tvar Gamma) (ext_tvar Gamma').
+
+Hint Constructors subst_context.
+
+Lemma shift_unshift : forall T n,
+  tunshift n (tshift n T) = T. 
+Proof.
+  intros. generalize dependent n. induction T; intros.
+    simpl. destruct (le_gt_dec n0 n).
+      destruct (le_gt_dec n0 (S n)).
+        simpl. assert (n - 0 = n) by omega. rewrite H. trivial.
+        omega.
+      destruct (le_gt_dec n0 n).
+        omega.
+        trivial.
+    simpl. rewrite IHT1. rewrite IHT2. trivial.
+    simpl. assert (n + 1 = S n) by omega. rewrite H. rewrite IHT. trivial.
+Qed.
+
+
+(* Theorem subst_context_correct : forall T n Gamma Gamma', *)
+(*   [n := T] Gamma = Gamma' <-> subst_context T n Gamma Gamma'. *)
+(* Proof with auto. *)
+(*   intros; split. *)
+(*   Case "->". *)
+(*     generalize dependent Gamma'. generalize dependent n. *)
+(*     generalize dependent T. induction Gamma; intros; rewrite <- H... *)
+(*     SCase "Gamma = ext_var Gamma i t". *)
+(*       constructor. apply IHGamma. reflexivity. *)
+(*       apply subst_type_in_type_correct. trivial. *)
+(*     SCase "Gamma = ext_tvar Gamma". *)
+(*       destruct n. *)
+(*       SSCase "n = 0". *)
+(*         simpl... *)
+(*       SSCase "n = S n'". *)
+(*         simpl. constructor. apply IHGamma. reflexivity. *)
+(*   Case "<-". *)
+(*     intro H. induction H; simpl; *)
+(*     subst; try reflexivity; try assumption. *)
+(*     apply subst_type_in_type_correct in H0. subst... *)
+(* Qed. *)
+
+(** [] *)
+
+
+(* ################################### *)
+(** *** Typing Relation *)
+
+(** 
+                             Gamma x = T
+                            --------------                              (T_Var)
+                            Gamma |- x \in T
+
+                      Gamma , x:T11 |- t12 \in T12
+                     ----------------------------                       (T_Abs)
+                     Gamma |- \x:T11.t12 \in T11->T12
+
+                        Gamma |- t1 \in T11->T12
+                          Gamma |- t2 \in T11
+                        ----------------------                          (T_App)
+                         Gamma |- t1 t2 \in T12
+
+                         --------------------                          (T_True)
+                         Gamma |- true \in Bool
+
+                        ---------------------                         (T_False)
+                        Gamma |- false \in Bool
+
+       Gamma |- t1 \in Bool    Gamma |- t2 \in T    Gamma |- t3 \in T
+       --------------------------------------------------------          (T_If)
+                  Gamma |- if t1 then t2 else t3 \in T
+
+
+    We can read the three-place relation [Gamma |- t \in T] as: 
+    "to the term [t] we can assign the type [T] using as types for
+    the free variables of [t] the ones specified in the context 
+    [Gamma]." *)
+
 
 Reserved Notation "Gamma '|-' t '\in' T" (at level 40).
     
