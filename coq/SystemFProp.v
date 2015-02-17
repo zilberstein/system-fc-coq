@@ -238,31 +238,34 @@ Lemma context_subst_ge : forall Gamma Gamma' X X' T,
   X' < X ->
   subst_context T X' Gamma Gamma' ->
   get_tvar Gamma' (X - 1) = get_tvar Gamma X. 
-Admitted.
+Proof.
+  intros. generalize dependent X. induction H0; intros.
+    simpl. apply IHsubst_context. trivial.
+    induction X. inversion H1.
+      simpl. assert (X - 0 = X) by omega. rewrite H2.
+      trivial.
+    inversion H; subst. simpl. 
+    assert (get_tvar Gamma' (S n - 1) = get_tvar Gamma (S n)).
+      apply IHsubst_context. omega.
+    assert (S n - 1 = n) by omega. rewrite H2 in H1.
+    trivial.
+    simpl. destruct m. inversion H1.
+    simpl. assert (get_tvar Gamma' (S m - 1) = get_tvar Gamma (S m)).
+      apply IHsubst_context. omega. assert (S m - 1 = m) by omega.
+      rewrite H3 in H2. trivial.
+Qed.
 
 Lemma context_subst_lt : forall Gamma Gamma' X X' T,
   X' > X ->
   subst_context T X' Gamma Gamma' ->
   get_tvar Gamma' X = get_tvar Gamma X. 
-Admitted.
-
-Lemma empty_shift_wf : forall Gamma X U,
-  well_formed_type empty U ->
-  well_formed_type Gamma (tshift X U).
-Admitted.
-(*
-Proof with trivial.
-  intros. generalize dependent X. generalize dependent Gamma.
-  
-  induction U; inversion H.
-  Case "TVar".
+Proof.
+  intros. generalize dependent X. induction H0; intros.
+    simpl. apply IHsubst_context. trivial.
     inversion H1.
-  Case "TArrow".
-    simpl. constructor. apply IHU1...
-    apply IHU2...
-  Case "TUniv".
-    intros. simpl. constructor. apply IHU.
- *)
+    induction X. simpl. trivial.
+    simpl. apply IHsubst_context. omega.
+Qed.
 
 
 Lemma wf_type_context_weaken : forall T Gamma Gamma',
@@ -355,86 +358,58 @@ Proof.
     apply IHU1; trivial.
     apply IHU2; trivial.
   Case "TUniv".
-    apply IHU.
+    apply IHU. 
+    admit.
+Admitted.
 
 Lemma context_subst_wf : forall Gamma Gamma' X U,
-  well_formed_context Gamma            ->
-  well_formed_type Gamma U             ->
   subst_context U X Gamma Gamma'       ->
   well_formed_context Gamma' ->
   well_formed_type Gamma' U.
 Proof with auto.
-  intros. induction H1.
+  intros Gamma Gamma' X U Hs. induction Hs; intros.
+    apply wf_weakening_var. apply IHHs.
+      inversion H0; subst. trivial.
     trivial.
-    apply wf_weakening_var. apply IHsubst_context.
-      inversion H; subst. trivial.
-      eapply wf_strengthening_var. apply H0.
-      inversion H2; subst. trivial.
-    admit.
-    apply wf_weakening_tvar. apply IHsubst_context.
-      inversion H; subst; trivial.
-      inversion H0; subst.
-        
-      inversion H2; trivial.
+    apply wf_weakening_tvar. apply IHHs.
+      inversion H; subst.
+      trivial.
+Qed.        
 
-apply wf_weakening_var. apply IHGamma.
-      inversion H; subst. trivial.
-      eapply wf_strengthening_var. apply H0.
-      inversion H1; subst. trivial.
-    destruct X.
-      simpl in H1. admit.
-      simpl.
-
-  remember ([X := U] Gamma) as Gamma'. symmetry in HeqGamma'.
-  apply subst_context_correct in HeqGamma'.
-  induction HeqGamma'.
-    trivial.
-    
-inversion H; subst.
-      trivial. 
-        constructor. inversion H3. trivial.
-        constructor.  
-    
-    apply wf_weakening_tvar.
-
-Lemma subst_preserves_well_formed_type : forall Gamma Gamma' X U T,
-  well_formed_type Gamma T   ->
-  [X := U] Gamma = Gamma'    ->
-  well_formed_context Gamma' ->
+Lemma subst_preserves_well_formed_type : forall X Gamma Gamma' U T,
+  subst_context U X Gamma Gamma'    ->
+  well_formed_type Gamma T          ->
+  well_formed_context Gamma'        ->
   well_formed_type Gamma' ([X := U] T).
 Proof.
-  intros. generalize dependent Gamma. generalize dependent Gamma'. 
-  generalize dependent X. generalize dependent U.
+  intros. generalize dependent U. generalize dependent Gamma.
+  generalize dependent Gamma'. generalize dependent X.
   induction T; intros.
   Case "TVar".
-    simpl. destruct (eq_nat_dec X n).
+    simpl. inversion H0; subst. 
+    destruct (eq_nat_dec X n).
     SCase "X = n".
-      apply wf_empty_implies_wf. assumption.
+      eapply context_subst_wf. apply H. trivial.
     SCase "X <> n".
       inversion H0; subst. destruct (le_lt_dec X n).
       SSCase "X < n".
-        constructor. rewrite <- H3. apply context_subst_ge.
-        omega.
+        constructor. rewrite <- H3. apply context_subst_ge with X U.
+        omega. trivial.
       SSCase "X > n".
-        constructor. rewrite <- H3. apply context_subst_lt.
-        omega.
+        constructor. rewrite <- H3. apply context_subst_lt with X U.
+        omega. trivial.
   Case "TArrow".
-    inversion H0; subst. simpl. constructor. eapply IHT1; trivial. trivial.
-    eapply IHT2; trivial. trivial.
+    inversion H0; subst. simpl. constructor. eapply IHT1; trivial.
+    apply H4. trivial.
+    eapply IHT2; trivial. apply H5. trivial.
   Case "TUniv".
-    simpl. constructor. eapply IHT. induction U; inversion H.
-      inversion H3.
-      simpl. constructor. apply IHU1. trivial. rewrite subst_type_in_type_correct in H1. inversion H1.
+    simpl. constructor. eapply IHT. constructor. trivial. 
+    inversion H0. apply H3.
+    assert (X + 1 = S X) by omega. rewrite H2. constructor.
+    trivial.
+Qed.
 
-assert (ext_tvar ([X := U] Gamma) = [(X+1) := U] (ext_tvar Gamma)). 
-      simpl. destruct X. trivial. assert (S X + 1 = S (S X)) by omega.
-      rewrite H2. trivial.
-    assert (subst_context_fix X U Gamma = [X := U]Gamma) by trivial. 
-    
-    
-rewrite H1. apply IHT.
-
-eapply IHT. 
+(** WOOOOOOO!!! *)
 
 Lemma subst_in_ctx_well_formed : forall Gamma X U,
   well_formed_context Gamma ->

@@ -488,14 +488,16 @@ Inductive well_formed_context : context -> Prop :=
 (* }. *)
 
 Inductive subst_context : ty -> nat -> context -> context -> Prop := 
-  | s_empty : forall T n,
-      subst_context T n empty empty
+  (* | s_empty : forall T n, *)
+  (*     subst_context T n empty empty *)
   | s_ext_var : forall T n Gamma Gamma' x U U',
       subst_context T n Gamma Gamma' ->
       subst_type_in_type T n U U' ->
       subst_context T n (ext_var Gamma x U) (ext_var Gamma' x U')
   | s_ext_tvar0 : forall T Gamma,
       (* the variable is removed because it has been replaced *)
+      well_formed_type Gamma T  ->
+      well_formed_context Gamma ->
       subst_context T 0 (ext_tvar Gamma) Gamma
   | s_ext_tvar : forall T n Gamma Gamma',
       subst_context T n Gamma Gamma' ->
