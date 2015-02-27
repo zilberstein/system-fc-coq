@@ -374,7 +374,8 @@ Proof with auto.
     apply wf_weakening_tvar. apply IHHs.
       inversion H; subst.
       trivial.
-Qed.        
+Qed.            
+
 
 Lemma subst_preserves_well_formed_type : forall X Gamma Gamma' U T,
   subst_context U X Gamma Gamma'    ->
@@ -411,35 +412,138 @@ Qed.
 
 (** WOOOOOOO!!! *)
 
-Lemma subst_in_ctx_well_formed : forall Gamma X U,
-  well_formed_context Gamma ->
-  well_formed_type empty U  ->
-  well_formed_context ([X := U] Gamma).
+Lemma subst_context_wf : forall Gamma Gamma' X U,
+  subst_context U X Gamma Gamma' ->
+  well_formed_context Gamma      ->
+  well_formed_context Gamma'.
 Proof.
-  intros. generalize dependent X. induction H; intros.
-  Case "empty".
-    simpl. constructor.
-  Case "ext_var".
-    simpl. constructor. apply IHwell_formed_context.
+  intros Gamma Gamma' X U H. induction H; intros.
+    constructor. apply subst_type_in_type_correct in H0. 
+    rewrite <- H0. eapply subst_preserves_well_formed_type.
+    apply H. inversion H1; subst. trivial.
+    
+    apply IHsubst_context. inversion H1; subst. trivial.
+    apply IHsubst_context. inversion H1; subst. trivial.
 
+    trivial. constructor. apply IHsubst_context. inversion H0; trivial.
+Qed.
 
+Ltac tvar_case :=
+  unfold tshift; unfold do_subst; fold tshift; fold do_subst;
+  match goal with
+  | |- ?x =>
+      match x with
+      | context [le_gt_dec ?n ?n'] =>
+          case (le_gt_dec n n')
+      | context C [(lt_eq_lt_dec ?n ?n')] =>
+          case (lt_eq_lt_dec n n'); [intro s; case s; clear s | idtac ]
+      end
+  end.
 
-Lemma substitution_preserves_well_formedness : forall Gamma X T T',
-  well_formed_type Gamma T ->
-  well_formed_context Gamma ->
-  well_formed_type empty T' ->
-  well_formed_type Gamma ([X := T'] T).
-Admitted.
+Ltac common_cases n T :=
+  simpl; generalize n; clear n; induction T; intros n''; intros;
+    [ repeat tvar_case;
+      simpl; trivial; try (intros; apply f_equal with (f := tvar); omega);
+      try (intros; assert False; [ omega | contradiction ])
+    | simpl; apply f_equal2 with (f := TArrow); trivial
+    | simpl ].
+(* ; apply f_equal2 with (f := TUniv); trivial ]. *)
 
-Lemma ty_sustitution_preserves_typing : forall Gamma X t T U,
-  well_formed_type empty U ->
-  Gamma |- t \in T ->
-  [X := U] Gamma |- [X := U] t \in [X := U] T.
+Lemma subst_shift_same : forall X T U,
+  T = [X := U] (tshift X T).
 Proof.
-  intros. generalize dependent Gamma.
+  intros. generalize dependent X. generalize dependent U.
+  induction T; intros.
+    simpl. destruct (le_gt_dec X n).
+      destruct (eq_nat_dec X (S n)).
+        omega.
+      destruct (le_lt_dec X (S n)). assert (n = S n - 1) by omega. auto.
+        omega.
+      destruct (eq_nat_dec X n).
+        omega.
+        destruct (le_lt_dec X n). omega. trivial.
+    simpl. simpl in IHT1. rewrite <- IHT1. simpl in IHT2; rewrite <- IHT2. trivial.
+    simpl. simpl in IHT. assert (S X = X + 1) by omega. rewrite H.
+      rewrite <- IHT. trivial.
+Qed.
+
+Lemma tshift_tshift_prop : forall X Y T,
+  tshift X (tshift (X + Y) T) = tshift (1 + X + Y) (tshift X T).
+Proof.
+  intros. common_cases X T.
+  rewrite IHT. trivial.
+Qed.
+
+Lemma tshift_subst_prop : forall X Y T U,
+  tshift X ([X + Y := U] T) =
+  [S (X + Y) := tshift X U] (tshift X T).
+Proof.
+  intros. generalize dependent U. common_cases X T. intros.
+  simpl. destruct (eq_nat_dec (n'' + Y) n). simpl. trivial.
+  destruct (le_lt_dec (n'' + Y) n). simpl.
+  destruct (le_gt_dec n'' (n - 1)). assert (S (n - 1) = n - 0) by omega.
+    rewrite H. trivial. omega. 
+    simpl. destruct (le_gt_dec n'' n). trivial. omega.
+  intros. destruct (eq_nat_dec (n'' + Y) n). omega.
+    destruct (le_lt_dec (n'' + Y) n). omega.
+    simpl. destruct (le_gt_dec n'' n). omega.
+    destruct
+      (match n as n1 return ({S (n'' + Y) = n1} + {S (n'' + Y) <> n1}) with
+         | 0 => right (not_eq_sym (O_S (n'' + Y)))                           
+         | S m =>                                                     
+           sumbool_rec                                                     
+             (fun _ : {n'' + Y = m} + {n'' + Y <> m} =>                    
+                {S (n'' + Y) = S m} + {S (n'' + Y) <> S m})                  
+             (fun a : n'' + Y = m => left (f_equal S a))                   
+             (fun b : n'' + Y <> m => right (not_eq_S (n'' + Y) m b))      
+             (eq_nat_dec (n'' + Y) m)                                      
+       end). omega. 
+    destruct (le_gt_dec (S (n'' + Y)) n). omega.
+    destruct n. trivial. simpl. unfold sumbool_rec. unfold sumbool_rect.
+    destruct (le_lt_dec (n'' + Y) n). omega. trivial.
+    apply f_equal. assert (n'' + Y + 1 = S n'' + Y) by omega. rewrite H.
+    assert (tshift 0 (tshift (0 + n'') U) = tshift (1 + 0 + n'') (tshift 0 U))
+      by (apply tshift_tshift_prop).
+    simpl in H0. rewrite H0.
+    rewrite IHT. trivial.
+Qed.
+
+
+Lemma context_subst_get_var : forall X Y Gamma Gamma' U,
+  subst_context U Y Gamma Gamma' ->
+  get_var Gamma' X = opt_map (fun T => [Y := U] T) (get_var Gamma X).
+Proof.
+  intros. generalize dependent X. induction H; intros. 
+    simpl. destruct (eq_id_dec X x).
+      simpl. apply subst_type_in_type_correct in H0. rewrite <- H0. trivial.
+      apply IHsubst_context.
+    simpl. induction (get_var Gamma X).
+      simpl. apply f_equal. apply subst_shift_same. trivial.
+    simpl. rewrite IHsubst_context. induction (get_var Gamma X).
+      simpl. apply f_equal. assert (S n = S (0 + n)) by omega. rewrite H0.
+      assert (subst_type_in_type_fix n T a = [0 + n := T] a) by trivial.
+      rewrite H1. apply tshift_subst_prop. trivial.
+Qed.
+
+Lemma ty_substitution_preserves_typing : forall Gamma Gamma' X t T U,
+  subst_context U X Gamma Gamma' ->
+  Gamma |- t \in T               ->
+  Gamma' |- [X := U] t \in [X := U] T.
+Proof.
+  intros. generalize dependent X. generalize dependent Gamma'.
+  generalize dependent U. has_type_cases (induction H0) Case;
+  intros.
+  Case "T_Var".
+    simpl. constructor. eapply subst_context_wf.
+    apply H1. trivial.
+    
+
+ generalize dependent Gamma.
   t_cases (induction t) Case; intros.
   Case "tvar".
-    simpl. inversion H0; subst. constructor.
+    simpl. inversion H1; subst. constructor.
+    
+
     destruct Gamma; simpl. trivial.
     constructor. inversion H; subst.
     inversion H. inversion H5. 
