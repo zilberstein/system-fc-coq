@@ -588,7 +588,6 @@ Inductive has_type : context -> tm -> ty -> Prop :=
       get_var Gamma x = Some T ->
       Gamma |- tvar x \in T
   | T_Abs : forall Gamma x T11 T12 t12,
-      well_formed_type Gamma T11 ->
       ext_var Gamma x T11 |- t12 \in T12 -> 
       Gamma |- tabs x T11 t12 \in TArrow T11 T12
   | T_App : forall T11 T12 Gamma t1 t2,
@@ -599,7 +598,6 @@ Inductive has_type : context -> tm -> ty -> Prop :=
       ext_tvar Gamma |- t \in T ->
       Gamma |- ttabs t \in (TUniv T)
   | T_TApp : forall Gamma t1 T12 T2,
-      well_formed_type Gamma T2 ->
       Gamma |- t1 \in (TUniv T12) ->
       Gamma |- ttapp t1 T2 \in [0 := T2] T12
       
@@ -620,26 +618,6 @@ Lemma type_unique : (forall S T, ~ (S = (TArrow S T))).
   induction S; intros T contra; inversion contra; clear contra.
   apply (IHS1 S2). assumption.
 Qed.  
-
-Example typing_nonexample :
-  ~ (exists S, exists T,
-        empty |- 
-          (tabs (Id 0) S
-             (tapp (tvar (Id 0)) (tvar (Id 0)))) \in
-          T).
-Proof.
-  intros H.
-  inversion H. clear H.
-  inversion H0. clear H0.
-  inversion H; subst. clear H.
-  inversion H6; subst. clear H6.
-  inversion H4; subst. clear H4.
-  inversion H2; subst. clear H2.
-  rewrite H3 in H6. inversion H6. 
-  apply (type_unique T11 T12). assumption.
-Qed.  
-
-(** [] *)
 
 
 End SYSTEMF.
