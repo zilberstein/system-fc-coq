@@ -1063,6 +1063,9 @@ Qed.
 (** Put progress and preservation together and show that a well-typed
     term can _never_ reach a stuck state.  *)
 
+Definition normal_form {X:Type} (R:relation X) (t:X) : Prop :=
+  ~ exists t', R t t'.
+
 Definition stuck (t:tm) : Prop :=
   (normal_form step) t /\ ~ value t.
 
@@ -1074,7 +1077,7 @@ Proof.
   intros t t' T Hhas_type Hmulti. unfold stuck.
   intros [Hnf Hnot_val]. unfold normal_form in Hnf.
   induction Hmulti.
-  assert (value x0 \/ exists t', x0 ==> t')
+  assert (value x \/ exists t', x ==> t')
     by (eapply progress; apply Hhas_type); inversion H.
   Case "Hmulti 1".
     apply Hnot_val. assumption.
@@ -1101,7 +1104,7 @@ Proof.
   intros t. t_cases (induction t) Case; intros Gamma T T' HT HT';
     inversion HT; inversion HT'; subst.
   Case "tvar".
-    rewrite -> H5 in H1. inversion H1. reflexivity.
+    rewrite -> H7 in H2. inversion H2. trivial.
   Case "tapp".
     assert (Ht1:TArrow T11 T=TArrow T0 T')
            by (apply IHt1 with Gamma; assumption; assumption).
@@ -1111,12 +1114,13 @@ Proof.
     SCase "Proof of Assertion".
       eapply IHt. apply H4. apply H10.
     subst. reflexivity.
-  Case "ttrue".
-    reflexivity.
-  Case "tfalse".
-    reflexivity.
-  Case "tif".
-    eapply IHt2. apply H5. assumption.
+  Case "ttapp".
+    assert (Ht:TUniv T12 = TUniv T0).
+    SCase "Proof of Assertion".
+      eapply IHt. apply H3. apply H8.
+    inversion Ht. trivial.
+  Case "ttabs".
+    apply f_equal. eapply IHt. apply H1. apply H5.
 Qed.
 (** [] *)
 
