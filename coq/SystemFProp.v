@@ -219,20 +219,6 @@ Definition closed (t:tm) :=
     and if we know [t] is well typed in context [Gamma], then it must
     be the case that [Gamma] assigns a type to [x]. *)
 
-Lemma wf_empty_implies_wf : forall Gamma U,
-  well_formed_type empty U ->
-  well_formed_type Gamma U.
-Proof.
-  intros. generalize dependent Gamma. induction U; inversion H; subst.
-  Case "TVar".
-    inversion H1.
-  Case "TArrow".
-    constructor. apply IHU1. trivial.
-    apply IHU2. trivial.
-  Case "TUniv".
-    constructor. apply IHU. admit.
-Qed.    
-
 Lemma context_subst_ge : forall Gamma Gamma' X X' T,
   X' < X ->
   subst_context T X' Gamma Gamma' ->
@@ -338,13 +324,6 @@ Proof.
     simpl. constructor. apply IHU. trivial.
 Qed.
 
-Lemma wf_str_tuniv : forall Gamma U X,
-  well_formed_type (ext_tvar Gamma) (tshift X (TUniv U)) ->
-  well_formed_type Gamma (TUniv U).
-Proof.
-  intros. generalize dependent X. admit.
-Admitted.
-
 Lemma wf_strengthening_tvar : forall Gamma U,
   well_formed_type (ext_tvar Gamma) (tshift 0 U) ->
   well_formed_type Gamma U.
@@ -357,8 +336,8 @@ Proof.
     apply IHU1; trivial.
     apply IHU2; trivial.
   Case "TUniv".
-    apply IHU. 
-    admit.
+    apply IHU. admit.
+
 Admitted.
 
 Lemma context_subst_wf : forall Gamma Gamma' X U,
