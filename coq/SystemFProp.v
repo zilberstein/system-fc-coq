@@ -323,24 +323,7 @@ Proof.
       apply IHU2. trivial.
     simpl. constructor. apply IHU. trivial.
 Qed.
-
-   
-
-Lemma wf_strengthening_tvar : forall Gamma U,
-  well_formed_type (ext_tvar Gamma) (tshift 0 U) ->
-  well_formed_type Gamma U.
-Proof.
-  intros.  generalize dependent Gamma. 
-   induction U; intros; inversion H; subst; constructor.
-   Case "TVar".
-     simpl in H1. trivial. 
-   Case "TArrow".
-     apply IHU1; trivial.
-     apply IHU2; trivial.
-   Case "TUniv".
-     apply IHU. admit.       
- Admitted.
-
+ 
  Lemma context_subst_wf : forall Gamma Gamma' X U,
    subst_context U X Gamma Gamma'       ->
    well_formed_context Gamma' ->
@@ -353,8 +336,7 @@ Proof.
      apply wf_weakening_tvar. apply IHHs.
        inversion H; subst.
        trivial.
- Qed.            
-
+ Qed.
 
  Lemma subst_preserves_well_formed_type : forall X Gamma Gamma' U T,
    subst_context U X Gamma Gamma'    ->
@@ -586,21 +568,24 @@ Lemma type_in_context_wf : forall x T Gamma,
   get_var Gamma x = Some T  ->
   well_formed_type Gamma T.
 Proof.
-  intros. induction Gamma. 
+  intros. generalize dependent T. induction Gamma; intros. 
     inversion H0.
-    inversion H0; subst. destruct (eq_id_dec i x). subst.
+    inversion H0; subst. destruct (eq_id_dec x i). subst.
       
-    apply wf_weakening_var. apply IHGamma. inversion H; subst. trivial.
-      inversion H0. destruct (eq_id_dec x x). inversion H2; subst. 
+    apply wf_weakening_var. inversion H; subst. inversion H2; subst.
+      trivial.
+      apply wf_weakening_var. apply IHGamma. inversion H; subst. trivial.
+      trivial.
 
-    inversion H; subst.
-    admit. admit. admit. admit.
+    simpl in H0. unfold opt_map in H0. destruct (get_var Gamma x).
+    inversion H0; subst. apply wf_weakening_tvar. apply IHGamma. inversion H.
+    trivial. trivial. inversion H0.
 Qed.
 
 Lemma free_in_context : forall x t T Gamma,
    term_appears_free_in_term x t ->
    Gamma |- t \in T ->
-   exists T', get_var Gamma x = Some T' /\ well_formed_type Gamma T'.
+   exists T', get_var Gamma x = Some T'.
 
 (** _Proof_: We show, by induction on the proof that [x] appears free
       in [t], that, for all contexts [Gamma], if [t] is well typed
@@ -636,62 +621,20 @@ Proof.
   generalize dependent T. 
   afi_cases (induction H) Case; 
          intros; try solve [inversion H0; eauto].
-  Case "afi_var".
-    inversion H0; subst. exists T. split. trivial.
-    eapply type_in_context_wf. assumption. eassumption.
   Case "afi_abs".
     inversion H1; subst.
     apply IHterm_appears_free_in_term in H7.
     inversion H7. exists x0. simpl in H2. rewrite neq_id in H2.
-    inversion H2. split. assumption. eapply wf_strengthening_var.
-    eassumption. unfold not. intros. apply H. symmetry. trivial.
+    inversion H2. split. unfold not. intros. apply H. symmetry. trivial.
   Case "afi_tabs".
     inversion H0; subst. apply IHterm_appears_free_in_term in H3.
     inversion H3. simpl in H1. unfold opt_map in H1.
     destruct (get_var Gamma x).
-      inversion H1. exists t0. split. trivial. induction t0. 
-        SCase "TVar". inversion H2. subst. constructor. inversion H4.
-          inversion H6. trivial.
-        SCase "TArrow". constructor.
-          apply IHt0_1.
-                    Some t0_1 = Some T' /\ well_formed_type Gamma T').
-            apply IHt0_1. split. apply f_equal. subst.
-IHt0_1.
-
-exists (TArrow t0_1 t0_2). split. 
-          trivial. constructor. 
-        SCase "TUniv". exists (TUniv t0). admit.
-      inversion H1. inversion H2.
+      inversion H1. exists t0. split. trivial. inversion H1.
 Qed.
 
 (** Next, we'll need the fact that any term [t] which is well typed in
     the empty context is closed -- that is, it has no free variables. *)
-
-(** **** Exercise: 2 stars, optional (typable_empty__closed) *)
-Corollary typable_empty__closed : forall t T, 
-    empty |- t \in T  ->
-    closed t.
-Proof.
-  unfold closed, not. intros t.
-  t_cases (induction t) Case; intros T H x Hc; inversion H; subst.
-  Case "tvar".
-    inversion H. inversion H5.
-  Case "tapp".
-    inversion Hc; subst.
-    SCase "afi t1".
-      eapply IHt1. apply H3. apply H2. 
-    SCase "afi t2".
-      eapply IHt2. apply H5. apply H2.
-  Case "tabs".
-    admit.
-  Case "ttapp".
-    eapply IHt. apply H4. inversion Hc; subst. apply H2.
-  Case "ttabs".
-    admit.
-Qed.
-(** [] *)
-
-
 
 (** Sometimes, when we have a proof [Gamma |- t : T], we will need to
     replace [Gamma] by a different context [Gamma'].  When is it safe
@@ -700,95 +643,133 @@ Qed.
     that appear free in [t]. In fact, this is the only condition that
     is needed. *)
 
-Lemma context_invariance_term : forall Gamma Gamma' t T,
-     Gamma |- t \in T  ->
-     (forall x, term_appears_free_in_term x t ->
-                get_var Gamma x = get_var Gamma' x) ->
-     Gamma' |- t \in T.
+Fixpoint remove_var (Gamma : context) (x : id) : context :=
+  match Gamma with
+  | empty       => empty
+  | ext_tvar Gamma' => ext_tvar (remove_var Gamma' x)
+  | ext_var Gamma' y T =>
+    if eq_id_dec x y then
+      remove_var Gamma' x
+    else
+      ext_var (remove_var Gamma' x) y T
+  end.
 
-(** _Proof_: By induction on the derivation of [Gamma |- t \in T].
+Lemma remove_preserves_get : forall Gamma x n,
+  get_tvar Gamma n = true ->
+  get_tvar (remove_var Gamma x) n = true.
+Proof.
+  intros. generalize dependent n. induction Gamma; intros.
+    inversion H.
+    simpl. destruct (eq_id_dec x i).
+      apply IHGamma. simpl in H. trivial.
+      simpl. apply IHGamma. simpl in H. trivial.
+    simpl. destruct n. trivial.
+    apply IHGamma. simpl in H. trivial.
+Qed.
+      
+Lemma wf_type_remove : forall Gamma x T,
+  well_formed_type Gamma T ->
+  well_formed_type (remove_var Gamma x) T.
+Proof.
+  intros. generalize dependent Gamma. induction T; intros;
+                                      inversion H; constructor.
+    apply remove_preserves_get. trivial.
+    apply IHT1. trivial. apply IHT2. trivial.
+    apply IHT in H1. simpl in H1. trivial.
+Qed.  
 
-      - If the last rule in the derivation was [T_Var], then [t = x]
-        and [Gamma x = T].  By assumption, [Gamma' x = T] as well, and
-        hence [Gamma' |- t \in T] by [T_Var].
-
-      - If the last rule was [T_Abs], then [t = \y:T11. t12], with [T
-        = T11 -> T12] and [Gamma, y:T11 |- t12 \in T12].  The induction
-        hypothesis is that for any context [Gamma''], if [Gamma,
-        y:T11] and [Gamma''] assign the same types to all the free
-        variables in [t12], then [t12] has type [T12] under [Gamma''].
-        Let [Gamma'] be a context which agrees with [Gamma] on the
-        free variables in [t]; we must show [Gamma' |- \y:T11. t12 \in
-        T11 -> T12].
-
-        By [T_Abs], it suffices to show that [Gamma', y:T11 |- t12 \in
-        T12].  By the IH (setting [Gamma'' = Gamma', y:T11]), it
-        suffices to show that [Gamma, y:T11] and [Gamma', y:T11] agree
-        on all the variables that appear free in [t12].  
-
-        Any variable occurring free in [t12] must either be [y], or
-        some other variable.  [Gamma, y:T11] and [Gamma', y:T11]
-        clearly agree on [y].  Otherwise, we note that any variable
-        other than [y] which occurs free in [t12] also occurs free in
-        [t = \y:T11. t12], and by assumption [Gamma] and [Gamma']
-        agree on all such variables, and hence so do [Gamma, y:T11]
-        and [Gamma', y:T11].
-
-      - If the last rule was [T_App], then [t = t1 t2], with [Gamma |-
-        t1 \in T2 -> T] and [Gamma |- t2 \in T2].  One induction
-        hypothesis states that for all contexts [Gamma'], if [Gamma']
-        agrees with [Gamma] on the free variables in [t1], then [t1]
-        has type [T2 -> T] under [Gamma']; there is a similar IH for
-        [t2].  We must show that [t1 t2] also has type [T] under
-        [Gamma'], given the assumption that [Gamma'] agrees with
-        [Gamma] on all the free variables in [t1 t2].  By [T_App], it
-        suffices to show that [t1] and [t2] each have the same type
-        under [Gamma'] as under [Gamma].  However, we note that all
-        free variables in [t1] are also free in [t1 t2], and similarly
-        for free variables in [t2]; hence the desired result follows
-        by the two IHs.
-*)
-
-Proof with eauto.
-  intros. 
-  generalize dependent Gamma'.
-  has_type_cases (induction H) Case; intros; auto.
-  Case "T_Var".
-    apply T_Var. assert (well_formed_context Gamma') by admit.
-    apply H2. rewrite <- H0. symmetry...
-  Case "T_Abs".
-    apply T_Abs.
-    apply IHhas_type. intros x1 Hafi.
-    (* the only tricky step... the [Gamma'] we use to  *)
-(*        instantiate is [extend Gamma x T11] *)
-    destruct (eq_id_dec x x1); subst; simpl.
-    SCase "x0 = x1".
-      repeat (rewrite eq_id)...
-    SCase "x0 <> x1".
-      repeat (rewrite neq_id)...
-  Case "T_App".
-    apply T_App with T11. apply IHhas_type1. intros. apply H1.
-    constructor. trivial.
-    apply IHhas_type2. intros. apply H1.
-    apply afi_app2. trivial.
-  Case "T_TAbs".
-    apply T_TAbs.
-    apply IHhas_type. intros x1 Hafi. simpl.
-    rewrite H0. reflexivity.
-    apply afi_tabs...
+Lemma wf_context_weakening : forall Gamma x,
+  well_formed_context Gamma ->
+  well_formed_context (remove_var Gamma x).
+Proof.
+  intros. induction Gamma.
+    simpl. trivial.
+    simpl. destruct (eq_id_dec x i).
+      apply IHGamma. inversion H; subst. trivial.
+      constructor. inversion H; subst. apply wf_type_remove.
+      trivial.
+    simpl. apply IHGamma. inversion H. trivial.
+    simpl. constructor. apply IHGamma. inversion H. trivial.
 Qed.
 
-
-Lemma typing_weakening : forall Gamma v U,
-  Gamma |- v \in U ->
-  Gamma |- shift_typ 0 v \in tshift 0 U.
+Lemma remove_middle : forall Gamma x y T,
+  get_var Gamma y = Some T ->
+  x <> y                   ->
+  get_var (remove_var Gamma x) y = Some T. 
 Proof.
-Admitted.
+  intros. generalize dependent T. induction Gamma; intros.
+    inversion H.
+    simpl. destruct (eq_id_dec x i).
+      apply IHGamma. subst. simpl in H. rewrite neq_id in H.
+      trivial. intro. apply H0. symmetry. trivial.
+      simpl. destruct (eq_id_dec y i). simpl in H. subst.
+      rewrite eq_id in H. trivial. simpl in H. rewrite neq_id in H.
+      apply IHGamma. trivial. trivial.
+    simpl. inversion H. apply f_equal. destruct (get_var Gamma y).
+      simpl in H2. apply IHGamma. trivial.
+      inversion H2.
+Qed.    
+
+(* Lemma double_extension : forall Gamma x U V t T, *)
+(*   well_formed_type Gamma U -> *)
+(*   ext_var Gamma x V |- t \in T -> *)
+(*   ext_var (ext_var Gamma x U) x V |- t \in T. *)
+(* Proof. *)
+(*   intros. generalize dependent Gamma. *)
+(*   generalize dependent x. generalize dependent U. *)
+(*   generalize dependent V. generalize dependent T. *)
+(*   t_cases (induction t) Case; intros; inversion H0; subst. *)
+(*   Case "tvar". *)
+(*     constructor. constructor. inversion H2; subst.  *)
+(*     apply wf_weakening_var. trivial. *)
+(*     constructor. trivial. inversion H2. trivial. *)
+(*     simpl. destruct (eq_id_dec i x). subst. simpl in H4. *)
+(*     rewrite eq_id in H4. trivial. *)
+(*     simpl in H4. rewrite neq_id in H4. trivial. trivial. *)
+(*   Case "tapp". *)
+(*     eapply T_App. apply IHt1. trivial. apply H4. *)
+(*     apply IHt2. trivial. trivial. *)
+(*   Case "tabs". *)
+(*     constructor. destruct (eq_id_dec x i). *)
+(*       subst. apply IHt. apply wf_weakening_var. *)
+
+Lemma trivial_lemma : forall Gamma x U,
+  get_var Gamma x = Some U ->
+  get_var (ext_var (remove_var Gamma x) x U) x = Some U.
+Proof.
+  intros. simpl. rewrite eq_id. trivial.
+Qed.
+
+Lemma remove_extend_preserves_typing : forall Gamma x U t T,
+  ext_var Gamma x U |- t \in T ->
+  ext_var (remove_var Gamma x) x U |- t \in T.
+Proof.
+  intros. generalize dependent Gamma. generalize dependent T.
+  generalize dependent x. generalize dependent U.
+  t_cases (induction t) Case; intros; inversion H; subst.
+  Case "tvar".
+    constructor. constructor. inversion H1; subst.
+    apply wf_type_remove. trivial. apply wf_context_weakening.
+    inversion H1; subst. trivial. simpl. destruct (eq_id_dec i x).
+    subst. simpl in H3. rewrite eq_id in H3. trivial. apply remove_middle.
+    simpl in H3. rewrite neq_id in H3. trivial. trivial. intro.
+    apply n. symmetry. trivial.
+  Case "tapp".
+    eapply T_App. apply IHt1. apply H3. apply IHt2. trivial.
+  Case "tabs".
+    constructor. destruct (eq_id_dec i x).
+      subst. admit. admit.
+  Case "ttapp".
+    admit.
+  Case "ttabs".
+    admit.
+Qed.
 
 Lemma substitution_preserves_typing_term_term : forall Gamma x U t v T,
-     ext_var Gamma x U |- t \in T ->
-     empty |- v \in U   ->
-     Gamma |- [x:=v]t \in T.
+     Gamma |- t \in T              ->
+     remove_var Gamma x |- v \in U ->
+     get_var Gamma x = Some U      ->
+     remove_var Gamma x |- [x:=v]t \in T.
 (** One technical subtlety in the statement of the lemma is that we
     assign [v] the type [U] in the _empty_ context -- in other words,
     we assume [v] is closed.  This assumption considerably simplifies
@@ -856,37 +837,36 @@ Lemma substitution_preserves_typing_term_term : forall Gamma x U t v T,
     hand, _is_ completely generic. *)
 
 Proof with auto.
-  intros Gamma x U t v T Ht Ht'.
+  intros Gamma x U t v T Ht Hv Hx.
   generalize dependent Gamma. generalize dependent T.
   generalize dependent U. generalize dependent v. 
-  t_cases (induction t) Case; intros v U Ht T Gamma H;
+  t_cases (induction t) Case; intros v U T Gamma H Hv Hx;
     (* in each case, we'll want to get at the derivation of H *)
     inversion H; subst; simpl...
   Case "tvar".
     rename i into y. destruct (eq_id_dec x y).
     SCase "x=y".
-      subst. simpl in H3; rewrite eq_id in H3; inversion H3; subst.
-      eapply context_invariance_term with empty. apply Ht. intros x Hcontra.
-      destruct (free_in_context _ _ T empty Hcontra) as [T' HT']...
-      inversion HT'. inversion H0.
+      subst. rewrite H3 in Hx. inversion Hx; subst. trivial.
     SCase "x<>y".
-      apply T_Var. inversion H1; subst.
-      trivial. simpl in H3. rewrite neq_id in H3. trivial.
-      intro; apply n; symmetry; trivial.
+      apply T_Var. apply wf_context_weakening. trivial.
+      simpl. apply remove_middle. trivial. trivial.
   Case "tapp".
-    apply T_App with T11. apply IHt1 with U. trivial. apply H3.
-    apply IHt2 with U. trivial. trivial.
+    apply T_App with T11. apply IHt1 with U. trivial. trivial.
+    trivial. apply IHt2 with U. trivial. trivial.
+    trivial.
   Case "tabs".
     rename i into y. apply T_Abs.
     destruct (eq_id_dec x y).
     SCase "x=y".
-      apply context_invariance_term with (ext_var (ext_var Gamma x U) y t).
-      apply H5. subst. intros x Hafi. unfold extend.
-      destruct (eq_id_dec y x); subst.
-      simpl; repeat (rewrite eq_id)...
-      simpl; repeat (rewrite neq_id)...
+      subst. simpl. apply remove_extend_preserves_typing.
+      trivial.
     SCase "x<>y".
-      apply IHt with U. apply Ht.
+      assert (ext_var (remove_var Gamma x) y t = remove_var (ext_var Gamma y t) x).
+        simpl. rewrite neq_id. trivial. trivial.
+      rewrite H0. apply IHt with U. trivial. simpl. rewrite neq_id. 
+
+
+simpl. eapply IHt. apply Ht.
       apply context_invariance_term with (ext_var (ext_var Gamma x U) y t).
       apply H5. intros z Hafi. destruct (eq_id_dec y z); subst.
         simpl; repeat (rewrite eq_id); rewrite neq_id...
