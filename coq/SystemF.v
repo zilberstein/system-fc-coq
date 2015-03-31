@@ -24,21 +24,15 @@ Fixpoint tshift (X : nat) (T : ty) : ty :=
   | TUniv T2     => TUniv (tshift (1 + X) T2)
   end.
 
-Fixpoint tunshift (X : nat) (T : ty) : ty :=
-  match T with
-  | TVar Y       => TVar (if le_gt_dec X Y then Y - 1 else Y)
-  | TArrow T1 T2 => TArrow (tunshift X T1) (tunshift X T2)
-  | TUniv T2     => TUniv (tunshift (X + 1) T2)
-  end.
 
 
 (* ################################### *)
 (** *** Terms *)
 
 Inductive tm : Type :=
-  | tvar  : id -> tm
+  | tvar  : nat -> tm
   | tapp  : tm -> tm -> tm
-  | tabs  : id -> ty -> tm -> tm
+  | tabs  : ty -> tm -> tm
   | ttapp : tm -> ty -> tm
   | ttabs : tm -> tm.
 
@@ -48,10 +42,20 @@ Tactic Notation "t_cases" tactic(first) ident(c) :=
   | Case_aux c "tabs" | Case_aux c "ttapp" 
   | Case_aux c "ttabs" ].
 
+
+Fixpoint shift (x:nat) (t:tm) : tm :=
+  match t with
+    | tvar y      => tvar (if le_gt_dec x y then S y else y)
+    | tabs T1 t2  => tabs T1 (shift (S x) t2)
+    | tapp t1 t2  => tapp (shift x t1) (shift x t2)
+    | ttabs t2    => ttabs (shift x t2)
+    | ttapp t1 T2 => ttapp (shift x t1) T2
+  end.
+
 Fixpoint shift_typ (X : nat) (t : tm) {struct t} : tm :=
   match t with
     | tvar y       => tvar y
-    | tabs x T1 t2 => tabs x (tshift X T1) (shift_typ X t2)
+    | tabs T1 t2   => tabs (tshift X T1) (shift_typ X t2)
     | tapp t1 t2   => tapp (shift_typ X t1) (shift_typ X t2)
     | ttabs t2     => ttabs (shift_typ (1 + X) t2)
     | ttapp t1 T2  => ttapp (shift_typ X t1) (tshift X T2)
@@ -76,8 +80,8 @@ Fixpoint shift_typ (X : nat) (t : tm) {struct t} : tm :=
 (** *** Values *)
 
 Inductive value : tm -> Prop :=
-  | v_abs : forall x T t,
-      value (tabs x T t)
+  | v_abs : forall T t,
+      value (tabs T t)
   | v_tabs : forall t,
       value (ttabs t).
 
@@ -94,12 +98,14 @@ Class Subst (X S T : Type) := {
 Notation "'[' x ':=' s ']' t" := (do_subst x s t) (at level 20).
 
 (* Term Sustitution *)
-Fixpoint subst_term_fix (x:id) (s:tm) (t:tm) : tm :=
+Fixpoint subst_term_fix (x:nat) (s:tm) (t:tm) : tm :=
   match t with
-  | tvar x' => 
-      if eq_id_dec x x' then s else t
-  | tabs x' T t1 => 
-      tabs x' T (if eq_id_dec x x' then t1 else subst_term_fix x s t1) 
+  | tvar y => 
+    if eq_nat_dec x y then s
+    else if le_lt_dec x y then tvar (y-1)
+         else tvar y
+  | tabs T t1 => 
+      tabs T (subst_term_fix (S x) (shift 0 s) t1) 
   | tapp t1 t2 => 
       tapp (subst_term_fix x s t1) (subst_term_fix x s t2)
   | ttabs t =>
@@ -108,23 +114,23 @@ Fixpoint subst_term_fix (x:id) (s:tm) (t:tm) : tm :=
       ttapp (subst_term_fix x s t) T
   end.
 
-Instance subst_tm_tm : Subst id tm tm := {
+Instance subst_tm_tm : Subst nat tm tm := {
   do_subst := subst_term_fix
 }.
 
 
-Inductive subst_term : tm -> id -> tm -> tm -> Prop := 
+Inductive subst_term : tm -> nat -> tm -> tm -> Prop := 
   | s_var1 : forall s x,
       subst_term s x (tvar x) s
   | s_var2 : forall s x x',
-      x <> x' ->
+      x < x' ->
+      subst_term s x (tvar x') (tvar (x' - 1))
+  | s_var3 : forall s x x',
+      x > x' ->
       subst_term s x (tvar x') (tvar x')
-  | s_tabs1 : forall s x T t,
-      subst_term s x (tabs x T t) (tabs x T t)
-  | s_tabs2 : forall s x x' T t t',
-      x <> x' ->
-      subst_term s x t t' ->
-      subst_term s x (tabs x' T t) (tabs x' T t')
+  | s_tabs : forall s x T t t',
+      subst_term (shift 0 s) (S x) t t' ->
+      subst_term s x (tabs T t) (tabs T t')
   | s_tapp : forall s x t1 t2 t1' t2',
       subst_term s x t1 t1' ->
       subst_term s x t2 t2' ->
@@ -143,33 +149,35 @@ Theorem subst_term_correct : forall s x t t',
 Proof.
   intros s x t. split.
   Case "->".
-    generalize dependent t'. generalize dependent s.
-    induction t; intros s t' H; simpl in H.
+    generalize dependent t'. generalize dependent x.
+    generalize dependent s.
+    induction t; intros s x t' H; simpl in H.
     SCase "t = tvar i".
-      destruct (eq_id_dec x i) in H; subst.
-      SSCase "x = i".
+      destruct (eq_nat_dec x n) in H; subst.
+      SSCase "x = n".
         constructor.
-      SSCase "x <> i".
-        constructor. assumption.
+      SSCase "x <> n".
+        destruct (le_lt_dec x n).
+          constructor. omega. 
+          constructor. omega.
     SCase "t = tapp t1 t2".
       rewrite <- H. constructor.
       apply IHt1. reflexivity.
       apply IHt2. reflexivity.
     SCase "t = tabs i t t0".
-      destruct (eq_id_dec x i) in H; subst.
-      SSCase "x = i".
-        constructor.
-      SSCase "x <> i".
-        constructor. assumption.
-        apply IHt. reflexivity.
+      subst. constructor. apply IHt. trivial.
     SCase "t = ttapp".
-      subst. constructor. apply IHt. reflexivity.
+      subst. constructor. apply IHt. trivial.
     SCase "t = ttabs".
-      subst. constructor. apply IHt. reflexivity.
+      subst. constructor. apply IHt. trivial.
   Case "<-".
     intro H. induction H; simpl;
-    try (rewrite -> eq_id); try (rewrite -> neq_id);
     subst; try reflexivity; try assumption.
+    destruct (eq_nat_dec x x). trivial. omega.
+    destruct (eq_nat_dec x x'). omega. destruct le_lt_dec.
+    trivial. omega. 
+    destruct (eq_nat_dec x x'). omega. destruct le_lt_dec.
+    omega. trivial.
 Qed.
 
 (** [] *)
@@ -256,8 +264,8 @@ Fixpoint subst_type_fix (X:nat) (T:ty) (t:tm) : tm :=
   match t with
   | tvar x =>
       tvar x
-  | tabs x T' t1 => 
-      tabs x ([X := T] T') (subst_type_fix X T t1) 
+  | tabs T' t1 => 
+      tabs ([X := T] T') (subst_type_fix X T t1) 
   | tapp t1 t2 => 
       tapp (subst_type_fix X T t1) (subst_type_fix X T t2)
   | ttabs t1 =>
@@ -273,10 +281,10 @@ Instance subst_ty_tm : Subst nat ty tm := {
 Inductive subst_type (P:ty) (I:nat) : tm -> tm -> Prop := 
   | st_var : forall x,
       subst_type P I (tvar x) (tvar x)
-  | st_tabs : forall T1 T2 x t t',
+  | st_tabs : forall T1 T2 t t',
       subst_type P I t t' ->
       subst_type_in_type P I T1 T2 ->
-      subst_type P I (tabs x T1 t) (tabs x T2 t')
+      subst_type P I (tabs T1 t) (tabs T2 t')
   | st_tapp : forall t1 t2 t1' t2',
       subst_type P I t1 t1' ->
       subst_type P I t2 t2' ->
@@ -357,9 +365,9 @@ Qed.
 Reserved Notation "t1 '==>' t2" (at level 40).
 
 Inductive step : tm -> tm -> Prop :=
-  | E_AppAbs : forall x T t12 v2,
+  | E_AppAbs : forall T t12 v2,
          value v2 ->
-         (tapp (tabs x T t12) v2) ==> [x:=v2]t12
+         (tapp (tabs T t12) v2) ==> [0:=v2]t12
   | E_App1 : forall t1 t1' t2,
          t1 ==> t1' ->
          tapp t1 t2 ==> tapp t1' t2
@@ -396,7 +404,7 @@ Notation "t1 '==>*' t2" := (multistep t1 t2) (at level 40).
 
 Inductive context : Set :=
   | empty : context
-  | ext_var : context -> id -> ty -> context
+  | ext_var : context -> ty -> context
   | ext_tvar : context -> context.
 
 Definition opt_map {A B : Type} (f : A -> B) (x : option A) :=
@@ -405,17 +413,21 @@ Definition opt_map {A B : Type} (f : A -> B) (x : option A) :=
   | None => None
   end.
 
-Fixpoint get_var (E : context) (x : id) : option ty :=
+Fixpoint get_var (E : context) (x : nat) : option ty :=
   match E with
     | empty => None
-    | ext_var E' y T => if eq_id_dec x y then Some T else get_var E' x
+    | ext_var E' T =>
+      match x with
+        | O   => Some T
+        | S y => get_var E' y
+      end
     | ext_tvar E'  => opt_map (tshift 0) (get_var E' x)
   end.
 
 Fixpoint get_tvar (E : context) (N : nat) : bool :=
   match E with
     | empty => false
-    | ext_var E' _ _ => get_tvar E' N
+    | ext_var E' _ => get_tvar E' N
     | ext_tvar E'  =>
       match N with
         | O => true
@@ -462,10 +474,10 @@ Qed.
 Inductive well_formed_context : context -> Prop :=
   | WFC_empty :
       well_formed_context empty
-  | WFC_ext_var : forall x T Gamma,
+  | WFC_ext_var : forall T Gamma,
       well_formed_type Gamma T ->
       well_formed_context Gamma ->
-      well_formed_context (ext_var Gamma x T)
+      well_formed_context (ext_var Gamma T)
   | WFC_ext_tvar : forall Gamma,
       well_formed_context Gamma ->
       well_formed_context (ext_tvar Gamma).
@@ -490,10 +502,10 @@ Inductive well_formed_context : context -> Prop :=
 Inductive subst_context : ty -> nat -> context -> context -> Prop := 
   (* | s_empty : forall T n, *)
   (*     subst_context T n empty empty *)
-  | s_ext_var : forall T n Gamma Gamma' x U U',
+  | s_ext_var : forall T n Gamma Gamma' U U',
       subst_context T n Gamma Gamma' ->
       subst_type_in_type T n U U' ->
-      subst_context T n (ext_var Gamma x U) (ext_var Gamma' x U')
+      subst_context T n (ext_var Gamma U) (ext_var Gamma' U')
   | s_ext_tvar0 : forall T Gamma,
       (* the variable is removed because it has been replaced *)
       well_formed_type Gamma T  ->
@@ -504,21 +516,6 @@ Inductive subst_context : ty -> nat -> context -> context -> Prop :=
       subst_context (tshift 0 T) (S n) (ext_tvar Gamma) (ext_tvar Gamma').
 
 Hint Constructors subst_context.
-
-Lemma shift_unshift : forall T n,
-  tunshift n (tshift n T) = T. 
-Proof.
-  intros. generalize dependent n. induction T; intros.
-    simpl. destruct (le_gt_dec n0 n).
-      destruct (le_gt_dec n0 (S n)).
-        simpl. assert (n - 0 = n) by omega. rewrite H. trivial.
-        omega.
-      destruct (le_gt_dec n0 n).
-        omega.
-        trivial.
-    simpl. rewrite IHT1. rewrite IHT2. trivial.
-    simpl. assert (n + 1 = S n) by omega. rewrite H. rewrite IHT. trivial.
-Qed.
 
 
 (* Theorem subst_context_correct : forall T n Gamma Gamma', *)
@@ -587,10 +584,9 @@ Inductive has_type : context -> tm -> ty -> Prop :=
       well_formed_context Gamma ->
       get_var Gamma x = Some T ->
       Gamma |- tvar x \in T
-  | T_Abs : forall Gamma x T11 T12 t12,
-      get_var Gamma x = None             ->
-      ext_var Gamma x T11 |- t12 \in T12 -> 
-      Gamma |- tabs x T11 t12 \in TArrow T11 T12
+  | T_Abs : forall Gamma T11 T12 t12,
+      ext_var Gamma T11 |- t12 \in T12 -> 
+      Gamma |- tabs T11 t12 \in TArrow T11 T12
   | T_App : forall T11 T12 Gamma t1 t2,
       Gamma |- t1 \in TArrow T11 T12 -> 
       Gamma |- t2 \in T11 -> 
