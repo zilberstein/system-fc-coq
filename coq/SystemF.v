@@ -588,6 +588,7 @@ Inductive has_type : context -> tm -> ty -> Prop :=
       get_var Gamma x = Some T ->
       Gamma |- tvar x \in T
   | T_Abs : forall Gamma x T11 T12 t12,
+      get_var Gamma x = None             ->
       ext_var Gamma x T11 |- t12 \in T12 -> 
       Gamma |- tabs x T11 t12 \in TArrow T11 T12
   | T_App : forall T11 T12 Gamma t1 t2,

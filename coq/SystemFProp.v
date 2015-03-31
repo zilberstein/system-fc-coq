@@ -525,6 +525,22 @@ Qed.
    admit. admit. admit.
 Qed.
 
+Lemma subst_context_var : forall Gamma Gamma' U X x,
+  subst_context U X Gamma Gamma' ->
+  get_var Gamma x = None         ->
+  get_var Gamma' x = None.
+Proof.
+  intros. generalize dependent x. induction H; intros.
+    simpl. destruct (eq_id_dec x0 x).
+      subst. inversion H1. rewrite eq_id in H3. inversion H3.
+      apply IHsubst_context. inversion H1.
+      rewrite neq_id. trivial. trivial.
+    simpl in H1. unfold opt_map in H1. destruct (get_var Gamma x).
+      inversion H1. trivial.
+    simpl. rewrite IHsubst_context. trivial. simpl in H0.
+      destruct (get_var Gamma x). inversion H0. trivial.
+Qed.
+
 Lemma ty_substitution_preserves_typing : forall Gamma Gamma' X t T U,
   subst_context U X Gamma Gamma' ->
   Gamma |- t \in T               ->
@@ -539,7 +555,8 @@ Proof.
     rewrite context_subst_get_var with (1 := H1). rewrite H0.
     trivial.
   Case "T_Abs".
-    simpl. constructor. apply IHhas_type. constructor. trivial.
+    simpl. constructor. eapply subst_context_var. apply H1. trivial.
+    apply IHhas_type. constructor. trivial.
     apply subst_type_in_type_correct. trivial.
   Case "T_App".
     simpl. econstructor. simpl in IHhas_type1. apply IHhas_type1. trivial.
@@ -623,9 +640,9 @@ Proof.
          intros; try solve [inversion H0; eauto].
   Case "afi_abs".
     inversion H1; subst.
-    apply IHterm_appears_free_in_term in H7.
-    inversion H7. exists x0. simpl in H2. rewrite neq_id in H2.
-    inversion H2. split. unfold not. intros. apply H. symmetry. trivial.
+    apply IHterm_appears_free_in_term in H8.
+    inversion H8. exists x0. simpl in H2. rewrite neq_id in H2.
+    inversion H2. split. congruence.
   Case "afi_tabs".
     inversion H0; subst. apply IHterm_appears_free_in_term in H3.
     inversion H3. simpl in H1. unfold opt_map in H1.
@@ -711,35 +728,95 @@ Proof.
 Qed.    
 
 (* Lemma double_extension : forall Gamma x U V t T, *)
-(*   well_formed_type Gamma U -> *)
+(*   well_formed_type Gamma U     -> *)
+(*   well_formed_type Gamma V     -> *)
+(*   (ext_var Gamma x V |- t \in T <-> *)
+(*   ext_var (ext_var Gamma x U) x V |- t \in T).   *)
+(* Proof. *)
+(*   intros. generalize dependent Gamma. *)
+(*   generalize dependent x. generalize dependent U. *)
+(*   generalize dependent V. generalize dependent T. *)
+(*   t_cases (induction t) Case; intros; split; intros; inversion H1; subst. *)
+(*   Case "tvar". *)
+(*     admit. *)
+(*     admit. *)
+(*   Case "tapp". *)
+(*     admit. admit. *)
+(*   Case "tabs". *)
+(*     constructor. assert (well_formed_type (ext_var Gamma x U) t) by admit. *)
+(*     eapply IHt in H2. inversion H2. *)
+(*       apply H3. *)
+(*       apply wf_weakening_var. trivial.  *)
+
+(* .eapply IHt in H. inversion H. *)
+
+
+(* ext_var (ext_var Gamma x U) x V |- t0 \in T). intros. apply IHt. trivial. inversion H1. *)
+
+(* inversion IHt. *)
+
+
+Lemma context_invariance_term : forall Gamma Gamma' t T,
+     Gamma |- t \in T  ->
+     (forall x, term_appears_free_in_term x t ->
+                get_var Gamma x = get_var Gamma' x) ->
+     Gamma' |- t \in T.
+
+
+(* Lemma double_extension : forall Gamma x U V t T, *)
 (*   ext_var Gamma x V |- t \in T -> *)
+(*   well_formed_type Gamma U     -> *)
 (*   ext_var (ext_var Gamma x U) x V |- t \in T. *)
 (* Proof. *)
 (*   intros. generalize dependent Gamma. *)
 (*   generalize dependent x. generalize dependent U. *)
 (*   generalize dependent V. generalize dependent T. *)
-(*   t_cases (induction t) Case; intros; inversion H0; subst. *)
+(*   t_cases (induction t) Case; intros; inversion H; subst. *)
 (*   Case "tvar". *)
-(*     constructor. constructor. inversion H2; subst.  *)
-(*     apply wf_weakening_var. trivial. *)
+(*     constructor. constructor. inversion H2; subst. *)
+(*     eapply wf_weakening_var. apply H5. *)
 (*     constructor. trivial. inversion H2. trivial. *)
-(*     simpl. destruct (eq_id_dec i x). subst. simpl in H4. *)
-(*     rewrite eq_id in H4. trivial. *)
-(*     simpl in H4. rewrite neq_id in H4. trivial. trivial. *)
+(*     simpl in H4. destruct (eq_id_dec i x). subst. rewrite <- H4. *)
+(*     simpl. rewrite eq_id. trivial. *)
+(*     simpl. rewrite neq_id. rewrite neq_id. trivial. trivial. *)
+(*     trivial. *)
 (*   Case "tapp". *)
-(*     eapply T_App. apply IHt1. trivial. apply H4. *)
-(*     apply IHt2. trivial. trivial. *)
+(*     eapply T_App. eapply IHt1. apply H4. trivial. *)
+(*     eapply IHt2. apply H6. trivial. *)
 (*   Case "tabs". *)
-(*     constructor. destruct (eq_id_dec x i). *)
+(*     constructor. admit. *)
+(*       destruct (eq_id_dec x i). *)
+(*       SCase "x = i". *)
+(*         subst. inversion H6. rewrite eq_id in H2. inversion H2. *)
+(*       SCase "x <> i". *)
+        
+
+(* subst. apply IHt. apply IHt. apply IHt in H5. *)
+(*       apply IHt in H. *)
+
 (*       subst. apply IHt. apply wf_weakening_var. *)
 
-Lemma trivial_lemma : forall Gamma x U,
-  get_var Gamma x = Some U ->
-  get_var (ext_var (remove_var Gamma x) x U) x = Some U.
+Lemma remove_get_else : forall Gamma x y,
+  get_var Gamma x = None ->
+  x <> y                 ->
+  get_var (remove_var Gamma y) x = None.
 Proof.
-  intros. simpl. rewrite eq_id. trivial.
+  intros. generalize dependent x. generalize dependent y. 
+  induction Gamma; intros.
+    simpl. trivial.
+    simpl. destruct (eq_id_dec y i).
+      apply IHGamma. simpl in H. destruct (eq_id_dec x i).
+        inversion H.
+        trivial.
+      trivial.
+      simpl. destruct (eq_id_dec x i).
+        subst. simpl in H. rewrite eq_id in H. inversion H.
+        simpl in H. rewrite neq_id in H. apply IHGamma. trivial.
+          trivial. trivial.
+    simpl. rewrite IHGamma. trivial. simpl in H. destruct (get_var Gamma x).
+      simpl in H. inversion H. trivial. trivial.
 Qed.
-
+   
 Lemma remove_extend_preserves_typing : forall Gamma x U t T,
   ext_var Gamma x U |- t \in T ->
   ext_var (remove_var Gamma x) x U |- t \in T.
@@ -752,13 +829,18 @@ Proof.
     apply wf_type_remove. trivial. apply wf_context_weakening.
     inversion H1; subst. trivial. simpl. destruct (eq_id_dec i x).
     subst. simpl in H3. rewrite eq_id in H3. trivial. apply remove_middle.
-    simpl in H3. rewrite neq_id in H3. trivial. trivial. intro.
-    apply n. symmetry. trivial.
+    simpl in H3. rewrite neq_id in H3. trivial. trivial. congruence.
   Case "tapp".
     eapply T_App. apply IHt1. apply H3. apply IHt2. trivial.
   Case "tabs".
-    constructor. destruct (eq_id_dec i x).
-      subst. admit. admit.
+    constructor. simpl. destruct (eq_id_dec i x).
+      subst. simpl in H5. rewrite eq_id in H5. inversion H5.
+      simpl in H5. rewrite neq_id in H5. apply remove_get_else. trivial.
+      trivial. trivial.
+    destruct (eq_id_dec x i).
+      subst. inversion H5. rewrite eq_id in H1. inversion H1.
+      inversion H5. rewrite neq_id in H1. 
+    apply IHt in H6. simpl.
   Case "ttapp".
     admit.
   Case "ttabs".
@@ -861,6 +943,7 @@ Proof with auto.
       subst. simpl. apply remove_extend_preserves_typing.
       trivial.
     SCase "x<>y".
+
       assert (ext_var (remove_var Gamma x) y t = remove_var (ext_var Gamma y t) x).
         simpl. rewrite neq_id. trivial. trivial.
       rewrite H0. apply IHt with U. trivial. simpl. rewrite neq_id. 
