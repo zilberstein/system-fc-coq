@@ -483,8 +483,30 @@ Admitted.
                    (fun b : n'' + Y <> m => right (not_eq_S (n'' + Y) m b))
                    (eq_nat_dec (n'' + Y) m)
              end).
-   omega. unfold sumbool_rec. unfold sumbool_rect.
-   admit. admit. admit.
+   omega. unfold sumbool_rec. unfold sumbool_rect. destruct n. omega.
+   destruct (le_lt_dec (n'' + Y) n). omega. simpl.
+   destruct (eq_nat_dec n'' (S n)). omega.
+   destruct (le_lt_dec n'' (S n)). trivial. omega. simpl.
+   destruct (eq_nat_dec (n'' + Y) n). unfold sumbool_rec. unfold sumbool_rect.
+   destruct n. simpl. destruct (eq_nat_dec n'' 0). omega.
+   destruct (le_lt_dec n'' 0). omega. omega. simpl. omega.
+   destruct (le_lt_dec (n'' + Y) n). omega.
+   unfold sumbool_rec. unfold sumbool_rect. destruct n. simpl.
+   destruct (eq_nat_dec n'' 0). omega.
+   destruct (le_lt_dec n'' 0). trivial. trivial. 
+   destruct (eq_nat_dec (n'' + Y) n). omega.
+   destruct (le_lt_dec (n'' + Y) n). omega. simpl.
+   destruct (eq_nat_dec n'' (S n)). omega.
+   destruct (le_lt_dec n'' (S n)). omega. trivial.
+
+   assert (n'' + Y = 0 + (n'' + Y)) by trivial. rewrite H. clear H. 
+   rewrite tshift_subst_prop. simpl.
+   assert (n'' = 0 + n'') by trivial. rewrite H. clear H.
+   rewrite tshift_tshift_prop. simpl. 
+   assert (n'' + Y + 1 = n'' + 1 + Y) by omega. rewrite H. clear H.
+   rewrite IHT.
+   assert (n'' + 1 = S n'') by omega. rewrite H. clear H.
+   trivial.
 Qed.
 
 Lemma subst_context_var : forall Gamma Gamma' U X x,
@@ -985,7 +1007,60 @@ Proof.
     eapply substitution_preserves_typing_term_term 
     with (ext_var Gamma T0) 0 T0 t12 t2 T12 in H3.
     simpl in H3. trivial. simpl. trivial. simpl. trivial.
-Qed.    
+Qed.
+
+Lemma subst_typ_preserves_typing_ind : forall Gamma Gamma' t U V X,
+  subst_context V X Gamma Gamma' ->
+  Gamma |- t \in U               ->
+  Gamma' |- [X := V]t \in [X := V]U.
+Proof.
+  intros. generalize dependent Gamma'. generalize dependent X. 
+  generalize dependent V.
+  has_type_cases (induction H0) Case; intros.
+  Case "T_Var".
+    constructor. eapply subst_context_wf. apply H1. trivial.
+    simpl. erewrite context_subst_get_var with (Gamma:=Gamma). erewrite H0.
+    simpl. trivial. trivial.
+  Case "T_Abs".
+    simpl. constructor. apply IHhas_type. constructor. trivial. 
+    rewrite <- subst_type_in_type_correct. trivial.
+  Case "T_App".
+    simpl. econstructor. apply IHhas_type1. trivial. apply IHhas_type2. trivial.
+  Case "T_TAbs".
+    simpl. constructor. apply IHhas_type.
+    assert (X + 1 = S X) by omega. rewrite H1. clear H1.
+    constructor. trivial.
+  Case "T_TApp".
+    simpl. assert (X = 0 + X) by trivial. rewrite H3. clear H3. 
+    rewrite tsubst_tsubst_prop. simpl. constructor. 
+    assert (S X = X + 1) by omega.  rewrite H3. clear H3. 
+    apply IHhas_type. trivial. eapply subst_preserves_well_formed_type. apply H2.
+    trivial. eapply subst_context_wf. apply H2. trivial.
+    eapply subst_context_wf. apply H2. trivial.
+Qed.
+
+Lemma subst_typ_preserves_typing : forall Gamma t U V,
+  well_formed_type Gamma V   ->
+  ext_tvar Gamma |- t \in U ->
+  Gamma |- [0 := V]t \in [0 := V]U.
+Proof.
+  intros. eapply subst_typ_preserves_typing_ind. constructor.
+  trivial. apply typing_well_formed in H0. inversion H0. inversion H2. trivial.
+  trivial.
+Qed.
+
+Lemma preservation_tapp_tabs : forall Gamma t12 T2 U,
+  Gamma |- ttapp (ttabs t12) T2 \in U ->
+  Gamma |- [0 := T2] t12 \in U.
+Proof.
+  intros. remember (ttapp (ttabs t12) T2) as t.
+  induction H; try discriminate.
+    inversion Heqt; subst.
+    inversion H; subst.
+    eapply subst_typ_preserves_typing. trivial.
+    trivial.
+Qed.
+
 
 Theorem preservation : forall Gamma t t' T,
      Gamma |- t \in T  ->
@@ -1038,8 +1113,8 @@ Proof with eauto.
       inversion HT1... 
   Case "T_TApp".
     inversion HE; subst...
-    inversion HT; subst. apply substitution_preserves_typing_type.
-    assumption.
+    inversion HT; subst. apply preservation_tapp_tabs. constructor. trivial.
+    trivial. trivial. 
 Qed.
 
 (* ###################################################################### *)
