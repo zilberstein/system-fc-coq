@@ -430,12 +430,38 @@ Lemma tshift_subst_prop_2 : forall n n' T T',
   (tshift (n + n') ([n := T'] T)) =
   ([n := (tshift (n + n') T')] (tshift (1 + n + n') T)).
 Proof.
-Admitted.
+  intros. generalize dependent T'. common_cases n T. intros.
+  destruct (eq_nat_dec n'' n). omega.
+    destruct (le_lt_dec n'' n).
+      destruct (eq_nat_dec n'' (S n)).
+        omega.
+        destruct (le_lt_dec n'' (S n)).
+          simpl. destruct (le_gt_dec (n'' + n') (n - 1)).
+          assert (S (n - 1) = n - 0) by omega. rewrite H. trivial.
+          omega.
+        omega.
+      omega.
+    intros.
+    destruct (eq_nat_dec n'' n).
+      trivial.
+      destruct (le_lt_dec n'' n).
+        simpl. destruct (le_gt_dec (n'' + n') (n - 1)).
+          omega.
+          trivial.
+        simpl.
+      destruct (le_gt_dec (n'' + n') n).
+        omega.
+        trivial.
+    apply f_equal. assert (n'' + n' = 0 + (n'' + n')) by trivial.
+    rewrite H. rewrite tshift_tshift_prop. simpl.
+    assert (S (n'' + n') = (n'' + 1) + n') by omega.
+    rewrite H0. apply IHT.
+Qed.
 
- Lemma context_subst_get_var : forall X Y Gamma Gamma' U,
-   subst_context U Y Gamma Gamma' ->
-   get_var Gamma' X = opt_map (fun T => [Y := U] T) (get_var Gamma X).
- Proof.
+Lemma context_subst_get_var : forall X Y Gamma Gamma' U,
+  subst_context U Y Gamma Gamma' ->
+  get_var Gamma' X = opt_map (fun T => [Y := U] T) (get_var Gamma X).
+Proof.
    intros. generalize dependent X. induction H; intros. 
      simpl. destruct X.
        simpl. apply subst_type_in_type_correct in H0. rewrite <- H0.
