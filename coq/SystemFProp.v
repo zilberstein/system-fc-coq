@@ -118,10 +118,10 @@ Proof with eauto.
     SCase "t1 is a value".
       assert (exists t0, t1 = ttabs t0).
       eapply canonical_forms_tabs; eauto.
-      destruct H0; subst.
+      destruct H2; subst.
       exists ([0 := T2] x)...
     SCase "t1 also steps".
-      inversion H. exists (ttapp x T2)...
+      inversion H1. exists (ttapp x T2)...
 Qed.
 
 (* [] *)
@@ -426,6 +426,11 @@ Qed.
      rewrite IHT. trivial.
  Qed.
 
+Lemma tshift_subst_prop_2 : forall n n' T T',
+  (tshift (n + n') ([n := T'] T)) =
+  ([n := (tshift (n + n') T')] (tshift (1 + n + n') T)).
+Proof.
+Admitted.
 
  Lemma context_subst_get_var : forall X Y Gamma Gamma' U,
    subst_context U Y Gamma Gamma' ->
@@ -497,6 +502,7 @@ Proof.
       destruct (get_var Gamma x). inversion H0. trivial.
 Qed.
 
+
 Lemma ty_substitution_preserves_typing : forall Gamma Gamma' X t T U,
   subst_context U X Gamma Gamma' ->
   Gamma |- t \in T               ->
@@ -522,18 +528,21 @@ Proof.
     rewrite H1. constructor. trivial.
   Case "T_TApp".
     simpl. 
-    assert (subst_type_fix X U t1 = [X := U] t1) by trivial. rewrite H1; clear H1.
+    assert (subst_type_fix X U t1 = [X := U] t1) by trivial. rewrite H3; clear H3.
     assert (subst_type_in_type_fix X U T2 = [X := U] T2) by trivial.
-      rewrite H1; clear H1.
+      rewrite H3; clear H3.
     assert (subst_type_in_type_fix 0 T2 T12 = [0 := T2] T12) by trivial.
-      rewrite H1; clear H1.
+      rewrite H3; clear H3.
     assert (subst_type_in_type_fix X U ([0:=T2]T12) = [X := U]([0:=T2]T12))
-        by trivial. rewrite H1; clear H1.
-    assert (X = 0 + X) by trivial. rewrite H1.  
+        by trivial. rewrite H3; clear H3.
+    assert (X = 0 + X) by trivial. rewrite H3.  
     rewrite tsubst_tsubst_prop. constructor. 
     assert (TUniv ([1 + 0 + X := tshift 0 U]T12) = [X := U](TUniv T12)).
-      simpl. assert (S X = X + 1) by omega. rewrite H2. trivial.
-    rewrite H2. apply IHhas_type. trivial.
+      simpl. assert (S X = X + 1) by omega. rewrite H4. trivial.
+    rewrite H4. apply IHhas_type. trivial. 
+    simpl. eapply subst_preserves_well_formed_type. apply H2. trivial.
+    eapply subst_context_wf. apply H2. trivial.
+    eapply subst_context_wf. apply H2. trivial.
 Qed.
 
 Lemma type_in_context_wf : forall x T Gamma,
@@ -570,17 +579,13 @@ Fixpoint remove_var (Gamma : context) (x : nat) : context :=
   end.
 
 Lemma remove_preserves_get : forall Gamma x n,
-  get_tvar Gamma n = true ->
-  get_tvar (remove_var Gamma x) n = true.
+  get_tvar Gamma n = get_tvar (remove_var Gamma x) n.
 Proof.
-  intros. generalize dependent n. generalize dependent x.
-  induction Gamma; intros.
-    inversion H.
-    simpl. destruct x.
-      inversion H. trivial.
-      apply IHGamma. inversion H. trivial.
-    simpl. destruct n. trivial.
-    apply IHGamma. simpl in H. trivial.
+  induction Gamma. simpl. trivial.
+  intros. induction x. trivial.
+    induction n. simpl. trivial.
+    simpl. trivial.
+    intros. simpl. destruct n. trivial. trivial.
 Qed.
       
 Lemma wf_type_remove : forall Gamma x T,
@@ -589,7 +594,7 @@ Lemma wf_type_remove : forall Gamma x T,
 Proof.
   intros. generalize dependent Gamma. induction T; intros;
                                       inversion H; constructor.
-    apply remove_preserves_get. trivial.
+    rewrite <- remove_preserves_get. trivial.
     apply IHT1. trivial. apply IHT2. trivial.
     apply IHT in H1. simpl in H1. trivial.
 Qed.  
@@ -636,6 +641,207 @@ Proof.
     simpl. apply f_equal. apply IHGamma. trivial.
 Qed.
 
+Lemma wf_typ_extensionality : forall T Gamma Gamma',
+  (forall X, get_tvar Gamma X = get_tvar Gamma' X) ->
+  well_formed_type Gamma T -> well_formed_type Gamma' T.
+Proof.
+  intros T Gamma Gamma' H1 H2.
+  apply context_invariance_types with (2 := H2).
+  intros. symmetry. trivial.
+Qed.
+
+Lemma wf_type_remove_var : forall Gamma x T,
+  well_formed_type Gamma T ->
+  well_formed_type (remove_var Gamma x) T.
+Proof.
+  intros Gamma x T. apply wf_typ_extensionality.
+  intro X. apply remove_preserves_get.
+Qed.
+
+Lemma wf_type_insert_var : forall Gamma n T,
+  well_formed_type (remove_var Gamma n) T ->
+  well_formed_type Gamma T.
+Proof.
+  intros Gamma n T. apply wf_typ_extensionality. intro X.
+  symmetry. apply remove_preserves_get.
+Qed.
+
+Lemma typing_well_formed : forall Gamma t U,
+  Gamma |- t \in U ->
+  (well_formed_type Gamma U /\ well_formed_context Gamma).
+Proof.
+  intros. has_type_cases (induction H) Case; split.
+  Case "T_Var".
+    eapply type_in_context_wf. trivial. apply H0. trivial.
+    constructor; inversion IHhas_type. inversion H1; subst.
+      trivial. apply wf_strengthening_var in H0. trivial.
+  Case "T_Abs".
+    inversion IHhas_type. inversion H1. trivial.
+  Case "T_App".
+    inversion IHhas_type1. inversion H1. trivial.
+    inversion IHhas_type2. trivial.
+  Case "T_TAbs".
+    inversion IHhas_type. constructor. trivial.
+    inversion IHhas_type. inversion H1. trivial.
+  Case "T_TApp".
+    inversion IHhas_type. simpl.
+    eapply subst_preserves_well_formed_type. constructor. trivial.
+    trivial. inversion H2. trivial. trivial. trivial.
+Qed.
+
+
+Lemma typing_weakening_var_ind : forall Gamma n t U,
+  well_formed_context Gamma ->
+  remove_var Gamma n |- t \in U ->
+  Gamma |- shift n t \in U.
+Proof.
+  intros. generalize dependent U. 
+  generalize dependent Gamma. generalize dependent n.
+  t_cases (induction t) Case; intros;
+  inversion H0; subst.
+  Case "tvar".
+    constructor. trivial.
+    destruct (le_gt_dec n0 n);
+      rewrite <- H4; symmetry. apply get_var_remove_ge. omega.
+      apply get_var_remove_lt. omega.
+  Case "tapp".
+    simpl. eapply T_App. apply IHt1. trivial. apply H4.
+    apply IHt2. trivial. trivial.
+  Case "tabs".
+    simpl. constructor. apply IHt. constructor. 
+    eapply wf_type_insert_var. apply typing_well_formed in H5.
+    inversion H5. inversion H2. apply H6. trivial.
+    simpl. trivial.
+  Case "ttapp".
+    simpl. constructor. apply IHt. trivial. trivial.
+    eapply wf_type_insert_var. apply H5. trivial.
+  Case "ttabs".
+    simpl. constructor. apply IHt. constructor. trivial.
+    simpl. trivial.
+Qed.
+
+Lemma typing_weakening_var : forall Gamma t U V,
+  well_formed_type Gamma V ->
+  Gamma |- t \in U         ->
+  ext_var Gamma V |- shift 0 t \in U.
+Proof.
+  intros. eapply typing_weakening_var_ind. constructor. trivial.
+  apply typing_well_formed in H0. inversion H0. trivial.
+  simpl. trivial.
+Qed.
+
+Inductive insert_tvar : nat -> context -> context -> Prop :=
+  | it_here : forall T Gamma,
+      well_formed_type Gamma T ->
+      insert_tvar 0 Gamma (ext_tvar Gamma)
+  | it_var : forall X T Gamma Gamma',
+      insert_tvar X Gamma Gamma' ->
+      insert_tvar X (ext_var Gamma T) (ext_var Gamma' (tshift X T))
+  | it_bound : forall X Gamma Gamma',
+      insert_tvar X Gamma Gamma' ->
+      insert_tvar (S X) (ext_tvar Gamma) (ext_tvar Gamma').
+
+Lemma get_tvar_insert_ge : forall Gamma Gamma' n m,
+  insert_tvar n Gamma Gamma' ->
+  n <= m                     ->
+  get_tvar Gamma' (S m) = get_tvar Gamma m.
+Proof.
+  intros. generalize dependent m.
+  induction H; intros. 
+    simpl. trivial.
+    simpl. apply IHinsert_tvar. trivial.
+    simpl. destruct m. omega.
+      apply IHinsert_tvar. omega.
+Qed.
+
+Lemma get_tvar_insert_lt : forall Gamma Gamma' n m,
+  insert_tvar n Gamma Gamma' ->
+  n > m                      ->
+  get_tvar Gamma' m = get_tvar Gamma m.
+Proof.
+  intros. generalize dependent m.
+  induction H; intros. 
+    simpl. omega.
+    simpl. apply IHinsert_tvar. trivial.
+    simpl. destruct m. trivial.
+      apply IHinsert_tvar. omega.
+Qed.
+
+Lemma insert_tvar_wf_type : forall Gamma Gamma' U n,
+  insert_tvar n Gamma Gamma' ->
+  well_formed_type Gamma U   ->
+  well_formed_type Gamma' (tshift n U).
+Proof.
+  intros. generalize dependent Gamma. generalize dependent Gamma'. 
+  generalize dependent n. induction U; intros.
+    simpl. constructor. destruct (le_gt_dec n0 n); inversion H0;
+      rewrite <- H2. eapply get_tvar_insert_ge. apply H. omega.
+      eapply get_tvar_insert_lt. apply H. omega.
+    simpl. constructor; inversion H0. eapply IHU1. apply H.
+      trivial. eapply IHU2. apply H. trivial.
+    simpl. constructor. eapply IHU. constructor. apply H.
+      inversion H0. trivial.
+Qed.
+
+Lemma insert_tvar_wf_context : forall Gamma Gamma' n,
+  insert_tvar n Gamma Gamma' ->
+  well_formed_context Gamma  ->
+  well_formed_context Gamma'.
+Proof.
+  intros. induction H; constructor.
+    trivial.
+    eapply insert_tvar_wf_type. apply H. inversion H0. trivial.
+      apply IHinsert_tvar. inversion H0. trivial.
+    apply IHinsert_tvar. inversion H0. trivial.
+Qed.    
+
+Lemma get_var_insert_tvar : forall Gamma Gamma' x X,
+  insert_tvar X Gamma Gamma' ->
+  get_var Gamma' x = opt_map (tshift X) (get_var Gamma x).
+Proof.
+  intros. generalize dependent x. induction H; intros; simpl.
+    trivial.
+    destruct x.
+      trivial.
+      apply IHinsert_tvar.
+    rewrite IHinsert_tvar. destruct (get_var Gamma x).
+      simpl. apply f_equal. assert (X = 0 + X) by trivial. 
+      rewrite H0. rewrite tshift_tshift_prop. trivial.
+      trivial.
+Qed.
+
+Lemma typing_weakening_tvar_ind : forall Gamma Gamma' n t U,
+  insert_tvar n Gamma Gamma' ->
+  Gamma  |- t \in U          ->
+  Gamma' |- shift_typ n t \in tshift n U.
+Proof.
+  intros. generalize dependent n. generalize dependent Gamma'.
+  has_type_cases (induction H0) Case; intros; simpl.
+  Case "T_Var".
+    constructor. eapply insert_tvar_wf_context. apply H1.
+    trivial. rewrite get_var_insert_tvar with Gamma Gamma' x n.
+    rewrite H0. trivial. trivial.
+  Case "T_Abs".
+    constructor. apply IHhas_type. constructor. trivial.
+  Case "T_App".
+    apply T_App with (tshift n T11). simpl in IHhas_type1.
+    apply IHhas_type1. trivial. apply IHhas_type2. trivial.
+  Case "T_TAbs".
+    constructor. apply IHhas_type. constructor. trivial.
+  Case "T_TApp".
+    assert (n = 0 + n) by trivial. rewrite H3. rewrite tshift_subst_prop_2.
+    constructor. apply IHhas_type. trivial. eapply insert_tvar_wf_type.
+    apply H2. trivial. eapply insert_tvar_wf_context. apply H2.
+    trivial.
+Qed.
+
+Lemma typing_weakening_tvar : forall Gamma t U,
+  Gamma |- t \in U ->
+  ext_tvar Gamma |- shift_typ 0 t \in tshift 0 U.
+Proof.
+  intros. eapply typing_weakening_tvar_ind. econstructor.
+  apply typing_well_formed in H. inversion H. apply H0. trivial.
+Qed.
 
 Lemma substitution_preserves_typing_term_term : forall Gamma x U t v T,
      Gamma |- t \in T              ->
@@ -735,121 +941,21 @@ Proof with auto.
   Case "tabs".
     apply T_Abs. assert (ext_var (remove_var Gamma x) t =
                          remove_var (ext_var Gamma t) (S x)) by trivial.
-    rewrite H0. eapply IHt. trivial. apply typing_weakening.
-
-apply (IHt (S x) (shift 0 v) U).
-      
-
-destruct x.
-    SCase "x=y".
-      subst. simpl. apply remove_extend_preserves_typing.
-      trivial.
-    SCase "x<>y".
-
-      assert (ext_var (remove_var Gamma x) y t = remove_var (ext_var Gamma y t) x).
-        simpl. rewrite neq_id. trivial. trivial.
-      rewrite H0. apply IHt with U. trivial. simpl. rewrite neq_id. 
-
-
-simpl. eapply IHt. apply Ht.
-      apply context_invariance_term with (ext_var (ext_var Gamma x U) y t).
-      apply H5. intros z Hafi. destruct (eq_id_dec y z); subst.
-        simpl; repeat (rewrite eq_id); rewrite neq_id...
-        destruct (eq_id_dec x z); subst.
-          simpl; repeat (rewrite eq_id); rewrite neq_id...
-          simpl; repeat (rewrite neq_id)...
+    rewrite H0. eapply IHt. trivial. simpl. apply typing_weakening_var.
+    apply typing_well_formed in H4. inversion H4. inversion H2; subst.
+    apply wf_type_remove_var. trivial. apply Hv. simpl. trivial.
   Case "ttapp".        
     econstructor. apply IHt with U. trivial. trivial.
-  Case "ttabs".
-    apply T_TAbs. apply IHt with (tshift 0 U).
-    apply typing_weakening. assumption.
-    apply context_invariance_term with (ext_tvar (ext_var Gamma x U)).
-    apply H2. intros. simpl. destruct (eq_id_dec x0 x). trivial.
+    trivial. apply wf_type_remove_var. trivial. apply wf_context_weakening.
     trivial.
+  Case "ttabs".
+    apply T_TAbs. assert (ext_tvar (remove_var Gamma x) =
+                         remove_var (ext_tvar Gamma) x) by trivial.
+    rewrite H0. apply IHt with (tshift 0 U).
+    trivial. rewrite <- H0. apply typing_weakening_tvar. trivial.
+    simpl. rewrite Hx. trivial.
 Qed.
 
-(*
-Lemma tvar_subst : forall Gamma Gamma' n T1 T2 x,
-  [n := T1] Gamma = Gamma' ->
-  get_var Gamma x = Some T2 ->
-  get_var Gamma' x = Some ([n := T1] T2).
-Proof with auto.
-  intros. generalize dependent x. apply subst_context_correct in H.
-  induction H; intros; subst.
-  Case "1".
-    simpl. inversion H0.
-  Case "2".
-    simpl. destruct (eq_id_dec x0 x1).
-    SCase "x0 = x1".
-      simpl in H0; subst. rewrite eq_id in H0. inversion H0.
-      subst. apply subst_type_in_type_correct in H1.
-      subst. trivial.
-    SCase "x0 <> i".
-      apply IHsubst_context. inversion H0.
-      rewrite neq_id. trivial. assumption. assumption.
-  Case "3".
-    admit.
-  Case "4".
-    simpl. simpl in IHsubst_context.
-    assert (type_appears_free_in_term n (tvar x0)).
-
-destruct n.
-    SCase "n = 0".
-      assert ([0 := T1]ext_tvar Gamma = ext_tvar Gamma) by trivial.
-      assert ([0 := T1] T2 = T2).
-        
-      rewrite H1. simpl. simpl in H0. trivial.
-
-      rewrite <- H in H0.
-    SCase "n = S n'".
-      apply IHGamma. auto.
-
-      simpl in H0. 
-        trivial.
-      rewrite H. eapply IHGamma with ([0 := T1]Gamma) in H0.
-      simpl in H0. rewrite <- H0. 
-      
-eapply IHGamma in H0. apply H0.
-    SCase "n = S n'".
-      simpl. 
-
-apply IHGamma. inversion H0. trivial.
-*)
-
-Lemma substitution_preserves_typing_ind : forall Gamma Gamma' t U T n,
-  subst_context T n Gamma Gamma' ->
-  Gamma |- t \in U ->
-  Gamma' |- [n := T]t \in [n := T]U.
-Proof.
-  intros Gamma Gamma' t U T n H1 H2. generalize dependent Gamma'.
-  generalize dependent n. generalize dependent T.
-  has_type_cases (induction H2) Case; intros; admit.
-Admitted.
-
-Lemma substitution_preserves_typing_type : forall t T T' Gamma,
-  ext_tvar Gamma |- t \in T ->
-  Gamma |- [0 := T'] t \in [0 := T'] T.
-Proof.
-Admitted.
-
-
-(*  Intros. generalize dependent Gamma.
-  induction T; intros Gamma H; subst.
-  Case "TVar".
-    destruct n.
-    SCase "n = 0".
-      simpl. inversion H; subst. constructor. inversion H0; subst.
-
-  t_cases (induction T) Case. Gamma H;
-  inversion H; subst; simpl...
-  Case "tvar".
-    admit.
-  Case "tapp".
-    eapply T_App.
-
-remember (subst_type_in_type_fix 0 T' T) as T0.
-    symmetry in HeqT0. rewrite subst_type_in_type_correct in HeqT0.
-    inversion HeqT0; subst.*)
 
 (** The substitution lemma can be viewed as a kind of "commutation"
     property.  Intuitively, it says that substitution and typing can
@@ -868,10 +974,23 @@ remember (subst_type_in_type_fix 0 T' T) as T0.
     evaluation relation preserves types.
 *)
 
-Theorem preservation : forall t t' T,
-     empty |- t \in T  ->
+Lemma preservation_app_abs : forall Gamma t12 t2 T11 U,
+  Gamma |- tapp (tabs T11 t12) t2 \in U ->
+  Gamma |- [0 := t2] t12 \in U.
+Proof.
+  intros. remember (tapp (tabs T11 t12) t2) as t.
+  induction H; try discriminate.
+    inversion Heqt; subst.
+    inversion H; subst.
+    eapply substitution_preserves_typing_term_term 
+    with (ext_var Gamma T0) 0 T0 t12 t2 T12 in H3.
+    simpl in H3. trivial. simpl. trivial. simpl. trivial.
+Qed.    
+
+Theorem preservation : forall Gamma t t' T,
+     Gamma |- t \in T  ->
      t ==> t'  ->
-     empty |- t' \in T.
+     Gamma |- t' \in T.
 
 (** _Proof_: by induction on the derivation of [|- t \in T].
 
@@ -906,17 +1025,16 @@ Theorem preservation : forall t t' T,
 *)
 
 Proof with eauto.
-  remember (@empty) as Gamma. 
-  intros t t' T HT. generalize dependent t'.   
+  intros Gamma t t' T HT. generalize dependent t'.   
   has_type_cases (induction HT) Case;
-       intros t' HE; subst Gamma; subst; 
+       intros t' HE; 
        try solve [inversion HE; subst; auto].
   Case "T_App".
     inversion HE; subst...
     (* Most of the cases are immediate by induction, 
        and [eauto] takes care of them *)
     SCase "ST_AppAbs".
-      apply substitution_preserves_typing_term_term with T11...
+      eapply preservation_app_abs.
       inversion HT1... 
   Case "T_TApp".
     inversion HE; subst...
@@ -981,12 +1099,12 @@ Proof.
   Case "tabs".
     assert (Ht:T12=T1).
     SCase "Proof of Assertion".
-      eapply IHt. apply H4. apply H10.
+      eapply IHt. apply H3. apply H8.
     subst. reflexivity.
   Case "ttapp".
     assert (Ht:TUniv T12 = TUniv T0).
     SCase "Proof of Assertion".
-      eapply IHt. apply H3. apply H8.
+      eapply IHt. apply H1. apply H8.
     inversion Ht. trivial.
   Case "ttabs".
     apply f_equal. eapply IHt. apply H1. apply H5.

@@ -596,6 +596,8 @@ Inductive has_type : context -> tm -> ty -> Prop :=
       Gamma |- ttabs t \in (TUniv T)
   | T_TApp : forall Gamma t1 T12 T2,
       Gamma |- t1 \in (TUniv T12) ->
+      well_formed_type Gamma T2   ->
+      well_formed_context Gamma   ->
       Gamma |- ttapp t1 T2 \in [0 := T2] T12
       
 where "Gamma '|-' t '\in' T" := (has_type Gamma t T).
