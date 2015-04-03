@@ -1,0 +1,185 @@
+1. Switched to de Bruijn for terms.
+2. Coercions Time
+ - Whiteboard:
+
+Coercion abs, app, and use
+
+new type form, expression depends on coercion
+
+Refl, Sym, Trans
+
+G is gamma
+F is Gamma
+
+T ::= (T1 ~ T2) => T
+e ::= /\c:(T1 ~ T2).e | eG
+
+  e (triangle) G
+
+
+F, c: T1~T2 |- e : T
+_________________________________
+F |- /\c:(T1~T2).e : (T1~T2) => T
+
+
+F |- e:(T1~T2) => T    F |- G:T1~T2
+___________________________________
+F |- e G:T
+
+
+F |- e : T1    F |- G: T1~T2
+____________________________
+F |- e (triangle) G : T2
+
+
+forall a: (a ~ Int) => a -> a
+
+Some examples?
+
+Refl:
+F |- <T> : T ~ T
+
+Sym:
+F |- G : T1 ~ T2
+____________________
+F |- sym G : T2 ~ T1
+
+Trans:
+F |- G1:T1~T2    F |- G2:T2~T3
+______________________________
+F |- G1; G2 : T1 ~ T2
+
+S: "Here I'm doing the simple version, Richard"
+R: "The simple version?"
+S: "Of axioms"
+
+You can use coercions like variables.
+
+c:T1~T2 /elementof F
+____________________
+F |- c:T1~T2
+
+"It might be worth putting in a base type or two" -- Richard
+"Int or Bool or unit"
+
+S: "I think we do have to talk about push rules."
+Coercions will get erased when we are done type checking.
+Don't want coercions to make us stuck.
+
+Push rule example:
+
+|- G:(T1->T2) ~ (T1'->T2')
+__________________________
+((\x:T1.e1) (triangle) G) e2
+
+"nth"
+want to derive G1 and G2
+G1 : T1 ~ T1'
+G2 : T2 ~ T2'
+
+--> (\x:T1. e1 (triangle) G2) (e2 (triangle) sym G1)
+
+Can't look at gamma so we can add whatever axioms or proofs we want.
+
+New rule in operational semantics for stepping coerced functions.
+
+F |- G:(T1->T2) ~ (T1'->T2')
+____________________________
+F |- nth_i G : Ti ~ Ti'
+
+Richard disagrees about push rule example above:
+
+|- G:(T1->T2) ~ (T1'->T2')
+__________________________
+(v (triangle) G) e2 : T2'
+
+--> (v (e2 (triangle) sym G2) (triangle) G1)
+____________________________________________
+G: forall a. T1 ~ forall a. T1'
+
+((/\a.e) (triangle) G) T
+
+--> ((/\a.e) T) (triangle) G @ T
+
+"This can now be v" ^^^
+
+
+F |- G: forall a. T1 ~ forall a. T2
+___________________________________
+F |- G@T: T1[T/a] ~ T2[T/a]
+
+Coercion application
+
+
+G':T1'~T2'    G:((T1~T2)=>T)~((T1'~T2')=>T)
+___________________________________________
+((/\c:T1~T2.e) (triangle) G) G'
+
+"Don't need an explicit coercion abstraction here"
+
+G1: T1~T1'
+G2: T2~T2'
+G3: T~T'
+
+--> (/\c:T1~T2. e (triangle) G3) (G1; G'; sym G2)
+
+"When I write it down it will be obvious to you"
+
+(e (triangle) G1) (triangle) G2) --> e (triangle) G1;G2
+
+How do you state progress?
+
+values:
+v ::= \x:T.e | \a.e | \x:T1~T2.e
+
+pcv ::= v (triangle) G | v
+
+Old Progress:
+if |- e:T then 
+  - e -> e' or
+  - e is a value
+
+New Progress:
+if |- e:T then 
+  - e -> e' or
+  - e is a pcv
+
+We missed congruence rule for cast for stepping
+and for coercion application
+
+e -> e'
+___________
+e G -> e' G
+
+e -> e'
+_________________________________
+e (triangle) G -> e' (triangle) G
+
+"Don't need the lifting lemma until we get to datatypes"
+
+SK push is a nightmare.
+deals with datatypes and we don't need to worry about it.
+
+"What does it mean to have a proof system for equality"
+"They're easy enough to add later"
+
+Category of rules:
+congruence for equality? -- I missed that
+
+
+Don't need this I think:
+F |- G1 : T1~T1'    F |- G2:T2~T2'
+__________________________________
+F |- G1->G2:(T1->T2)~(T1'->T2')
+
+Canonical forms lemma for progress.
+Relies on a property of the proof system that we use an axiom
+
+Cannot prove that a forall type is the same as an arrow type.
+
+Not true below:
+F (not |-) G: T1->T2 ~ forall a. T
+F (not |-) G: (T1->T2)~(T1'->T2')=>T'
+
+canonical forms
+assumes you have a value (not coerced), so not cast by anything.
