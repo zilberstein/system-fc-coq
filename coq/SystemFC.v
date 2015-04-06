@@ -6,7 +6,7 @@ Require Export SfLib.
 (* ###################################################################### *)
 (** ** Syntax *)
 
-Module SYSTEMF.
+Module SYSTEMFC.
 
 (* ################################### *)
 (** *** Types *)
@@ -24,23 +24,67 @@ Fixpoint tshift (X : nat) (T : ty) : ty :=
   | TUniv T2     => TUniv (tshift (1 + X) T2)
   end.
 
+(* ################################### *)
+(** *** Coercions *)
+
+Inductive cn : Type :=
+  | CVar   : nat -> cn
+  | CRefl  : cn
+  | CSym   : cn -> cn
+  | CTrans : cn -> cn -> cn
+  | CApp   : cn -> cn -> cn
+  | CAbs   : cn -> cn
+  | CLeft  : cn -> cn
+  | CRight : cn -> cn
+  | CInst  : cn -> ty -> cn.
+
+Tactic Notation "c_cases" tactic(first) ident(c) :=
+  first;
+  [ Case_aux c "CVar"   | Case_aux c "CRefl"
+  | Case_aux c "CSym"   | Case_aux c "CTrans"
+  | Case_aux c "CApp"   | Case_aux c "CAbs"
+  | Case_aux c "CLeft"  | Case_aux c "CRight"
+  | Case_aux c "CInst" ].
+
+Fixpoint cshift (X : nat) (c : cn) : cn :=
+  match c with
+  | CVar Y       => CVar (if le_gt_dec X Y then 1 + Y else Y)
+  | CRefl        => CRefl
+  | CSym c       => CSym (cshift X c)
+  | CTrans c1 c2 => CTrans (cshift X c1) (cshift X c2)
+  | CApp c1 c2   => CApp (cshift X c1) (cshift X c2)
+  | CAbs c       => CAbs (cshift (S X) c)
+  | CLeft c      => CLeft (cshift X c)
+  | CRight c     => CRight (cshift X c)
+  | CInst c T    => CInst (cshift X c) T
+  end.
+
+Fixpoint cshift_typ (X : nat) (c : cn) : cn :=
+  match c with
+  | CInst c T => CInst c (tshift X T)
+  | _         => c 
+  end.
 
 
 (* ################################### *)
 (** *** Terms *)
 
 Inductive tm : Type :=
-  | tvar  : nat -> tm
-  | tapp  : tm -> tm -> tm
-  | tabs  : ty -> tm -> tm
-  | ttapp : tm -> ty -> tm
-  | ttabs : tm -> tm.
+  | tvar    : nat -> tm
+  | tapp    : tm -> tm -> tm
+  | tabs    : ty -> tm -> tm
+  | ttapp   : tm -> ty -> tm
+  | ttabs   : tm -> tm
+  | tcapp   : tm -> cn -> tm
+  | tcabs   : tm -> tm
+  | tcoerce : tm -> cn -> tm.
 
 Tactic Notation "t_cases" tactic(first) ident(c) :=
   first;
-  [ Case_aux c "tvar" | Case_aux c "tapp" 
-  | Case_aux c "tabs" | Case_aux c "ttapp" 
-  | Case_aux c "ttabs" ].
+  [ Case_aux c "tvar"  | Case_aux c "tapp" 
+  | Case_aux c "tabs"  | Case_aux c "ttapp" 
+  | Case_aux c "ttabs" | Case_aux c "tcapp"
+  | Case_aux c "tcabs" | Case_aux c "tcoerce" ].
 
 
 Fixpoint shift (x:nat) (t:tm) : tm :=
@@ -50,15 +94,26 @@ Fixpoint shift (x:nat) (t:tm) : tm :=
     | tapp t1 t2  => tapp (shift x t1) (shift x t2)
     | ttabs t2    => ttabs (shift x t2)
     | ttapp t1 T2 => ttapp (shift x t1) T2
+    | tcapp t1 c2 => tcapp (shift x t1) c2
+    | tcabs t2    => tcabs (shift x t2)
+    | tcoerce t c => tcoerce (shift x t) c
+  end.
+
+Fixpoint shift_coer (X : nat) (t : tm) : tm :=
+  match t with
+    | tcapp t c   => tcapp t (cshift X c)
+    | tcoerce t c => tcoerce t (cshift X c)
+    | _           => t
   end.
 
 Fixpoint shift_typ (X : nat) (t : tm) {struct t} : tm :=
   match t with
-    | tvar y       => tvar y
-    | tabs T1 t2   => tabs (tshift X T1) (shift_typ X t2)
-    | tapp t1 t2   => tapp (shift_typ X t1) (shift_typ X t2)
-    | ttabs t2     => ttabs (shift_typ (1 + X) t2)
-    | ttapp t1 T2  => ttapp (shift_typ X t1) (tshift X T2)
+    | tvar y      => tvar y
+    | tabs T1 t2  => tabs (tshift X T1) (shift_typ X t2)
+    | tapp t1 t2  => tapp (shift_typ X t1) (shift_typ X t2)
+    | ttabs t2    => ttabs (shift_typ (1 + X) t2)
+    | ttapp t1 T2 => ttapp (shift_typ X t1) (tshift X T2)
+    | _           => t
   end.
 
 (** Note that an abstraction [\x:T.t] (formally, [tabs x T t]) is
@@ -79,11 +134,19 @@ Fixpoint shift_typ (X : nat) (t : tm) {struct t} : tm :=
 (* ################################### *)
 (** *** Values *)
 
+Inductive uncoerced_value : tm -> Prop :=
+  | uv_abs : forall T t,
+      uncoerced_value (tabs T t)
+  | uv_tabs : forall t,
+      uncoerced_value (ttabs t).
+
 Inductive value : tm -> Prop :=
-  | v_abs : forall T t,
-      value (tabs T t)
-  | v_tabs : forall t,
-      value (ttabs t).
+  | v_uncoerced : forall t,
+      uncoerced_value t ->
+      value t
+  | v_coerced : forall t c,
+      uncoerced_value t ->
+      value (tcoerce t c).
 
 Hint Constructors value.
 
@@ -96,6 +159,48 @@ Class Subst (X S T : Type) := {
   do_subst : X -> S -> T -> T
 }.
 Notation "'[' x ':=' s ']' t" := (do_subst x s t) (at level 20).
+
+Fixpoint subst_coercion_fix (x:nat) (d:cn) (c:cn) : cn :=
+  match c with
+    | CVar y => 
+      if eq_nat_dec x y then d
+      else if le_lt_dec x y then CVar (y-1)
+           else CVar y
+    | CRefl        => CRefl
+    | CSym c       => CSym (subst_coercion_fix x d c)
+    | CTrans c1 c2 => CTrans (subst_coercion_fix x d c1) (subst_coercion_fix x d c2)
+    | CApp c1 c2   => CApp (subst_coercion_fix x d c1) (subst_coercion_fix x d c2)
+    | CAbs c       => CAbs (subst_coercion_fix (S x) (cshift 0 d) c)
+    | CLeft c      => CLeft (subst_coercion_fix x d c)
+    | CRight c     => CRight (subst_coercion_fix x d c)
+    | CInst c T    => CInst (subst_coercion_fix x d c) T
+  end.
+
+Inductive subst_coercion : cn -> nat -> cn -> cn -> Prop :=
+  | sc_var_here : forall d x,
+      subst_coercion d x (CVar x) d
+  | sc_var_lt : forall d x x',
+      x < x' ->
+      subst_coercion d x (CVar x') (CVar (x' - 1))
+  | sc_var_gt : forall d x x',
+      x > x' ->
+      subst_coercion d x (CVar x') (CVar x')
+  | sc_refl : forall d x,
+      subst_coercion d x CRefl CRefl
+  | sc_sym : forall d x c c',
+      subst_coercion d x c c' ->
+      subst_coercion d x (CSym c) (CSym c')
+  | sc_trans : forall d x c1 c1' c2 c2',
+      subst_coercion d x c1 c1' ->
+      subst_coercion d x c2 c2' ->
+      subst_coercion d x (CTrans c1 c2) (CTrans c1' c2')
+  | sc_capp : forall d x c1 c1' c2 c2',
+      subst_coercion d x c1 c1' ->
+      subst_coercion d x c2 c2' ->
+      subst_coercion d x (CApp c1 c2) (CApp c1' c2')
+  | sc_cabs : forall d x c,
+      subst_coercion (cshift 0 d) (S x) c ->
+      subst_coercion d x (CAbs c)
 
 (* Term Sustitution *)
 Fixpoint subst_term_fix (x:nat) (s:tm) (t:tm) : tm :=
@@ -112,6 +217,12 @@ Fixpoint subst_term_fix (x:nat) (s:tm) (t:tm) : tm :=
       ttabs (subst_term_fix x (shift_typ 0 s) t)
   | ttapp t T =>
       ttapp (subst_term_fix x s t) T
+  | tcabs t =>
+      tcabs (subst_term_fix x (shift_coer 0 s) t)
+  | tcapp t c =>
+      tcapp (subst_term_fix x s t) c
+  | tcoerce t c =>
+      tcoerce (subst_term_fix x s t) c
   end.
 
 Instance subst_tm_tm : Subst nat tm tm := {
@@ -140,7 +251,17 @@ Inductive subst_term : tm -> nat -> tm -> tm -> Prop :=
       subst_term s x (ttabs t) (ttabs t')
   | s_ttapp : forall s x t t' T,
       subst_term s x t t' ->
-      subst_term s x (ttapp t T) (ttapp t' T).
+      subst_term s x (ttapp t T) (ttapp t' T)
+  | s_tcabs : forall s x t t',
+      subst_term (shift_coer 0 s) x t t' ->
+      subst_term s x (tcabs t) (tcabs t')
+  | s_tcapp : forall s x t t' c,
+      subst_term s x t t' ->
+      subst_term s x (tcapp t c) (tcapp t' c)
+  | s_tcoerce : forall s x t t' c,
+      subst_term s x t t' ->
+      subst_term s x (tcoerce t c) (tcoerce t' c).
+
 
 Hint Constructors subst_term.
 
@@ -151,7 +272,8 @@ Proof.
   Case "->".
     generalize dependent t'. generalize dependent x.
     generalize dependent s.
-    induction t; intros s x t' H; simpl in H.
+    induction t; intros s x t' H; simpl in H;
+      try (subst; constructor; apply IHt; trivial).
     SCase "t = tvar i".
       destruct (eq_nat_dec x n) in H; subst.
       SSCase "x = n".
@@ -164,12 +286,6 @@ Proof.
       rewrite <- H. constructor.
       apply IHt1. reflexivity.
       apply IHt2. reflexivity.
-    SCase "t = tabs i t t0".
-      subst. constructor. apply IHt. trivial.
-    SCase "t = ttapp".
-      subst. constructor. apply IHt. trivial.
-    SCase "t = ttabs".
-      subst. constructor. apply IHt. trivial.
   Case "<-".
     intro H. induction H; simpl;
     subst; try reflexivity; try assumption.
@@ -272,6 +388,8 @@ Fixpoint subst_type_fix (X:nat) (T:ty) (t:tm) : tm :=
       ttabs (subst_type_fix (X+1) (tshift 0 T) t1) 
   | ttapp t' T' =>
       ttapp (subst_type_fix X T t') ([X := T] T')
+  | tcabs t1 =>
+      tcabs (subst_type_fix X T t) 
   end.
 
 Instance subst_ty_tm : Subst nat ty tm := {
