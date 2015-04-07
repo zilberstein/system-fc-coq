@@ -176,6 +176,10 @@ Fixpoint subst_coercion_fix (x:nat) (d:cn) (c:cn) : cn :=
     | CInst c T    => CInst (subst_coercion_fix x d c) T
   end.
 
+Instance subst_tm_tm : Subst nat cn cn := {
+  do_subst := subst_coercion_fix
+}.
+
 Inductive subst_coercion : cn -> nat -> cn -> cn -> Prop :=
   | sc_var_here : forall d x,
       subst_coercion d x (CVar x) d
@@ -198,9 +202,71 @@ Inductive subst_coercion : cn -> nat -> cn -> cn -> Prop :=
       subst_coercion d x c1 c1' ->
       subst_coercion d x c2 c2' ->
       subst_coercion d x (CApp c1 c2) (CApp c1' c2')
-  | sc_cabs : forall d x c,
-      subst_coercion (cshift 0 d) (S x) c ->
-      subst_coercion d x (CAbs c)
+  | sc_cabs : forall d x c c',
+      subst_coercion (cshift 0 d) (S x) c c' ->
+      subst_coercion d x (CAbs c) (CAbs c')
+  | sc_left : forall d x c c',
+      subst_coercion d x c c' ->
+      subst_coercion d x (CLeft c) (CLeft c')
+  | sc_right : forall d x c c',
+      subst_coercion d x c c' ->
+      subst_coercion d x (CRight c) (CRight c')
+  | sc_inst : forall d x c c' T,
+      subst_coercion d x c c' ->
+      subst_coercion d x (CInst c T) (CInst c' T).
+
+Hint Constructors subst_coercion.
+
+
+Theorem subst_coercion_correct : forall d x c c',
+  [x:=d]c = c' <-> subst_coercion d x c c'.
+Proof.
+  intros d x c. split.
+  Case "->".
+    generalize dependent c'. generalize dependent x.
+    generalize dependent d.
+    induction c; intros d x c' H; simpl in H;
+      try (subst; constructor; apply IHt; trivial).
+    SCase "c = CVar n".
+      destruct (eq_nat_dec x n) in H; subst.
+      SSCase "x = n".
+        constructor.
+      SSCase "x <> n".
+        destruct (le_lt_dec x n).
+          constructor. omega. 
+          constructor. omega.
+    SCase "c = CSym c".
+      rewrite <- H. constructor.
+      apply IHc. trivial.
+    SCase "c = CTrans c1 c2".
+      rewrite <- H. constructor.
+      apply IHc1. trivial.
+      apply IHc2. trivial.
+    SCase "c = CApp c1 c2".
+      rewrite <- H. constructor.
+      apply IHc1. trivial.
+      apply IHc2. trivial.
+    SCase "c = CAbs c".
+      rewrite <- H. constructor.
+      apply IHc. trivial.
+    SCase "c = CLeft c".
+      rewrite <- H. constructor.
+      apply IHc. trivial.
+    SCase "c = CRight c".
+      rewrite <- H. constructor.
+      apply IHc. trivial.
+    SCase "c = CInst c t".
+      rewrite <- H. constructor.
+      apply IHc. trivial.
+  Case "<-".
+    intro H. induction H; simpl;
+    subst; try reflexivity; try assumption.
+    destruct (eq_nat_dec x x). trivial. omega.
+    destruct (eq_nat_dec x x'). omega. destruct le_lt_dec.
+    trivial. omega. 
+    destruct (eq_nat_dec x x'). omega. destruct le_lt_dec.
+    omega. trivial.
+Qed.
 
 (* Term Sustitution *)
 Fixpoint subst_term_fix (x:nat) (s:tm) (t:tm) : tm :=
