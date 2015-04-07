@@ -176,7 +176,7 @@ Fixpoint subst_coercion_fix (x:nat) (d:cn) (c:cn) : cn :=
     | CInst c T    => CInst (subst_coercion_fix x d c) T
   end.
 
-Instance subst_tm_tm : Subst nat cn cn := {
+Instance subst_cn : Subst nat cn cn := {
   do_subst := subst_coercion_fix
 }.
 
@@ -217,8 +217,8 @@ Inductive subst_coercion : cn -> nat -> cn -> cn -> Prop :=
 
 Hint Constructors subst_coercion.
 
-
-Theorem subst_coercion_correct : forall d x c c',
+ 
+Lemma subst_coercion_correct : forall d x c c',
   [x:=d]c = c' <-> subst_coercion d x c c'.
 Proof.
   intros d x c. split.
@@ -251,7 +251,7 @@ Proof.
     trivial. omega. 
     destruct (eq_nat_dec x x'). omega. destruct le_lt_dec.
     omega. trivial.
-Qed.
+Qed.  
 
 (* Term Sustitution *)
 Fixpoint subst_term_fix (x:nat) (s:tm) (t:tm) : tm :=
@@ -425,6 +425,85 @@ Proof.
     apply ex_falso_quodlibet. eapply lt_asym. apply H. trivial.
 Qed.
 
+(* Type in Coercion Substitution *)
+
+Fixpoint subst_ty_in_cn_fix (X:nat) (U:ty) (c:cn) : cn :=
+  match c with
+    | CVar y       => CVar y
+    | CRefl        => CRefl
+    | CSym c       => CSym (subst_ty_in_cn_fix X U c)
+    | CTrans c1 c2 => CTrans (subst_ty_in_cn_fix X U c1)
+                             (subst_ty_in_cn_fix X U c2)
+    | CApp c1 c2   => CApp (subst_ty_in_cn_fix X U c1)
+                           (subst_ty_in_cn_fix X U c2)
+    | CAbs c       => CAbs (subst_ty_in_cn_fix X U c)
+    | CLeft c      => CLeft (subst_ty_in_cn_fix X U c)
+    | CRight c     => CRight (subst_ty_in_cn_fix X U c)
+    | CInst c T    => CInst (subst_ty_in_cn_fix X U c) ([X := U] T)
+  end.
+
+Instance subst_ty_cn : Subst nat ty cn := {
+  do_subst := subst_ty_in_cn_fix
+}.
+
+Inductive subst_ty_in_cn (T:ty) (X:nat) : cn -> cn -> Prop :=
+  | stc_var : forall x,
+      subst_ty_in_cn T X (CVar x) (CVar x)
+  | stc_refl :
+      subst_ty_in_cn T X CRefl CRefl
+  | stc_sym : forall c c',
+      subst_ty_in_cn T X c c' ->
+      subst_ty_in_cn T X (CSym c) (CSym c')
+  | stc_trans : forall c1 c1' c2 c2',
+      subst_ty_in_cn T X c1 c1' ->
+      subst_ty_in_cn T X c2 c2' ->
+      subst_ty_in_cn T X (CTrans c1 c2) (CTrans c1' c2')
+  | stc_capp : forall c1 c1' c2 c2',
+      subst_ty_in_cn T X c1 c1' ->
+      subst_ty_in_cn T X c2 c2' ->
+      subst_ty_in_cn T X (CApp c1 c2) (CApp c1' c2')
+  | stc_cabs : forall c c',
+      subst_ty_in_cn T X c c' ->
+      subst_ty_in_cn T X (CAbs c) (CAbs c')
+  | stc_left : forall c c',
+      subst_ty_in_cn T X c c' ->
+      subst_ty_in_cn T X (CLeft c) (CLeft c')
+  | stc_right : forall c c',
+      subst_ty_in_cn T X c c' ->
+      subst_ty_in_cn T X (CRight c) (CRight c')
+  | stc_inst : forall c c' U V,
+      subst_ty_in_cn T X c c'    ->
+      subst_type_in_type T X U V ->
+      subst_ty_in_cn T X (CInst c U) (CInst c' V).
+
+
+Lemma subst_ty_in_cn_correct : forall U X c c',
+  [X := U]c = c' <-> subst_ty_in_cn U X c c'.
+Proof.
+  intros. split.
+  Case "->".
+    generalize dependent c'. generalize dependent X.
+    generalize dependent U.
+    induction c; intros; simpl in H;
+      try (subst; constructor; apply IHc; trivial).
+    SCase "c = CTrans c1 c2".
+      rewrite <- H. constructor.
+      apply IHc1. trivial.
+      apply IHc2. trivial.
+    SCase "c = CApp c1 c2".
+      rewrite <- H. constructor.
+      apply IHc1. trivial.
+      apply IHc2. trivial.
+    SCase "c = CInst c T".
+      rewrite <- H. constructor.
+      apply IHc. trivial.
+      apply subst_type_in_type_correct. trivial.
+  Case "<-".
+    intro H. induction H; simpl;
+    subst; try reflexivity; try assumption.
+    apply subst_type_in_type_correct in H0. subst. trivial.
+Qed.
+
 (* Type in Term Substitution *)
 
 Fixpoint subst_type_fix (X:nat) (T:ty) (t:tm) : tm :=
@@ -440,7 +519,11 @@ Fixpoint subst_type_fix (X:nat) (T:ty) (t:tm) : tm :=
   | ttapp t' T' =>
       ttapp (subst_type_fix X T t') ([X := T] T')
   | tcabs t1 =>
-      tcabs (subst_type_fix X T t) 
+      tcabs (subst_type_fix X T t1)
+  | tcapp t1 c2 =>
+      tcapp (subst_type_fix X T t1) ([X := T] c2)
+  | tcoerce t1 c2 =>
+      tcoerce (subst_type_fix X T t1) ([X := T] c2)
   end.
 
 Instance subst_ty_tm : Subst nat ty tm := {
@@ -464,7 +547,18 @@ Inductive subst_type (P:ty) (I:nat) : tm -> tm -> Prop :=
   | st_ttapp : forall t t' T1 T2,
       subst_type P I t t' ->
       subst_type_in_type P I T1 T2 ->
-      subst_type P I (ttapp t T1) (ttapp t' T2).
+      subst_type P I (ttapp t T1) (ttapp t' T2)
+  | st_tcabs : forall t t',
+      subst_type P I t t' ->
+      subst_type P I (tcabs t) (tcabs t')
+  | st_tcapp : forall t t' c c',
+      subst_type P I t t'     ->
+      subst_ty_in_cn P I c c' ->
+      subst_type P I (tcapp t c) (tcapp t' c')
+  | st_tcoerce : forall t t' c c',
+      subst_type P I t t'     ->
+      subst_ty_in_cn P I c c' ->
+      subst_type P I (tcoerce t c) (tcoerce t' c').
 
 Hint Constructors subst_type.
 
@@ -475,31 +569,121 @@ Proof.
   Case "->".
     generalize dependent I. generalize dependent P.
     generalize dependent t'.
-    induction t; intros t' P I H; simpl in H.
-    SCase "t = tvar i".
-      rewrite <- H. constructor.
+    induction t; intros t' P I H; simpl in H;
+      try (rewrite <- H; constructor; apply IHt; reflexivity).
     SCase "t = tapp t1 t2".
       rewrite <- H. constructor.
       apply IHt1. reflexivity.
       apply IHt2. reflexivity.
-    SCase "t = tabs i t t0".
+    SCase "t = tabs T t0".
       rewrite <- H. constructor.
       apply IHt. reflexivity.
       apply subst_type_in_type_correct. reflexivity.
     SCase "t = ttapp".
       subst. constructor. apply IHt. reflexivity.
       apply subst_type_in_type_correct. reflexivity.
-    SCase "t = ttabs".
+    SCase "t = tcapp".
       subst. constructor. apply IHt. reflexivity.
+      apply subst_ty_in_cn_correct. reflexivity.
+    SCase "t = tcoerce".
+      subst. constructor. apply IHt. reflexivity.
+      apply subst_ty_in_cn_correct. reflexivity.
   Case "<-".
     intro H. induction H; simpl;
     subst; try reflexivity; try assumption;
-    apply subst_type_in_type_correct in H0;
-    unfold do_subst in H0; unfold subst_ty_ty in H0;
-    rewrite -> H0; reflexivity.    
+    try (apply subst_type_in_type_correct in H0;
+         unfold do_subst in H0; unfold subst_ty_ty in H0;
+         rewrite -> H0; reflexivity);
+    try (apply subst_ty_in_cn_correct in H0;
+         unfold do_subst in H0; unfold subst_ty_cn in H0;
+         rewrite -> H0; reflexivity).
 Qed.
 
 (** [] *)
+
+
+(* Type in Term Substitution *)
+
+Fixpoint subst_cn_in_tm_fix (x:nat) (c:cn) (t:tm) : tm :=
+  match t with
+  | tvar x =>
+      tvar x
+  | tabs T t1 => 
+      tabs T (subst_cn_in_tm_fix x c t1) 
+  | tapp t1 t2 => 
+      tapp (subst_cn_in_tm_fix x c t1) (subst_cn_in_tm_fix x c t2)
+  | ttabs t1 =>
+      ttabs (subst_cn_in_tm_fix x c t1) 
+  | ttapp t' T' =>
+      ttapp (subst_cn_in_tm_fix x c t') T'
+  | tcabs t1 =>
+      tcabs (subst_cn_in_tm_fix (S x) (cshift 0 c) t1)
+  | tcapp t1 c2 =>
+      tcapp (subst_cn_in_tm_fix x c t1) ([x := c] c2)
+  | tcoerce t1 c2 =>
+      tcoerce (subst_cn_in_tm_fix x c t1) ([x := c] c2)
+  end.
+
+Instance subst_cn_tm : Subst nat cn tm := {
+  do_subst := subst_cn_in_tm_fix
+}.
+
+Inductive subst_cn_in_tm (c:cn) (x:nat) : tm -> tm -> Prop := 
+  | sct_var : forall y,
+      subst_cn_in_tm c x (tvar y) (tvar y)
+  | sct_tabs : forall T t t',
+      subst_cn_in_tm c x t t'          ->
+      subst_cn_in_tm c x (tabs T t) (tabs T t')
+  | sct_tapp : forall t1 t2 t1' t2',
+      subst_cn_in_tm c x t1 t1' ->
+      subst_cn_in_tm c x t2 t2' ->
+      subst_cn_in_tm c x (tapp t1 t2) (tapp t1' t2')
+  | sct_ttabs : forall t t',
+      subst_cn_in_tm c x t t' ->
+      subst_cn_in_tm c x (ttabs t) (ttabs t')
+  | sct_ttapp : forall t t' T,
+      subst_cn_in_tm c x t t' ->
+      subst_cn_in_tm c x (ttapp t T) (ttapp t' T)
+  | sct_tcabs : forall t t',
+      subst_cn_in_tm (cshift 0 c) (S x) t t' ->
+      subst_cn_in_tm c x (tcabs t) (tcabs t')
+  | sct_tcapp : forall t t' d d',
+      subst_cn_in_tm c x t t'     ->
+      subst_coercion c x d d' ->
+      subst_cn_in_tm c x (tcapp t d) (tcapp t' d')
+  | sct_tcoerce : forall t t' d d',
+      subst_cn_in_tm c x t t'     ->
+      subst_coercion c x d d' ->
+      subst_cn_in_tm c x (tcoerce t d) (tcoerce t' d').
+
+Hint Constructors subst_type.
+
+Theorem subst_cn_in_tm_correct : forall c x t t',
+  [x := c] t = t' <-> subst_cn_in_tm c x t t'.
+Proof.
+  intros. split.
+  Case "->".
+    generalize dependent x. generalize dependent c.
+    generalize dependent t'.
+    induction t; intros; simpl in H;
+      try (rewrite <- H; constructor; apply IHt; reflexivity).
+    SCase "t = tapp t1 t2".
+      rewrite <- H. constructor.
+      apply IHt1. reflexivity.
+      apply IHt2. reflexivity.
+     SCase "t = tcapp".
+      subst. constructor. apply IHt. reflexivity.
+      apply subst_coercion_correct. reflexivity.
+    SCase "t = tcoerce".
+      subst. constructor. apply IHt. reflexivity.
+      apply subst_coercion_correct. reflexivity.
+  Case "<-".
+    intro H. induction H; simpl;
+    subst; try reflexivity; try assumption;
+    try (apply subst_coercion_correct in H0;
+         unfold do_subst in H0; unfold subst_cn in H0;
+         rewrite -> H0; reflexivity).
+Qed.
 
 
 (* ################################### *)
