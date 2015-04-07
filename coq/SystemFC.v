@@ -226,7 +226,7 @@ Proof.
     generalize dependent c'. generalize dependent x.
     generalize dependent d.
     induction c; intros d x c' H; simpl in H;
-      try (subst; constructor; apply IHt; trivial).
+      try (subst; constructor; apply IHc; trivial).
     SCase "c = CVar n".
       destruct (eq_nat_dec x n) in H; subst.
       SSCase "x = n".
@@ -235,9 +235,6 @@ Proof.
         destruct (le_lt_dec x n).
           constructor. omega. 
           constructor. omega.
-    SCase "c = CSym c".
-      rewrite <- H. constructor.
-      apply IHc. trivial.
     SCase "c = CTrans c1 c2".
       rewrite <- H. constructor.
       apply IHc1. trivial.
@@ -246,18 +243,6 @@ Proof.
       rewrite <- H. constructor.
       apply IHc1. trivial.
       apply IHc2. trivial.
-    SCase "c = CAbs c".
-      rewrite <- H. constructor.
-      apply IHc. trivial.
-    SCase "c = CLeft c".
-      rewrite <- H. constructor.
-      apply IHc. trivial.
-    SCase "c = CRight c".
-      rewrite <- H. constructor.
-      apply IHc. trivial.
-    SCase "c = CInst c t".
-      rewrite <- H. constructor.
-      apply IHc. trivial.
   Case "<-".
     intro H. induction H; simpl;
     subst; try reflexivity; try assumption.
