@@ -255,6 +255,11 @@ Proof.
     induction X. simpl in H3. inversion H3.
       simpl in H3. simpl. apply H. trivial.
     trivial.
+  Case "TCoerce".
+    constructor; inversion H0. subst. 
+    eapply IHT1. intros. apply H. trivial. trivial.
+    eapply IHT2. intros. apply H. trivial. trivial.
+    eapply IHT3. intros. apply H. trivial. trivial.    
 Qed.
 
 Lemma context_invariance_types : forall T Gamma Gamma',
@@ -292,6 +297,8 @@ Proof.
     rewrite H0. apply IHGamma. simpl in H. trivial.
     destruct X. trivial.
     apply IHGamma. simpl in H. trivial.
+    destruct X. trivial.
+    simpl in H. apply IHGamma in H. simpl. simpl in H. trivial.
 Qed.
 
 Lemma wf_weakening_tvar : forall Gamma U,
@@ -305,6 +312,8 @@ Proof.
     simpl. constructor. apply IHU1. trivial.
       apply IHU2. trivial.
     simpl. constructor. apply IHU. trivial.
+    simpl. constructor. apply IHU1; trivial. apply IHU2; trivial.
+      apply IHU3; trivial.
 Qed.
  
  Lemma context_subst_wf : forall Gamma Gamma' X U,
@@ -352,6 +361,11 @@ Qed.
      inversion H0. apply H3.
      assert (X + 1 = S X) by omega. rewrite H2. constructor.
      trivial.
+  Case "TCoerce".
+    simpl. constructor; inversion H0.
+    eapply IHT1; trivial. apply H5. trivial.
+    eapply IHT2; trivial. apply H6. trivial.
+    eapply IHT3; trivial. apply H7. trivial.
  Qed.
 
  (** WOOOOOOO!!! *)
@@ -391,6 +405,7 @@ Qed.
        simpl; trivial; try (intros; apply f_equal with (f := tvar); omega);
        try (intros; assert False; [ omega | contradiction ])
      | simpl; try (apply f_equal2 with (f := TArrow); trivial)
+     | simpl
      | simpl ].
  (* ; apply f_equal2 with (f := TUniv); trivial ]. *)
 
@@ -410,13 +425,15 @@ Qed.
      simpl. simpl in IHT1. rewrite <- IHT1. simpl in IHT2; rewrite <- IHT2. trivial.
      simpl. simpl in IHT. assert (S X = X + 1) by omega. rewrite H.
        rewrite <- IHT. trivial.
+     simpl. rewrite <- IHT1. rewrite <- IHT2. rewrite <- IHT3. trivial.
  Qed.
 
  Lemma tshift_tshift_prop : forall X Y T,
    tshift X (tshift (X + Y) T) = tshift (1 + X + Y) (tshift X T).
  Proof.
    intros. common_cases X T.
-   rewrite IHT. trivial.
+   rewrite IHT. trivial. 
+   rewrite IHT1. rewrite IHT2. rewrite IHT3. trivial.
  Qed.
 
  Lemma tshift_subst_prop : forall X Y T U,
@@ -451,6 +468,7 @@ Qed.
        by (apply tshift_tshift_prop).
      simpl in H0. rewrite H0.
      rewrite IHT. trivial.
+     rewrite IHT1. rewrite IHT2. rewrite IHT3. trivial.
  Qed.
 
 Lemma tshift_subst_prop_2 : forall n n' T T',
@@ -483,6 +501,7 @@ Proof.
     rewrite H. rewrite tshift_tshift_prop. simpl.
     assert (S (n'' + n') = (n'' + 1) + n') by omega.
     rewrite H0. apply IHT.
+    rewrite IHT1. rewrite IHT2. rewrite IHT3. trivial.
 Qed.
 
 Lemma context_subst_get_var : forall X Y Gamma Gamma' U,
@@ -560,6 +579,7 @@ Proof.
    rewrite IHT.
    assert (n'' + 1 = S n'') by omega. rewrite H. clear H.
    trivial.
+   rewrite IHT1. rewrite IHT2. rewrite IHT3. trivial.
 Qed.
 
 Lemma subst_context_var : forall Gamma Gamma' U X x,
@@ -618,6 +638,10 @@ Proof.
     simpl. eapply subst_preserves_well_formed_type. apply H2. trivial.
     eapply subst_context_wf. apply H2. trivial.
     eapply subst_context_wf. apply H2. trivial.
+  Case "T_CAbs".
+    simpl. constructor. apply IHhas_type. trivial.
+  Case "T_CApp".
+    simpl. econstructor. apply IHhas_type. trivial. trivial.
 Qed.
 
 Lemma type_in_context_wf : forall x T Gamma,
