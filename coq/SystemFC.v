@@ -15,15 +15,15 @@ Inductive ty : Type :=
   | TVar    : nat -> ty 
   | TArrow  : ty -> ty -> ty
   | TUniv   : ty -> ty
-  | TCoerce : ty -> ty.
+  | TCoerce : ty -> ty -> ty -> ty.
 
 
 Fixpoint tshift (X : nat) (T : ty) : ty :=
   match T with
-  | TVar Y       => TVar (if le_gt_dec X Y then 1 + Y else Y)
-  | TArrow T1 T2 => TArrow (tshift X T1) (tshift X T2)
-  | TUniv T2     => TUniv (tshift (1 + X) T2)
-  | TCoerce T2   => TCoerce (tshift X T2) 
+  | TVar Y          => TVar (if le_gt_dec X Y then 1 + Y else Y)
+  | TArrow T1 T2    => TArrow (tshift X T1) (tshift X T2)
+  | TUniv T2        => TUniv (tshift (1 + X) T2)
+  | TCoerce T1 T2 T => TCoerce (tshift X T1) (tshift X T2) (tshift X T) 
   end.
 
 (* ################################### *)
@@ -87,7 +87,7 @@ Inductive tm : Type :=
   | ttapp   : tm -> ty -> tm
   | ttabs   : tm -> tm
   | tcapp   : tm -> cn -> tm
-  | tcabs   : tm -> tm
+  | tcabs   : ty -> ty -> tm -> tm
   | tcoerce : tm -> cn -> tm.
 
 Tactic Notation "t_cases" tactic(first) ident(c) :=
@@ -100,33 +100,38 @@ Tactic Notation "t_cases" tactic(first) ident(c) :=
 
 Fixpoint shift (x:nat) (t:tm) : tm :=
   match t with
-    | tvar y      => tvar (if le_gt_dec x y then S y else y)
-    | tabs T1 t2  => tabs T1 (shift (S x) t2)
-    | tapp t1 t2  => tapp (shift x t1) (shift x t2)
-    | ttabs t2    => ttabs (shift x t2)
-    | ttapp t1 T2 => ttapp (shift x t1) T2
-    | tcapp t1 c2 => tcapp (shift x t1) c2
-    | tcabs t2    => tcabs (shift x t2)
-    | tcoerce t c => tcoerce (shift x t) c
+    | tvar y         => tvar (if le_gt_dec x y then S y else y)
+    | tabs T1 t2     => tabs T1 (shift (S x) t2)
+    | tapp t1 t2     => tapp (shift x t1) (shift x t2)
+    | ttabs t2       => ttabs (shift x t2)
+    | ttapp t1 T2    => ttapp (shift x t1) T2
+    | tcapp t1 c2    => tcapp (shift x t1) c2
+    | tcabs T1 T2 t2 => tcabs T1 T2 (shift x t2)
+    | tcoerce t c    => tcoerce (shift x t) c
   end.
 
-Fixpoint shift_coer (X : nat) (t : tm) : tm :=
+Fixpoint shift_cn (X : nat) (t : tm) : tm :=
   match t with
-    | tcapp t c   => tcapp t (cshift X c)
-    | tcoerce t c => tcoerce t (cshift X c)
-    | _           => t
+    | tvar y         => tvar y
+    | tabs T1 t2     => tabs T1 (shift_cn X t2)
+    | tapp t1 t2     => tapp (shift_cn X t1) (shift_cn X t2)
+    | ttabs t2       => ttabs (shift_cn X t2)
+    | ttapp t1 T2    => ttapp (shift_cn X t1) T2
+    | tcapp t1 c2    => tcapp (shift_cn X t1) (cshift X c2)
+    | tcabs T1 T2 t2 => tcabs T1 T2 (shift_cn (S X) t2)
+    | tcoerce t c    => tcoerce (shift_cn X t) (cshift X c)
   end.
 
 Fixpoint shift_typ (X : nat) (t : tm) {struct t} : tm :=
   match t with
-    | tvar y        => tvar y
-    | tabs T1 t2    => tabs (tshift X T1) (shift_typ X t2)
-    | tapp t1 t2    => tapp (shift_typ X t1) (shift_typ X t2)
-    | ttabs t2      => ttabs (shift_typ (1 + X) t2)
-    | ttapp t1 T2   => ttapp (shift_typ X t1) (tshift X T2)
-    | tcapp t1 c2   => tcapp (shift_typ X t1) (cshift X c2)
-    | tcabs t2      => tcabs (shift_typ X t2)
-    | tcoerce t1 c2 => tcoerce (shift_typ X t1) (cshift_typ X c2)
+    | tvar y         => tvar y
+    | tabs T1 t2     => tabs (tshift X T1) (shift_typ X t2)
+    | tapp t1 t2     => tapp (shift_typ X t1) (shift_typ X t2)
+    | ttabs t2       => ttabs (shift_typ (1 + X) t2)
+    | ttapp t1 T2    => ttapp (shift_typ X t1) (tshift X T2)
+    | tcapp t1 c2    => tcapp (shift_typ X t1) (cshift X c2)
+    | tcabs T1 T2 t2 => tcabs (tshift X T1) (tshift X T2) (shift_typ X t2)
+    | tcoerce t1 c2  => tcoerce (shift_typ X t1) (cshift_typ X c2)
   end.
 
 (** Note that an abstraction [\x:T.t] (formally, [tabs x T t]) is
@@ -152,8 +157,10 @@ Inductive uncoerced_value : tm -> Prop :=
       uncoerced_value (tabs T t)
   | uv_tabs : forall t,
       uncoerced_value (ttabs t)
-  | uv_cabs : forall t,
-      uncoerced_value (tcabs t).
+  | uv_cabs : forall t T1 T2,
+      uncoerced_value (tcabs T1 T2 t).
+
+Hint Constructors uncoerced_value.
 
 Inductive value : tm -> Prop :=
   | v_uncoerced : forall t,
@@ -287,8 +294,8 @@ Fixpoint subst_term_fix (x:nat) (s:tm) (t:tm) : tm :=
       ttabs (subst_term_fix x (shift_typ 0 s) t)
   | ttapp t T =>
       ttapp (subst_term_fix x s t) T
-  | tcabs t =>
-      tcabs (subst_term_fix x (shift_coer 0 s) t)
+  | tcabs T1 T2 t =>
+      tcabs T1 T2 (subst_term_fix x (shift_cn 0 s) t)
   | tcapp t c =>
       tcapp (subst_term_fix x s t) c
   | tcoerce t c =>
@@ -322,9 +329,9 @@ Inductive subst_term : tm -> nat -> tm -> tm -> Prop :=
   | s_ttapp : forall s x t t' T,
       subst_term s x t t' ->
       subst_term s x (ttapp t T) (ttapp t' T)
-  | s_tcabs : forall s x t t',
-      subst_term (shift_coer 0 s) x t t' ->
-      subst_term s x (tcabs t) (tcabs t')
+  | s_tcabs : forall s x t t' T1 T2,
+      subst_term (shift_cn 0 s) x t t' ->
+      subst_term s x (tcabs T1 T2 t) (tcabs T1 T2 t')
   | s_tcapp : forall s x t t' c,
       subst_term s x t t' ->
       subst_term s x (tcapp t c) (tcapp t' c)
@@ -380,7 +387,9 @@ Fixpoint subst_type_in_type_fix (I:nat) (P:ty) (T:ty) : ty :=
   | TArrow T1 T2 =>
       TArrow (subst_type_in_type_fix I P T1) (subst_type_in_type_fix I P T2)
   | TUniv T   => TUniv (subst_type_in_type_fix (I + 1) (tshift 0 P) T)
-  | TCoerce T => TCoerce (subst_type_in_type_fix I P T)
+  | TCoerce T1 T2 U =>
+    TCoerce (subst_type_in_type_fix I P T1) (subst_type_in_type_fix I P T2)
+            (subst_type_in_type_fix I P U)
   end.
 
 Instance subst_ty_ty : Subst nat ty ty := {
@@ -404,9 +413,11 @@ Inductive subst_type_in_type (T:ty) (I:nat) : ty -> ty -> Prop :=
   | s_univ : forall T1 T2,
       subst_type_in_type (tshift 0 T) (I+1) T1 T2 ->
       subst_type_in_type T I (TUniv T1) (TUniv T2)
-  | s_coerce : forall T1 T2,
-      subst_type_in_type T I T1 T2 ->
-      subst_type_in_type T I (TCoerce T1) (TCoerce T2).
+  | s_coerce : forall U U1 U2 V V1 V2,
+      subst_type_in_type T I U1 V1 ->
+      subst_type_in_type T I U2 V2 ->
+      subst_type_in_type T I U  V  ->
+      subst_type_in_type T I (TCoerce U1 U2 U) (TCoerce V1 V2 V).
 
 Lemma subst_type_in_type_correct : forall N P T1 T2,
   [N:=P]T1 = T2 <-> subst_type_in_type P N T1 T2.
@@ -415,7 +426,7 @@ Proof.
   Case "->".
     generalize dependent N; generalize dependent P;
     generalize dependent T2;
-    induction T1; intros T2 P N H; simpl in H.
+    induction T1; intros; simpl in H.
     SCase "T1 = TVar n".
       destruct (eq_nat_dec N n); subst.
       SSCase "N = n".
@@ -435,7 +446,8 @@ Proof.
     SCase "T2 = TUniv T".
       rewrite <- H. constructor. apply IHT1. reflexivity.
     SCase "T2 = TCoerce T".
-      rewrite <- H. constructor. apply IHT1. reflexivity.  
+      rewrite <- H. constructor. apply IHT1_1. trivial.
+      apply IHT1_2; trivial. apply IHT1_3; trivial.
 Case "<-".
     intro H. induction H; simpl;
     subst; try reflexivity; try assumption.
@@ -547,8 +559,8 @@ Fixpoint subst_type_fix (X:nat) (T:ty) (t:tm) : tm :=
       ttabs (subst_type_fix (X+1) (tshift 0 T) t1) 
   | ttapp t' T' =>
       ttapp (subst_type_fix X T t') ([X := T] T')
-  | tcabs t1 =>
-      tcabs (subst_type_fix X T t1)
+  | tcabs T1 T2 t1 =>
+      tcabs ([X:=T]T1) ([X:=T]T2) (subst_type_fix X T t1)
   | tcapp t1 c2 =>
       tcapp (subst_type_fix X T t1) ([X := T] c2)
   | tcoerce t1 c2 =>
@@ -577,9 +589,11 @@ Inductive subst_type (P:ty) (I:nat) : tm -> tm -> Prop :=
       subst_type P I t t' ->
       subst_type_in_type P I T1 T2 ->
       subst_type P I (ttapp t T1) (ttapp t' T2)
-  | st_tcabs : forall t t',
-      subst_type P I t t' ->
-      subst_type P I (tcabs t) (tcabs t')
+  | st_tcabs : forall t t' U1 U2 V1 V2,
+      subst_type P I t t'          ->
+      subst_type_in_type P I U1 V1 ->
+      subst_type_in_type P I U2 V2 ->
+      subst_type P I (tcabs U1 U2 t) (tcabs V1 V2 t')
   | st_tcapp : forall t t' c c',
       subst_type P I t t'     ->
       subst_ty_in_cn P I c c' ->
@@ -614,8 +628,12 @@ Proof.
     SCase "t = tcapp".
       subst. constructor. apply IHt. reflexivity.
       apply subst_ty_in_cn_correct. reflexivity.
-    SCase "t = tcoerce".
+    SCase "t = tcabs".
       subst. constructor. apply IHt. reflexivity.
+      apply subst_type_in_type_correct; trivial.
+      apply subst_type_in_type_correct; trivial.
+    SCase "t = tcoerce".
+      subst. constructor. apply IHt. trivial.
       apply subst_ty_in_cn_correct. reflexivity.
   Case "<-".
     intro H. induction H; simpl;
@@ -626,6 +644,8 @@ Proof.
     try (apply subst_ty_in_cn_correct in H0;
          unfold do_subst in H0; unfold subst_ty_cn in H0;
          rewrite -> H0; reflexivity).
+    apply subst_type_in_type_correct in H0.
+    apply subst_type_in_type_correct in H1. subst. trivial.
 Qed.
 
 (** [] *)
@@ -645,8 +665,8 @@ Fixpoint subst_cn_in_tm_fix (x:nat) (c:cn) (t:tm) : tm :=
       ttabs (subst_cn_in_tm_fix x c t1) 
   | ttapp t' T' =>
       ttapp (subst_cn_in_tm_fix x c t') T'
-  | tcabs t1 =>
-      tcabs (subst_cn_in_tm_fix (S x) (cshift 0 c) t1)
+  | tcabs T1 T2 t1 =>
+      tcabs T1 T2 (subst_cn_in_tm_fix (S x) (cshift 0 c) t1)
   | tcapp t1 c2 =>
       tcapp (subst_cn_in_tm_fix x c t1) ([x := c] c2)
   | tcoerce t1 c2 =>
@@ -673,9 +693,9 @@ Inductive subst_cn_in_tm (c:cn) (x:nat) : tm -> tm -> Prop :=
   | sct_ttapp : forall t t' T,
       subst_cn_in_tm c x t t' ->
       subst_cn_in_tm c x (ttapp t T) (ttapp t' T)
-  | sct_tcabs : forall t t',
+  | sct_tcabs : forall t t' T1 T2,
       subst_cn_in_tm (cshift 0 c) (S x) t t' ->
-      subst_cn_in_tm c x (tcabs t) (tcabs t')
+      subst_cn_in_tm c x (tcabs T1 T2 t) (tcabs T1 T2 t')
   | sct_tcapp : forall t t' d d',
       subst_cn_in_tm c x t t'     ->
       subst_coercion c x d d' ->
@@ -695,7 +715,7 @@ Proof.
     generalize dependent x. generalize dependent c.
     generalize dependent t'.
     induction t; intros; simpl in H;
-      try (rewrite <- H; constructor; apply IHt; reflexivity).
+      try (rewrite <- H; try constructor; apply IHt; reflexivity).
     SCase "t = tapp t1 t2".
       rewrite <- H. constructor.
       apply IHt1. reflexivity.
@@ -765,8 +785,8 @@ Inductive step : tm -> tm -> Prop :=
   | E_CApp : forall t1 t1' c2,
          t1 ==> t1' ->
          tcapp t1 c2 ==> tcapp t1' c2
-  | E_CAppCAbs : forall t12 c2,
-         tcapp (tcabs t12) c2 ==> [0:=c2] t12
+  | E_CAppCAbs : forall t12 c2 T1 T2,
+         tcapp (tcabs T1 T2 t12) c2 ==> [0:=c2] t12
   | E_Coerce : forall t1 t1' c2,
          t1 ==> t1' ->
          tcoerce t1 c2 ==> tcoerce t1' c2
@@ -867,11 +887,10 @@ Fixpoint get_cvar (E : context) (N : nat) : option (ty * ty) :=
 
 Fixpoint wf_ty (Gamma : context) (T : ty) : Prop :=
   match T with
-  | TVar X       => get_tvar Gamma X = true
-  | TArrow T1 T2 => wf_ty Gamma T1 /\ wf_ty Gamma T2
-  | TUniv  T     => wf_ty (ext_tvar Gamma) T
-  (* THIS MIGHT BE WRONG *)
-  | TCoerce T    => wf_ty Gamma T
+  | TVar X          => get_tvar Gamma X = true
+  | TArrow T1 T2    => wf_ty Gamma T1 /\ wf_ty Gamma T2
+  | TUniv  T        => wf_ty (ext_tvar Gamma) T
+  | TCoerce T1 T2 T => wf_ty Gamma T1 /\ wf_ty Gamma T2 /\ wf_ty Gamma T
   end.
 
 Inductive well_formed_type (Gamma : context) : ty -> Prop :=
@@ -885,23 +904,26 @@ Inductive well_formed_type (Gamma : context) : ty -> Prop :=
   | WF_TUniv : forall T,
       well_formed_type (ext_tvar Gamma) T ->
       well_formed_type Gamma (TUniv T)
-  | WF_TCoerce : forall T,
-      well_formed_type Gamma T ->
-      well_formed_type Gamma (TCoerce T).
+  | WF_TCoerce : forall T T1 T2,
+      well_formed_type Gamma T1 ->
+      well_formed_type Gamma T2 ->
+      well_formed_type Gamma T  ->
+      well_formed_type Gamma (TCoerce T1 T2 T).
 
 Lemma wf_type_correct : forall Gamma T,
   well_formed_type Gamma T <-> wf_ty Gamma T.
 Proof.
   split; intros.
   Case "->".
-    induction H; try split; trivial.
+    induction H; try split; try split; trivial.
   Case "<-".
     generalize dependent Gamma. induction T.
     constructor. simpl in H. trivial.
     constructor; simpl in H; inversion H. apply IHT1. trivial.
       apply IHT2. trivial.
     constructor. simpl in H. apply IHT. trivial.
-    constructor. simpl in H. apply IHT. trivial.
+    constructor; simpl in H; inversion H; inversion H1. apply IHT1. trivial.
+      apply IHT2. trivial. apply IHT3. trivial.
 Qed.
 
 
@@ -955,19 +977,28 @@ Inductive well_formed_coercion (Gamma : context) : cn -> ty -> ty -> Prop :=
       Gamma |- c1 ; U ~ V ->
       Gamma |- c2 ; V ~ W ->
       Gamma |- CTrans c1 c2 ; U ~ W
-  (* Not sure how to do CO_App *)
+  | C_App : forall c1 c2 U1 U2 V1 V2,
+      Gamma |- c1 ; U1 ~ V1 ->
+      Gamma |- c2 ; U2 ~ V2 ->
+      well_formed_type Gamma (TArrow U1 U2) ->
+      well_formed_type Gamma (TArrow V1 V2) ->
+      Gamma |- CApp c1 c2 ; (TArrow U1 U2) ~ (TArrow V1 V2)
   | C_Forall : forall c U V,
       ext_tvar Gamma |- c ; U ~ V ->
       Gamma |- CTAbs c ; TUniv U ~ TUniv V
   | C_Left : forall c U1 U2 V1 V2,
       Gamma |- c ; (TArrow U1 U2) ~ (TArrow V1 V2) ->
+      well_formed_type Gamma U1                    ->
+      well_formed_type Gamma V1                    ->
       Gamma |- CLeft c ; U1 ~ V1
   | C_Right : forall c U1 U2 V1 V2,
       Gamma |- c ; (TArrow U1 U2) ~ (TArrow V1 V2) ->
+      well_formed_type Gamma U2                    ->
+      well_formed_type Gamma V2                    ->
       Gamma |- CRight c ; U2 ~ V2
   | C_Inst : forall c U V T,
-      Gamma |- c ; U ~ V       ->
-      well_formed_type Gamma T ->
+      Gamma |- c ; TUniv U ~ TUniv V ->
+      well_formed_type Gamma T       ->
       Gamma |- CTApp c T ; ([0 := T] U) ~ ([0 := T] V)
     
 where "Gamma '|-' c ';' T1 '~' T2" := (well_formed_coercion Gamma c T1 T2).
@@ -1027,6 +1058,13 @@ Inductive has_type : context -> tm -> ty -> Prop :=
       well_formed_type Gamma T2   ->
       well_formed_context Gamma   ->
       Gamma |- ttapp t1 T2 \in [0 := T2] T12
+  | T_CAbs : forall Gamma t T1 T2 T,
+      Gamma |- t \in T ->
+      Gamma |- tcabs T1 T2 t \in TCoerce T1 T2 T
+  | T_CApp : forall Gamma U1 U2 T t c,
+      Gamma |- t \in (TCoerce U1 U2 T) ->
+      Gamma |- c ; U1 ~ U2             ->
+      Gamma |- tcapp t c \in T
   | T_Coerce : forall Gamma t c T1 T2,
       Gamma |- c ; T1 ~ T2 ->
       Gamma |- t \in T1    ->
@@ -1039,7 +1077,8 @@ Tactic Notation "has_type_cases" tactic(first) ident(c) :=
   first;
   [ Case_aux c "T_Var"  | Case_aux c "T_Abs" 
   | Case_aux c "T_App"  | Case_aux c "T_TAbs" 
-  | Case_aux c "T_TApp" | Case_aux c "T_Coerce" ].
+  | Case_aux c "T_TApp" | Case_aux c "T_CAbs"
+  | Case_aux c "T_CApp" | Case_aux c "T_Coerce" ].
 
 Hint Constructors has_type.
 

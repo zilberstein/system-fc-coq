@@ -1,21 +1,17 @@
 (** * SystemFProp: Properties of System F *)
 
-Require Export SystemF.
+Require Export SystemFC.
 Require Export Coq.Logic.Decidable.
 
-Module SYSTEMFPROP.
-Import SYSTEMF.
-
-(** In this chapter, we develop the fundamental theory of the Simply
-    Typed Lambda Calculus -- in particular, the type safety
-    theorem. *)
+Module SYSTEMFCPROP.
+Import SYSTEMFC.
 
 (* ###################################################################### *)
 (** * Canonical Forms *)
 
 Lemma canonical_forms_fun : forall t T1 T2,
   empty |- t \in (TArrow T1 T2) ->
-  value t ->
+  uncoerced_value t ->
   exists u, t = tabs T1 u.
 Proof.
   intros t T1 T2 HT HVal.
@@ -25,12 +21,21 @@ Qed.
 
 Lemma canonical_forms_tabs : forall t T,
   empty |- t \in TUniv T ->
-  value t ->
+  uncoerced_value t ->
   exists t', t = ttabs t'.
 Proof.
-  intros. inversion H0; subst.
+  intros. inversion H0; subst;
   inversion H; subst.
   exists t0. reflexivity.
+Qed.
+
+Lemma canonical_forms_cabs : forall t U V T,
+  empty |- t \in TCoerce U V T ->
+  uncoerced_value t        ->
+  exists t', t = tcabs U V t'.
+Proof.
+  intros; inversion H0; subst; inversion H; subst.
+  exists t0. trivial.
 Qed.
 
 (* ###################################################################### *)
@@ -93,7 +98,7 @@ Proof with eauto.
   Case "T_Var".
     (* contradictory: variables cannot be typed in an 
        empty context *)
-    inversion H0. 
+    inversion H0.
 
   Case "T_App". 
     (* [t] = [t1 t2].  Proceed by cases on whether [t1] is a 
@@ -102,10 +107,12 @@ Proof with eauto.
     SCase "t1 is a value".
       destruct IHHt2...
       SSCase "t2 is also a value".
-        assert (exists t0, t1 = tabs T11 t0).
-        eapply canonical_forms_fun; eauto.
-        destruct H1 as [t0 Heq]. subst.
-        exists ([0:=t2]t0)...
+        destruct H...
+        SSSCase "t1 is an uncoerced value".
+          assert (exists t0, t = tabs T11 t0).
+          eapply canonical_forms_fun; eauto.
+          destruct H1 as [t0 Heq]. subst.
+          exists ([0:=t2]t0)...
 
       SSCase "t2 steps".
         inversion H0 as [t2' Hstp]. exists (tapp t1 t2')...
@@ -116,12 +123,32 @@ Proof with eauto.
   Case "T_TApp".
     right. destruct IHHt...    
     SCase "t1 is a value".
-      assert (exists t0, t1 = ttabs t0).
-      eapply canonical_forms_tabs; eauto.
-      destruct H2; subst.
-      exists ([0 := T2] x)...
+      destruct H1...
+      SSCase "t1 is uncoerced".
+        assert (exists t0, t = ttabs t0).
+        eapply canonical_forms_tabs; eauto.
+        destruct H2; subst.
+        exists ([0 := T2] x)...
     SCase "t1 also steps".
       inversion H1. exists (ttapp x T2)...
+
+  Case "T_CApp".
+    right. destruct IHHt...
+    SCase "t is a value".
+      destruct H0...
+      SSCase "t is uncoerced".
+        assert (exists t0, t = tcabs U1 U2 t0).
+        eapply canonical_forms_cabs...
+        destruct H1; subst. exists ([0:=c] x)...
+    SCase "t steps".
+      inversion H0. exists (tcapp x c)...
+
+  Case "T_Coerce".
+    destruct IHHt...
+    SCase "t is a value".
+      destruct H0...
+    SCase "t steps". 
+      right. inversion H0. exists (tcoerce x c)...
 Qed.
 
 (* [] *)
