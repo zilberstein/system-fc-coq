@@ -12,9 +12,10 @@ Module SYSTEMFC.
 (** *** Types *)
 
 Inductive ty : Type := 
-  | TVar   : nat -> ty 
-  | TArrow : ty -> ty -> ty
-  | TUniv  : ty -> ty.
+  | TVar    : nat -> ty 
+  | TArrow  : ty -> ty -> ty
+  | TUniv   : ty -> ty
+  | TCoerce : ty -> ty.
 
 
 Fixpoint tshift (X : nat) (T : ty) : ty :=
@@ -22,6 +23,7 @@ Fixpoint tshift (X : nat) (T : ty) : ty :=
   | TVar Y       => TVar (if le_gt_dec X Y then 1 + Y else Y)
   | TArrow T1 T2 => TArrow (tshift X T1) (tshift X T2)
   | TUniv T2     => TUniv (tshift (1 + X) T2)
+  | TCoerce T2   => TCoerce (tshift X T2) 
   end.
 
 (* ################################### *)
@@ -36,7 +38,8 @@ Inductive cn : Type :=
   | CAbs   : cn -> cn
   | CLeft  : cn -> cn
   | CRight : cn -> cn
-  | CInst  : cn -> ty -> cn.
+  | CTAbs  : cn -> cn
+  | CTApp  : cn -> ty -> cn.
 
 Tactic Notation "c_cases" tactic(first) ident(c) :=
   first;
@@ -44,7 +47,7 @@ Tactic Notation "c_cases" tactic(first) ident(c) :=
   | Case_aux c "CSym"   | Case_aux c "CTrans"
   | Case_aux c "CApp"   | Case_aux c "CAbs"
   | Case_aux c "CLeft"  | Case_aux c "CRight"
-  | Case_aux c "CInst" ].
+  | Case_aux c "CTAbs"  | Case_aux c "CTApp" ].
 
 Fixpoint cshift (X : nat) (c : cn) : cn :=
   match c with
@@ -56,15 +59,23 @@ Fixpoint cshift (X : nat) (c : cn) : cn :=
   | CAbs c       => CAbs (cshift (S X) c)
   | CLeft c      => CLeft (cshift X c)
   | CRight c     => CRight (cshift X c)
-  | CInst c T    => CInst (cshift X c) T
+  | CTAbs c      => CTAbs (cshift X c)
+  | CTApp c T    => CTApp (cshift X c) T
   end.
 
 Fixpoint cshift_typ (X : nat) (c : cn) : cn :=
   match c with
-  | CInst c T => CInst c (tshift X T)
-  | _         => c 
+  | CVar Y       => CVar Y
+  | CRefl        => CRefl
+  | CSym c       => CSym (cshift_typ X c)
+  | CTrans c1 c2 => CTrans (cshift_typ X c1) (cshift_typ X c2)
+  | CApp c1 c2   => CApp (cshift_typ X c1) (cshift_typ X c2)
+  | CAbs c       => CAbs (cshift_typ X c)
+  | CLeft c      => CLeft (cshift_typ X c)
+  | CRight c     => CRight (cshift_typ X c)
+  | CTAbs c      => CTAbs (cshift_typ (S X) c)
+  | CTApp c T    => CTApp (cshift_typ X c) (tshift X T)
   end.
-
 
 (* ################################### *)
 (** *** Terms *)
@@ -108,12 +119,14 @@ Fixpoint shift_coer (X : nat) (t : tm) : tm :=
 
 Fixpoint shift_typ (X : nat) (t : tm) {struct t} : tm :=
   match t with
-    | tvar y      => tvar y
-    | tabs T1 t2  => tabs (tshift X T1) (shift_typ X t2)
-    | tapp t1 t2  => tapp (shift_typ X t1) (shift_typ X t2)
-    | ttabs t2    => ttabs (shift_typ (1 + X) t2)
-    | ttapp t1 T2 => ttapp (shift_typ X t1) (tshift X T2)
-    | _           => t
+    | tvar y        => tvar y
+    | tabs T1 t2    => tabs (tshift X T1) (shift_typ X t2)
+    | tapp t1 t2    => tapp (shift_typ X t1) (shift_typ X t2)
+    | ttabs t2      => ttabs (shift_typ (1 + X) t2)
+    | ttapp t1 T2   => ttapp (shift_typ X t1) (tshift X T2)
+    | tcapp t1 c2   => tcapp (shift_typ X t1) (cshift X c2)
+    | tcabs t2      => tcabs (shift_typ X t2)
+    | tcoerce t1 c2 => tcoerce (shift_typ X t1) (cshift_typ X c2)
   end.
 
 (** Note that an abstraction [\x:T.t] (formally, [tabs x T t]) is
@@ -138,7 +151,9 @@ Inductive uncoerced_value : tm -> Prop :=
   | uv_abs : forall T t,
       uncoerced_value (tabs T t)
   | uv_tabs : forall t,
-      uncoerced_value (ttabs t).
+      uncoerced_value (ttabs t)
+  | uv_cabs : forall t,
+      uncoerced_value (tcabs t).
 
 Inductive value : tm -> Prop :=
   | v_uncoerced : forall t,
@@ -173,7 +188,8 @@ Fixpoint subst_coercion_fix (x:nat) (d:cn) (c:cn) : cn :=
     | CAbs c       => CAbs (subst_coercion_fix (S x) (cshift 0 d) c)
     | CLeft c      => CLeft (subst_coercion_fix x d c)
     | CRight c     => CRight (subst_coercion_fix x d c)
-    | CInst c T    => CInst (subst_coercion_fix x d c) T
+    | CTAbs c      => CTAbs (subst_coercion_fix x (cshift_typ 0 d) c)
+    | CTApp c T    => CTApp (subst_coercion_fix x d c) T
   end.
 
 Instance subst_cn : Subst nat cn cn := {
@@ -211,9 +227,12 @@ Inductive subst_coercion : cn -> nat -> cn -> cn -> Prop :=
   | sc_right : forall d x c c',
       subst_coercion d x c c' ->
       subst_coercion d x (CRight c) (CRight c')
-  | sc_inst : forall d x c c' T,
+  | sc_tabs : forall d x c c',
+      subst_coercion (cshift_typ 0 d) x c c' ->
+      subst_coercion d x (CTAbs c) (CTAbs c')
+  | sc_tapp : forall d x c c' T,
       subst_coercion d x c c' ->
-      subst_coercion d x (CInst c T) (CInst c' T).
+      subst_coercion d x (CTApp c T) (CTApp c' T).
 
 Hint Constructors subst_coercion.
 
@@ -360,7 +379,8 @@ Fixpoint subst_type_in_type_fix (I:nat) (P:ty) (T:ty) : ty :=
            else TVar N
   | TArrow T1 T2 =>
       TArrow (subst_type_in_type_fix I P T1) (subst_type_in_type_fix I P T2)
-  | TUniv T => TUniv (subst_type_in_type_fix (I + 1) (tshift 0 P) T)
+  | TUniv T   => TUniv (subst_type_in_type_fix (I + 1) (tshift 0 P) T)
+  | TCoerce T => TCoerce (subst_type_in_type_fix I P T)
   end.
 
 Instance subst_ty_ty : Subst nat ty ty := {
@@ -383,7 +403,10 @@ Inductive subst_type_in_type (T:ty) (I:nat) : ty -> ty -> Prop :=
       subst_type_in_type T I (TArrow T1 T2) (TArrow T1' T2')
   | s_univ : forall T1 T2,
       subst_type_in_type (tshift 0 T) (I+1) T1 T2 ->
-      subst_type_in_type T I (TUniv T1) (TUniv T2).
+      subst_type_in_type T I (TUniv T1) (TUniv T2)
+  | s_coerce : forall T1 T2,
+      subst_type_in_type T I T1 T2 ->
+      subst_type_in_type T I (TCoerce T1) (TCoerce T2).
 
 Lemma subst_type_in_type_correct : forall N P T1 T2,
   [N:=P]T1 = T2 <-> subst_type_in_type P N T1 T2.
@@ -411,7 +434,9 @@ Proof.
       apply IHT1_2. reflexivity.
     SCase "T2 = TUniv T".
       rewrite <- H. constructor. apply IHT1. reflexivity.
-  Case "<-".
+    SCase "T2 = TCoerce T".
+      rewrite <- H. constructor. apply IHT1. reflexivity.  
+Case "<-".
     intro H. induction H; simpl;
     subst; try reflexivity; try assumption.
     destruct (eq_nat_dec I I); try reflexivity. apply ex_falso_quodlibet; auto.
@@ -439,7 +464,8 @@ Fixpoint subst_ty_in_cn_fix (X:nat) (U:ty) (c:cn) : cn :=
     | CAbs c       => CAbs (subst_ty_in_cn_fix X U c)
     | CLeft c      => CLeft (subst_ty_in_cn_fix X U c)
     | CRight c     => CRight (subst_ty_in_cn_fix X U c)
-    | CInst c T    => CInst (subst_ty_in_cn_fix X U c) ([X := U] T)
+    | CTAbs c      => CTAbs (subst_ty_in_cn_fix (S X) (tshift 0 U) c)
+    | CTApp c T    => CTApp (subst_ty_in_cn_fix X U c) ([X := U] T)
   end.
 
 Instance subst_ty_cn : Subst nat ty cn := {
@@ -471,10 +497,13 @@ Inductive subst_ty_in_cn (T:ty) (X:nat) : cn -> cn -> Prop :=
   | stc_right : forall c c',
       subst_ty_in_cn T X c c' ->
       subst_ty_in_cn T X (CRight c) (CRight c')
-  | stc_inst : forall c c' U V,
+  | stc_tabs : forall c c',
+      subst_ty_in_cn (tshift 0 T) (S X) c c' ->
+      subst_ty_in_cn T X (CTAbs c) (CTAbs c')
+  | stc_tapp : forall c c' U V,
       subst_ty_in_cn T X c c'    ->
       subst_type_in_type T X U V ->
-      subst_ty_in_cn T X (CInst c U) (CInst c' V).
+      subst_ty_in_cn T X (CTApp c U) (CTApp c' V).
 
 
 Lemma subst_ty_in_cn_correct : forall U X c c',
@@ -731,16 +760,43 @@ Inductive step : tm -> tm -> Prop :=
   | E_TApp : forall t1 t1' T2,
          t1 ==> t1' ->
          ttapp t1 T2 ==> ttapp t1' T2
-  | E_TAappTabs : forall t12 T2,
+  | E_TAppTAbs : forall t12 T2,
          ttapp (ttabs t12) T2 ==> [0:=T2] t12
+  | E_CApp : forall t1 t1' c2,
+         t1 ==> t1' ->
+         tcapp t1 c2 ==> tcapp t1' c2
+  | E_CAppCAbs : forall t12 c2,
+         tcapp (tcabs t12) c2 ==> [0:=c2] t12
+  | E_Coerce : forall t1 t1' c2,
+         t1 ==> t1' ->
+         tcoerce t1 c2 ==> tcoerce t1' c2
+  | E_CTrans : forall c1 c2 t,
+         tcoerce (tcoerce t c1) c2 ==> tcoerce t (CTrans c1 c2)
+  | E_PushApp : forall v1 v2 c,
+         value v1 ->
+         value v2 ->
+         tapp (tcoerce v1 c) v2 ==>
+              tcoerce (tapp v1 (tcoerce v2 (CSym (CLeft c)))) (CRight c)
+  | E_PushTApp : forall v1 T2 c,
+         value v1 ->
+         ttapp (tcoerce v1 c) T2 ==>
+              tcoerce (ttapp v1 T2) (CTApp c T2)
+  | E_PushCApp : forall v1 c2 c,
+         value v1 ->
+         tcapp (tcoerce v1 c) c2 ==>
+              tcoerce (tcapp v1 c2) (CApp c c2)
 
 where "t1 '==>' t2" := (step t1 t2).
 
 Tactic Notation "step_cases" tactic(first) ident(c) :=
   first;
-  [ Case_aux c "E_AppAbs" | Case_aux c "E_App1" 
-  | Case_aux c "E_App2" | Case_aux c "E_TApp" 
-  | Case_aux c "E_TAppTabs" ].
+  [ Case_aux c "E_AppAbs"   | Case_aux c "E_App1" 
+  | Case_aux c "E_App2"     | Case_aux c "E_TApp" 
+  | Case_aux c "E_TAppTAbs" | Case_aux c "E_CApp"
+  | Case_aux c "E_CAppCAbs" | Case_aux c "E_Coerce"
+  | Case_aux c "E_CTrans"   | Case_aux c "E_PushApp"
+  | Case_aux c "E_PushTApp" | Case_aux c "E_PushCApp"
+  ].
 
 Hint Constructors step.
 
@@ -756,14 +812,21 @@ Notation "t1 '==>*' t2" := (multistep t1 t2) (at level 40).
 (* Reimplementing this as in the DeBruijn Indices paper *)
 
 Inductive context : Set :=
-  | empty : context
-  | ext_var : context -> ty -> context
-  | ext_tvar : context -> context.
+  | empty    : context
+  | ext_var  : context -> ty -> context
+  | ext_tvar : context -> context
+  | ext_cvar : context -> ty * ty -> context.
 
 Definition opt_map {A B : Type} (f : A -> B) (x : option A) :=
   match x with
   | Some x => Some (f x)
   | None => None
+  end.
+
+Definition opt_map_prod {A B : Type} (f : A -> B) (p : option (A * A)) :=
+  match p with
+    | Some (x, y) => Some (f x, f y)
+    | None        => None
   end.
 
 Fixpoint get_var (E : context) (x : nat) : option ty :=
@@ -774,7 +837,8 @@ Fixpoint get_var (E : context) (x : nat) : option ty :=
         | O   => Some T
         | S y => get_var E' y
       end
-    | ext_tvar E'  => opt_map (tshift 0) (get_var E' x)
+    | ext_tvar E'   => opt_map (tshift 0) (get_var E' x)
+    | ext_cvar E' _ => get_var E' x
   end.
 
 Fixpoint get_tvar (E : context) (N : nat) : bool :=
@@ -786,15 +850,28 @@ Fixpoint get_tvar (E : context) (N : nat) : bool :=
         | O => true
         | S N' => get_tvar E' N'
       end
+    | ext_cvar E' _ => get_tvar E' N
   end.
 
-(* Should maybe have some proofs *)
+Fixpoint get_cvar (E : context) (N : nat) : option (ty * ty) :=
+  match E with
+    | empty => None
+    | ext_var E' _  => get_cvar E' N
+    | ext_tvar E'   => opt_map_prod (tshift 0) (get_cvar E' N)
+    | ext_cvar E' c =>
+      match N with
+        | O    => Some c
+        | S N' => get_cvar E' N'
+      end
+  end.
 
 Fixpoint wf_ty (Gamma : context) (T : ty) : Prop :=
   match T with
   | TVar X       => get_tvar Gamma X = true
   | TArrow T1 T2 => wf_ty Gamma T1 /\ wf_ty Gamma T2
   | TUniv  T     => wf_ty (ext_tvar Gamma) T
+  (* THIS MIGHT BE WRONG *)
+  | TCoerce T    => wf_ty Gamma T
   end.
 
 Inductive well_formed_type (Gamma : context) : ty -> Prop :=
@@ -807,7 +884,10 @@ Inductive well_formed_type (Gamma : context) : ty -> Prop :=
       well_formed_type Gamma (TArrow T1 T2)
   | WF_TUniv : forall T,
       well_formed_type (ext_tvar Gamma) T ->
-      well_formed_type Gamma (TUniv T).
+      well_formed_type Gamma (TUniv T)
+  | WF_TCoerce : forall T,
+      well_formed_type Gamma T ->
+      well_formed_type Gamma (TCoerce T).
 
 Lemma wf_type_correct : forall Gamma T,
   well_formed_type Gamma T <-> wf_ty Gamma T.
@@ -820,6 +900,7 @@ Proof.
     constructor. simpl in H. trivial.
     constructor; simpl in H; inversion H. apply IHT1. trivial.
       apply IHT2. trivial.
+    constructor. simpl in H. apply IHT. trivial.
     constructor. simpl in H. apply IHT. trivial.
 Qed.
 
@@ -836,25 +917,7 @@ Inductive well_formed_context : context -> Prop :=
       well_formed_context (ext_tvar Gamma).
 
 
-(* Context Substitution *)
-(* Fixpoint subst_context_fix (n:nat) (T':ty) (Gamma:context) : context := *)
-(*   match Gamma with *)
-(*     | empty => empty *)
-(*     | ext_var Gamma' x T => ext_var (subst_context_fix n T' Gamma') x ([n:=T']T) *)
-(*     | ext_tvar Gamma' => *)
-(*       match n with *)
-(*         | S n' => ext_tvar (subst_context_fix n' (tunshift 0 T') Gamma') *)
-(*         | 0    => Gamma' *)
-(*       end *)
-(*   end. *)
-
-(* Instance subst_ctx : Subst nat ty context := { *)
-(*   do_subst := subst_context_fix *)
-(* }. *)
-
 Inductive subst_context : ty -> nat -> context -> context -> Prop := 
-  (* | s_empty : forall T n, *)
-  (*     subst_context T n empty empty *)
   | s_ext_var : forall T n Gamma Gamma' U U',
       subst_context T n Gamma Gamma' ->
       subst_type_in_type T n U U' ->
@@ -871,33 +934,45 @@ Inductive subst_context : ty -> nat -> context -> context -> Prop :=
 Hint Constructors subst_context.
 
 
-(* Theorem subst_context_correct : forall T n Gamma Gamma', *)
-(*   [n := T] Gamma = Gamma' <-> subst_context T n Gamma Gamma'. *)
-(* Proof with auto. *)
-(*   intros; split. *)
-(*   Case "->". *)
-(*     generalize dependent Gamma'. generalize dependent n. *)
-(*     generalize dependent T. induction Gamma; intros; rewrite <- H... *)
-(*     SCase "Gamma = ext_var Gamma i t". *)
-(*       constructor. apply IHGamma. reflexivity. *)
-(*       apply subst_type_in_type_correct. trivial. *)
-(*     SCase "Gamma = ext_tvar Gamma". *)
-(*       destruct n. *)
-(*       SSCase "n = 0". *)
-(*         simpl... *)
-(*       SSCase "n = S n'". *)
-(*         simpl. constructor. apply IHGamma. reflexivity. *)
-(*   Case "<-". *)
-(*     intro H. induction H; simpl; *)
-(*     subst; try reflexivity; try assumption. *)
-(*     apply subst_type_in_type_correct in H0. subst... *)
-(* Qed. *)
-
-(** [] *)
-
 
 (* ################################### *)
 (** *** Typing Relation *)
+
+Reserved Notation "Gamma '|-' t ';' T1 '~' T2" (at level 40).
+    
+Inductive well_formed_coercion (Gamma : context) : cn -> ty -> ty -> Prop :=
+  | C_Var : forall x T1 T2,
+      well_formed_context Gamma        ->
+      get_cvar Gamma x = Some (T1, T2) ->
+      Gamma |- CVar x ; T1 ~ T2
+  | C_Refl : forall T,
+      well_formed_type Gamma T ->
+      Gamma |- CRefl ; T ~ T
+  | C_Sym : forall c T1 T2,
+      Gamma |- c ; T1 ~ T2 ->
+      Gamma |- CSym c ; T2 ~ T1
+  | C_Trans : forall c1 c2 U V W,
+      Gamma |- c1 ; U ~ V ->
+      Gamma |- c2 ; V ~ W ->
+      Gamma |- CTrans c1 c2 ; U ~ W
+  (* Not sure how to do CO_App *)
+  | C_Forall : forall c U V,
+      ext_tvar Gamma |- c ; U ~ V ->
+      Gamma |- CTAbs c ; TUniv U ~ TUniv V
+  | C_Left : forall c U1 U2 V1 V2,
+      Gamma |- c ; (TArrow U1 U2) ~ (TArrow V1 V2) ->
+      Gamma |- CLeft c ; U1 ~ V1
+  | C_Right : forall c U1 U2 V1 V2,
+      Gamma |- c ; (TArrow U1 U2) ~ (TArrow V1 V2) ->
+      Gamma |- CRight c ; U2 ~ V2
+  | C_Inst : forall c U V T,
+      Gamma |- c ; U ~ V       ->
+      well_formed_type Gamma T ->
+      Gamma |- CTApp c T ; ([0 := T] U) ~ ([0 := T] V)
+    
+where "Gamma '|-' c ';' T1 '~' T2" := (well_formed_coercion Gamma c T1 T2).
+
+
 
 (** 
                              Gamma x = T
@@ -952,25 +1027,21 @@ Inductive has_type : context -> tm -> ty -> Prop :=
       well_formed_type Gamma T2   ->
       well_formed_context Gamma   ->
       Gamma |- ttapp t1 T2 \in [0 := T2] T12
+  | T_Coerce : forall Gamma t c T1 T2,
+      Gamma |- c ; T1 ~ T2 ->
+      Gamma |- t \in T1    ->
+      Gamma |- tcoerce t c \in T2
+
       
 where "Gamma '|-' t '\in' T" := (has_type Gamma t T).
 
 Tactic Notation "has_type_cases" tactic(first) ident(c) :=
   first;
-  [ Case_aux c "T_Var" | Case_aux c "T_Abs" 
-  | Case_aux c "T_App" | Case_aux c "T_TAbs" 
-  | Case_aux c "T_TApp" ].
+  [ Case_aux c "T_Var"  | Case_aux c "T_Abs" 
+  | Case_aux c "T_App"  | Case_aux c "T_TAbs" 
+  | Case_aux c "T_TApp" | Case_aux c "T_Coerce" ].
 
 Hint Constructors has_type.
 
-(* ################################### *)
-(** *** Examples *)
-
-Lemma type_unique : (forall S T, ~ (S = (TArrow S T))).
-  induction S; intros T contra; inversion contra; clear contra.
-  apply (IHS1 S2). assumption.
-Qed.  
-
-
-End SYSTEMF.
+End SYSTEMFC.
 
