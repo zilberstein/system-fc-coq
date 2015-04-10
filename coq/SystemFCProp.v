@@ -597,6 +597,181 @@ Proof.
       destruct (get_var Gamma x). inversion H0. trivial.
 Qed.
 
+Fixpoint remove_cvar (Gamma : context) (x : nat) : context :=
+  match Gamma with
+  | empty            => empty
+  | ext_tvar Gamma'  => ext_tvar (remove_cvar Gamma' x)
+  | ext_var Gamma' T => ext_var (remove_cvar Gamma' x) T
+  | ext_cvar Gamma' (U, V) =>
+    match x with
+      | O   => Gamma'
+      | S y => ext_cvar (remove_cvar Gamma' y) (U, V)
+    end
+  end.
+
+Lemma remove_cvar_get_tvar : forall Gamma X x,
+  get_tvar Gamma X = get_tvar (remove_cvar Gamma x) X.
+Proof with eauto.
+  induction Gamma; intros; try (destruct X); try (destruct p; destruct x);
+  simpl; trivial.
+Qed.    
+
+Lemma remove_cvar_ty_weakening : forall Gamma X T,
+  well_formed_type Gamma T ->
+  well_formed_type (remove_cvar Gamma X) T.
+Proof.
+  intros. generalize dependent X; generalize dependent Gamma;
+          induction T; intros; constructor; inversion H.
+  Case "TVar".
+    subst. rewrite <- remove_cvar_get_tvar. trivial.
+  Case "TArrow".
+    apply IHT1; trivial. apply IHT2; trivial.
+  Case "TUniv".
+    eapply IHT in H1. simpl in H1. apply H1.
+  Case "TCoerce".
+    apply IHT1; trivial. apply IHT2; trivial. apply IHT3; trivial.
+Qed.
+
+Lemma remove_cvar_ty_strengthening : forall Gamma X T,
+  well_formed_type (remove_cvar Gamma X) T ->
+  well_formed_type Gamma T.
+Proof.
+  intros. generalize dependent X; generalize dependent Gamma;
+          induction T; intros; constructor; inversion H.
+  Case "TVar".
+    subst. erewrite remove_cvar_get_tvar. apply H1.
+  Case "TArrow".
+    eapply IHT1; apply H2. eapply IHT2; apply H3.
+  Case "TUniv".
+    eapply IHT. simpl. apply H1.
+  Case "TCoerce".
+    eapply IHT1; apply H3. eapply IHT2; apply H4. eapply IHT3; eassumption.
+Qed.
+
+(* Lemma remove_cvar_weakening : forall Gamma X c U V, *)
+(*   remove_cvar Gamma X |- c ; U ~ V -> *)
+(*   Gamma |- c ; U ~ V. *)
+(* Proof. *)
+(*   induction c; intros; inversion H; subst. *)
+(*   Case "CVar". *)
+(*     constructor. *)
+
+
+(* Lemma wf_coercion_context_weaken : forall Gamma Gamma' c U V, *)
+(*   (forall X, get_cvar Gamma' X = None -> get_cvar Gamma X = None) -> *)
+(*   Gamma  |- c ; U ~ V -> *)
+(*   Gamma' |- c ; U ~ V. *)
+(* Proof. *)
+
+(*     assert (get_cvar Gamma' n = None -> get_cvar Gamma n = None) by apply H. *)
+(*     rewrite <- contrapositive in  *)
+
+Lemma context_invariance_coercions : forall Gamma Gamma' c U V,
+  (forall X, get_cvar Gamma' X = get_cvar Gamma X) ->
+  Gamma  |- c ; U ~ V ->
+  Gamma' |- c ; U ~ V.
+Proof.
+  intros Gamma Gamma' c; generalize dependent Gamma; generalize dependent Gamma';
+  induction c; intros; inversion H0; subst; econstructor;
+  try (eapply IHc1; trivial; eassumption);
+  try (eapply IHc2; trivial; eassumption);
+  try (eapply IHc; trivial; eassumption).
+  Case "CVar".
+    rewrite H. trivial.
+  Case "CTAbs".
+    eapply IHc with (ext_tvar Gamma). intros. simpl. rewrite H. trivial.
+    trivial.
+Qed.      
+
+Lemma ext_var_coercion_strengthening : forall Gamma c T U V,
+  ext_var Gamma T |- c ; U ~ V ->
+  Gamma |- c ; U ~ V.
+Proof.
+  intros Gamma c; generalize dependent Gamma; induction c; intros;
+  inversion H; subst; econstructor; try (eapply IHc; eassumption);
+  repeat (eapply wf_strengthening_var; eassumption).
+  Case "CVar".
+    inversion H1. trivial. simpl in H2. trivial.
+  Case "CTrans".
+    eapply IHc1. eassumption. eapply IHc2. eassumption.
+  Case "CApp".
+    eapply IHc1. eassumption. eapply IHc2. eassumption.
+  Case "CTAbs".
+    apply IHc with T. apply context_invariance_coercions with
+                (ext_tvar (ext_var Gamma T)).
+    intro. simpl. trivial. trivial.
+Qed.    
+
+(* Lemma remove_cvar_context_weakening : forall Gamma X c U V, *)
+(*   well_formed_context (remove_cvar Gamma X) -> *)
+(*   remove_cvar Gamma X |- c ; U ~ V -> *)
+(*   well_formed_context Gamma. *)
+(* Proof. *)
+(*   intros. generalize dependent X; generalize dependent c; *)
+(*           generalize dependent U; generalize dependent V; *)
+(*           induction Gamma; intros; try constructor. *)
+(*   Case "ext_var". *)
+(*     simpl in H. inversion H. subst. eapply remove_cvar_ty_strengthening. *)
+(*     apply H3. simpl in H. inversion H. eapply IHGamma. *)
+(*     apply H4. subst. simpl in H0. eapply ext_var_coercion_strengthening. *)
+(*     eassumption. *)
+(*   Case "ext_tvar". *)
+(*     admit *)
+    
+
+(* eapply IHGamma with V U c X. inversion H; subst. trivial. *)
+(*     simpl in H0.  *)
+
+(*   Case "ext_tvar". *)
+    
+Lemma remove_preserves_get_cvar : forall Gamma x n,
+   get_cvar Gamma x = get_cvar (remove_cvar Gamma n) x.
+Proof.
+  induction Gamma; intros; simpl; trivial.
+  Case "ext_cvar".  
+    erewrite IHGamma. reflexivity.
+    destruct x; destruct p. destruct n. 
+      
+
+
+
+Lemma coercion_weakening : forall Gamma c X U V,
+  remove_cvar Gamma X |- c ; U ~ V ->
+  Gamma |- c ; U ~ V.
+Proof.
+  intros. generalize dependent X; generalize dependent U;
+          generalize dependent V; induction c; intros; inversion H; subst.
+  Case "CVar".
+    constructor. destruct (eq_id_dec X n).
+
+Lemma cn_substitution_preserves_coercion : forall Gamma x c c' U1 U2 V1 V2,
+  Gamma |- c ; U1 ~ U2                ->
+  remove_cvar Gamma x |- c' ; V1 ~ V2 ->
+  get_cvar Gamma x = Some (V1, V2)    ->
+  Gamma |- [x := c'] c ; U1 ~ U2.
+Proof.
+  intros. generalize dependent x;  generalize dependent V1;
+          generalize dependent V2; generalize dependent c';
+          induction H; intros; simpl; try constructor.
+  Case "CVar".
+    destruct eq_nat_dec.
+    SCase "x = x0".
+      subst. rewrite H in H1. inversion H1; subst.
+  Case "CRefl".
+    simpl. constructor. trivial.
+  Case "CSym".
+    simpl. constructor. eapply IHwell_formed_coercion.
+    apply H0.
+  Case "CTrans".
+    simpl. econstructor. eapply IHwell_formed_coercion1. apply H1.
+    eapply IHwell_formed_coercion2. apply H1.
+  Case "CApp".
+    simpl. constructor. eapply IHwell_formed_coercion1. apply H3.
+    eapply IHwell_formed_coercion2. apply H3.
+    trivial. trivial.
+  Case "CTAbs".
+    simpl. constructor. eapply IHwell_formed_coercion. 
+
 
 Lemma ty_substitution_preserves_typing : forall Gamma Gamma' X t T U,
   subst_context U X Gamma Gamma' ->

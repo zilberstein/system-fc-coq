@@ -964,11 +964,9 @@ Reserved Notation "Gamma '|-' t ';' T1 '~' T2" (at level 40).
     
 Inductive well_formed_coercion (Gamma : context) : cn -> ty -> ty -> Prop :=
   | C_Var : forall x T1 T2,
-      well_formed_context Gamma        ->
       get_cvar Gamma x = Some (T1, T2) ->
       Gamma |- CVar x ; T1 ~ T2
   | C_Refl : forall T,
-      well_formed_type Gamma T ->
       Gamma |- CRefl ; T ~ T
   | C_Sym : forall c T1 T2,
       Gamma |- c ; T1 ~ T2 ->
@@ -980,25 +978,18 @@ Inductive well_formed_coercion (Gamma : context) : cn -> ty -> ty -> Prop :=
   | C_App : forall c1 c2 U1 U2 V1 V2,
       Gamma |- c1 ; U1 ~ V1 ->
       Gamma |- c2 ; U2 ~ V2 ->
-      well_formed_type Gamma (TArrow U1 U2) ->
-      well_formed_type Gamma (TArrow V1 V2) ->
       Gamma |- CApp c1 c2 ; (TArrow U1 U2) ~ (TArrow V1 V2)
   | C_Forall : forall c U V,
       ext_tvar Gamma |- c ; U ~ V ->
       Gamma |- CTAbs c ; TUniv U ~ TUniv V
   | C_Left : forall c U1 U2 V1 V2,
       Gamma |- c ; (TArrow U1 U2) ~ (TArrow V1 V2) ->
-      well_formed_type Gamma U1                    ->
-      well_formed_type Gamma V1                    ->
       Gamma |- CLeft c ; U1 ~ V1
   | C_Right : forall c U1 U2 V1 V2,
       Gamma |- c ; (TArrow U1 U2) ~ (TArrow V1 V2) ->
-      well_formed_type Gamma U2                    ->
-      well_formed_type Gamma V2                    ->
       Gamma |- CRight c ; U2 ~ V2
   | C_Inst : forall c U V T,
       Gamma |- c ; TUniv U ~ TUniv V ->
-      well_formed_type Gamma T       ->
       Gamma |- CTApp c T ; ([0 := T] U) ~ ([0 := T] V)
     
 where "Gamma '|-' c ';' T1 '~' T2" := (well_formed_coercion Gamma c T1 T2).
