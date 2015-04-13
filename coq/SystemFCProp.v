@@ -883,41 +883,6 @@ Proof.
     apply remove_cvar_ty_weakening. trivial.
 Qed.
 
-(* Lemma wf_context_weakening_cvar : forall Gamma X, *)
-(*   well_formed_context (remove_cvar Gamma X) -> *)
-(*   well_formed_context Gamma. *)
-(* Proof. *)
-(*   induction Gamma; intros. *)
-(*   Case "ext_var". *)
-(*     inversion H; simpl in H; trivial. *)
-(*     constructor. eapply remove_cvar_ty_strengthening. inversion H. eassumption. *)
-(*     eapply IHGamma. inversion H. eassumption. *)
-(*   Case "ext_tvar". *)
-(*     inversion H. constructor. eapply IHGamma. eassumption. *)
-(*   Case "ext_cvar". *)
-(*     destruct p. constructor. destruct X. *)
-(*       trivial. *)
-(*       inversion H; subst. eapply IHGamma. eassumption. *)
-    
-  
-
-(* Lemma remove_cvar_weakening : forall Gamma X c U V, *)
-(*   remove_cvar Gamma X |- c ; U ~ V -> *)
-(*   Gamma |- c ; U ~ V. *)
-(* Proof. *)
-(*   induction c; intros; inversion H; subst. *)
-(*   Case "CVar". *)
-(*     constructor. *)
-
-
-(* Lemma wf_coercion_context_weaken : forall Gamma Gamma' c U V, *)
-(*   (forall X, get_cvar Gamma' X = None -> get_cvar Gamma X = None) -> *)
-(*   Gamma  |- c ; U ~ V -> *)
-(*   Gamma' |- c ; U ~ V. *)
-(* Proof. *)
-
-(*     assert (get_cvar Gamma' n = None -> get_cvar Gamma n = None) by apply H. *)
-(*     rewrite <- contrapositive in  *)
 
 Lemma wf_type_weakening_cvar : forall Gamma U V T,
   well_formed_type Gamma T ->
@@ -996,28 +961,6 @@ Proof.
     split; apply forall_type_well_formed; trivial. 
 Qed.
 
-(* Lemma context_invariance_coercions : forall Gamma Gamma' c U V, *)
-(*   (forall X, get_cvar Gamma' X = get_cvar Gamma X) -> *)
-(*   Gamma  |- c ; U ~ V -> *)
-(*   Gamma' |- c ; U ~ V. *)
-(* Proof. *)
-(*   intros Gamma Gamma' c; generalize dependent Gamma; generalize dependent Gamma'; *)
-(*   induction c; intros; inversion H1; subst; econstructor; *)
-(*   try assumption; *)
-(*   try (eapply IHc1; trivial; eassumption); *)
-(*   try (eapply IHc2; trivial; eassumption); *)
-(*   try (eapply IHc; trivial; eassumption). *)
-(*   Case "CVar". *)
-(*     rewrite H2. trivial. *)
-(*   Case "CTrans". *)
-(*     eapply IHc1. trivial. trivial. apply H0. eassumption. *)
-(*     eapply IHc2. trivial. trivial. *)
-    
-(*   Case "CTAbs". *)
-(*     eapply IHc with (ext_tvar Gamma). intros. simpl. rewrite H. trivial. *)
-(*     trivial. *)
-(* Qed.       *)
-
 Lemma ext_var_coercion_strengthening : forall Gamma Gamma' c n U V,
   remove_var Gamma n = Gamma'  ->
   Gamma  |- c ; U ~ V ->
@@ -1037,27 +980,6 @@ Proof.
     eapply IHc with (ext_tvar Gamma) n. simpl. trivial. trivial.
 Qed.    
 
-(* Lemma remove_cvar_context_weakening : forall Gamma X c U V, *)
-(*   well_formed_context (remove_cvar Gamma X) -> *)
-(*   remove_cvar Gamma X |- c ; U ~ V -> *)
-(*   well_formed_context Gamma. *)
-(* Proof. *)
-(*   intros. generalize dependent X; generalize dependent c; *)
-(*           generalize dependent U; generalize dependent V; *)
-(*           induction Gamma; intros; try constructor. *)
-(*   Case "ext_var". *)
-(*     simpl in H. inversion H. subst. eapply remove_cvar_ty_strengthening. *)
-(*     apply H3. simpl in H. inversion H. eapply IHGamma. *)
-(*     apply H4. subst. simpl in H0. eapply ext_var_coercion_strengthening. *)
-(*     eassumption. *)
-(*   Case "ext_tvar". *)
-(*     admit *)
-    
-
-(* eapply IHGamma with V U c X. inversion H; subst. trivial. *)
-(*     simpl in H0.  *)
-
-(*   Case "ext_tvar". *)
     
 Lemma get_cvar_remove_lt : forall Gamma x y,
    x < y ->
@@ -1195,51 +1117,56 @@ Proof.
     apply remove_cvar_ty_weakening; trivial.
 Qed.
 
-Lemma ty_substitution_preserves_typing : forall Gamma Gamma' X t T U,
-  subst_context U X Gamma Gamma' ->
-  Gamma |- t \in T               ->
-  Gamma' |- [X := U] t \in [X := U] T.
-Proof.
-  intros. generalize dependent X. generalize dependent Gamma'.
-  generalize dependent U. has_type_cases (induction H0) Case;
-  intros.
-  Case "T_Var".
-    simpl. constructor. eapply subst_context_wf.
-    apply H1. trivial.
-    rewrite context_subst_get_var with (1 := H1). rewrite H0.
-    trivial.
-  Case "T_Abs".
-    simpl. constructor. 
-    apply IHhas_type. constructor. trivial.
-    apply subst_type_in_type_correct. trivial.
-  Case "T_App".
-    simpl. econstructor. simpl in IHhas_type1. apply IHhas_type1. trivial.
-    apply IHhas_type2. trivial.
-  Case "T_TAbs".
-    simpl. constructor. apply IHhas_type. assert (X + 1 = S X) by omega.
-    rewrite H1. constructor. trivial.
-  Case "T_TApp".
-    simpl. 
-    assert (subst_type_fix X U t1 = [X := U] t1) by trivial. rewrite H3; clear H3.
-    assert (subst_type_in_type_fix X U T2 = [X := U] T2) by trivial.
-      rewrite H3; clear H3.
-    assert (subst_type_in_type_fix 0 T2 T12 = [0 := T2] T12) by trivial.
-      rewrite H3; clear H3.
-    assert (subst_type_in_type_fix X U ([0:=T2]T12) = [X := U]([0:=T2]T12))
-        by trivial. rewrite H3; clear H3.
-    assert (X = 0 + X) by trivial. rewrite H3.  
-    rewrite tsubst_tsubst_prop. constructor. 
-    assert (TUniv ([1 + 0 + X := tshift 0 U]T12) = [X := U](TUniv T12)).
-      simpl. assert (S X = X + 1) by omega. rewrite H4. trivial.
-    rewrite H4. apply IHhas_type. trivial. 
-    simpl. eapply subst_preserves_well_formed_type. apply H2. trivial.
-    eapply subst_context_wf. apply H2. trivial.
-    eapply subst_context_wf. apply H2. trivial.
-  Case "T_CAbs".
-    simpl. constructor. apply IHhas_type. trivial.
-  Case "T_CApp".
-    simpl. econstructor. apply IHhas_type. trivial. trivial.
-Qed.
+(* Lemma ty_substitution_preserves_typing : forall Gamma Gamma' X t T U, *)
+(*   subst_context U X Gamma Gamma' -> *)
+(*   Gamma |- t \in T               -> *)
+(*   Gamma' |- [X := U] t \in [X := U] T. *)
+(* Proof. *)
+(*   intros. generalize dependent X. generalize dependent Gamma'. *)
+(*   generalize dependent U. has_type_cases (induction H0) Case; *)
+(*   intros. *)
+(*   Case "T_Var". *)
+(*     simpl. constructor. eapply subst_context_wf. *)
+(*     apply H1. trivial. *)
+(*     rewrite context_subst_get_var with (1 := H1). rewrite H0. *)
+(*     trivial. *)
+(*   Case "T_Abs". *)
+(*     simpl. constructor.  *)
+(*     apply IHhas_type. constructor. trivial. *)
+(*     apply subst_type_in_type_correct. trivial. *)
+(*   Case "T_App". *)
+(*     simpl. econstructor. simpl in IHhas_type1. apply IHhas_type1. trivial. *)
+(*     apply IHhas_type2. trivial. *)
+(*   Case "T_TAbs". *)
+(*     simpl. constructor. apply IHhas_type. assert (X + 1 = S X) by omega. *)
+(*     rewrite H1. constructor. trivial. *)
+(*   Case "T_TApp". *)
+(*     simpl.  *)
+(*     assert (subst_type_fix X U t1 = [X := U] t1) by trivial. rewrite H3; clear H3. *)
+(*     assert (subst_type_in_type_fix X U T2 = [X := U] T2) by trivial. *)
+(*       rewrite H3; clear H3. *)
+(*     assert (subst_type_in_type_fix 0 T2 T12 = [0 := T2] T12) by trivial. *)
+(*       rewrite H3; clear H3. *)
+(*     assert (subst_type_in_type_fix X U ([0:=T2]T12) = [X := U]([0:=T2]T12)) *)
+(*         by trivial. rewrite H3; clear H3. *)
+(*     assert (X = 0 + X) by trivial. rewrite H3.   *)
+(*     rewrite tsubst_tsubst_prop. constructor.  *)
+(*     assert (TUniv ([1 + 0 + X := tshift 0 U]T12) = [X := U](TUniv T12)). *)
+(*       simpl. assert (S X = X + 1) by omega. rewrite H4. trivial. *)
+(*     rewrite H4. apply IHhas_type. trivial.  *)
+(*     simpl. eapply subst_preserves_well_formed_type. apply H2. trivial. *)
+(*     eapply subst_context_wf. apply H2. trivial. *)
+(*     eapply subst_context_wf. apply H2. trivial. *)
+(*   Case "T_CAbs". *)
+(*     simpl. constructor. apply IHhas_type. trivial. *)
+(*   Case "T_CApp". *)
+(*     simpl. econstructor. simpl in IHhas_type. apply IHhas_type. trivial. *)
+    
+
+(* eapply cn_substitution_preserves_coercion in H. *)
+
+(*  apply IHhas_type. trivial. trivial. *)
+(* Qed. *)
 
 Lemma type_in_context_wf : forall x T Gamma,
   well_formed_context Gamma ->
@@ -1260,6 +1187,8 @@ Proof.
     inversion H.
     trivial. apply Hg.
     inversion H0.
+    destruct p. apply wf_type_weakening_cvar. eapply IHGamma. inversion H.
+    trivial. simpl in H0. eassumption.
 Qed.
 
 
@@ -1284,8 +1213,30 @@ Proof.
     inversion IHhas_type. simpl.
     eapply subst_preserves_well_formed_type. constructor. trivial.
     trivial. inversion H2. trivial. trivial. trivial.
+  Case "T_CAbs".
+    inversion IHhas_type. constructor; trivial.
+    inversion IHhas_type. trivial.
+  Case "T_CApp".
+    inversion IHhas_type. inversion H1. trivial.
+    inversion IHhas_type. trivial.
+    apply coercion_well_formed in H. inversion H. inversion H2. trivial.
+    inversion IHhas_type. trivial.
 Qed.
 
+Lemma coercion_weakening_var : forall Gamma c x U V,
+  well_formed_context Gamma ->
+  remove_var Gamma x |- c ; U ~ V ->
+  Gamma |- c; U ~ V.
+Proof.
+  intros Gamma c; generalize dependent Gamma; induction c; intros;
+  inversion H0; subst; econstructor; trivial;
+  try (eapply IHc; try constructor; trivial; eassumption);
+  try (eapply IHc1; trivial; eassumption);
+  try (eapply IHc2; trivial; eassumption);
+  try (eapply wf_type_insert_var; eassumption).
+  Case "CVar".
+    erewrite remove_var_get_cvar. eassumption.
+Qed.    
 
 Lemma typing_weakening_var_ind : forall Gamma n t U,
   well_formed_context Gamma ->
@@ -1315,6 +1266,17 @@ Proof.
   Case "ttabs".
     simpl. constructor. apply IHt. constructor. trivial.
     simpl. trivial.
+  Case "tcapp".
+    simpl. econstructor. apply IHt. trivial. eassumption.
+    eapply coercion_weakening_var. trivial. eassumption.
+  Case "tcabs".
+    simpl. constructor. apply IHt. trivial. trivial.
+    eapply wf_type_insert_var. eassumption.
+    eapply wf_type_insert_var. eassumption.
+  Case "tcoerce".
+    simpl. econstructor. eapply coercion_weakening_var. trivial.
+    eassumption.
+    apply IHt. trivial. trivial.
 Qed.
 
 Lemma typing_weakening_var : forall Gamma t U V,
@@ -1351,6 +1313,16 @@ Proof.
     constructor. apply IHhas_type. trivial. eapply insert_tvar_wf_type.
     apply H2. trivial. eapply insert_tvar_wf_context. apply H2.
     trivial.
+  Case "T_CAbs".
+    constructor. apply IHhas_type. trivial.
+    eapply insert_tvar_wf_type. eassumption. trivial.
+    eapply insert_tvar_wf_type. eassumption. trivial.
+  Case "T_CApp".
+    econstructor. simpl in IHhas_type. apply IHhas_type. trivial.
+    eapply coercion_weakening_tvar_ind. eassumption. trivial.
+  Case "T_Coerce".
+    econstructor. eapply coercion_weakening_tvar_ind. eassumption. eassumption.
+    apply IHhas_type. trivial.
 Qed.
 
 Lemma typing_weakening_tvar : forall Gamma t U,
@@ -1472,6 +1444,9 @@ Proof with auto.
     rewrite H0. apply IHt with (tshift 0 U).
     trivial. rewrite <- H0. apply typing_weakening_tvar. trivial.
     simpl. rewrite Hx. trivial.
+  Case "tcapp".
+    econstructor. eapply IHt. eassumption. eassumption.
+    trivial. 
 Qed.
 
 

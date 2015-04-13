@@ -129,7 +129,7 @@ Fixpoint shift_typ (X : nat) (t : tm) {struct t} : tm :=
     | tapp t1 t2     => tapp (shift_typ X t1) (shift_typ X t2)
     | ttabs t2       => ttabs (shift_typ (1 + X) t2)
     | ttapp t1 T2    => ttapp (shift_typ X t1) (tshift X T2)
-    | tcapp t1 c2    => tcapp (shift_typ X t1) (cshift X c2)
+    | tcapp t1 c2    => tcapp (shift_typ X t1) (cshift_typ X c2)
     | tcabs T1 T2 t2 => tcabs (tshift X T1) (tshift X T2) (shift_typ X t2)
     | tcoerce t1 c2  => tcoerce (shift_typ X t1) (cshift_typ X c2)
   end.
@@ -1059,7 +1059,9 @@ Inductive has_type : context -> tm -> ty -> Prop :=
       well_formed_context Gamma   ->
       Gamma |- ttapp t1 T2 \in [0 := T2] T12
   | T_CAbs : forall Gamma t T1 T2 T,
-      Gamma |- t \in T ->
+      Gamma |- t \in T          ->
+      well_formed_type Gamma T1 ->
+      well_formed_type Gamma T2 ->
       Gamma |- tcabs T1 T2 t \in TCoerce T1 T2 T
   | T_CApp : forall Gamma U1 U2 T t c,
       Gamma |- t \in (TCoerce U1 U2 T) ->
