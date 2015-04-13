@@ -936,7 +936,12 @@ Inductive well_formed_context : context -> Prop :=
       well_formed_context (ext_var Gamma T)
   | WFC_ext_tvar : forall Gamma,
       well_formed_context Gamma ->
-      well_formed_context (ext_tvar Gamma).
+      well_formed_context (ext_tvar Gamma)
+  | WFC_ext_cvar : forall Gamma U V,
+      well_formed_context Gamma ->
+      well_formed_type Gamma U  ->
+      well_formed_type Gamma V  ->
+      well_formed_context (ext_cvar Gamma (U, V)).
 
 
 Inductive subst_context : ty -> nat -> context -> context -> Prop := 
@@ -964,9 +969,12 @@ Reserved Notation "Gamma '|-' t ';' T1 '~' T2" (at level 40).
     
 Inductive well_formed_coercion (Gamma : context) : cn -> ty -> ty -> Prop :=
   | C_Var : forall x T1 T2,
+      well_formed_context Gamma        ->
       get_cvar Gamma x = Some (T1, T2) ->
       Gamma |- CVar x ; T1 ~ T2
   | C_Refl : forall T,
+      well_formed_context Gamma ->
+      well_formed_type Gamma T  ->
       Gamma |- CRefl ; T ~ T
   | C_Sym : forall c T1 T2,
       Gamma |- c ; T1 ~ T2 ->
@@ -990,6 +998,7 @@ Inductive well_formed_coercion (Gamma : context) : cn -> ty -> ty -> Prop :=
       Gamma |- CRight c ; U2 ~ V2
   | C_Inst : forall c U V T,
       Gamma |- c ; TUniv U ~ TUniv V ->
+      well_formed_type Gamma T       ->
       Gamma |- CTApp c T ; ([0 := T] U) ~ ([0 := T] V)
     
 where "Gamma '|-' c ';' T1 '~' T2" := (well_formed_coercion Gamma c T1 T2).
