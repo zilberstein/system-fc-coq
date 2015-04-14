@@ -956,7 +956,12 @@ Inductive subst_context : ty -> nat -> context -> context -> Prop :=
       subst_context T 0 (ext_tvar Gamma) Gamma
   | s_ext_tvar : forall T n Gamma Gamma',
       subst_context T n Gamma Gamma' ->
-      subst_context (tshift 0 T) (S n) (ext_tvar Gamma) (ext_tvar Gamma').
+      subst_context (tshift 0 T) (S n) (ext_tvar Gamma) (ext_tvar Gamma')
+  | s_ext_cvar : forall T U1 V1 U2 V2 n Gamma Gamma',
+      subst_context T n Gamma Gamma' ->
+      subst_type_in_type T n U1 U2   ->
+      subst_type_in_type T n V1 V2   ->
+      subst_context T n (ext_cvar Gamma (U1, V1)) (ext_cvar Gamma' (U2, V2)).
 
 Hint Constructors subst_context.
 
@@ -1059,7 +1064,7 @@ Inductive has_type : context -> tm -> ty -> Prop :=
       well_formed_context Gamma   ->
       Gamma |- ttapp t1 T2 \in [0 := T2] T12
   | T_CAbs : forall Gamma t T1 T2 T,
-      Gamma |- t \in T          ->
+      ext_cvar Gamma (T1, T2) |- t \in T ->
       well_formed_type Gamma T1 ->
       well_formed_type Gamma T2 ->
       Gamma |- tcabs T1 T2 t \in TCoerce T1 T2 T
