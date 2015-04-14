@@ -29,6 +29,7 @@ Proof.
   exists t0. reflexivity.
 Qed.
 
+
 Lemma canonical_forms_cabs : forall t U V T,
   empty |- t \in TCoerce U V T ->
   uncoerced_value t        ->
@@ -1479,6 +1480,51 @@ Proof with auto.
     eassumption. eapply IHt. trivial. eassumption. trivial.
 Qed.
 
+Lemma cn_substitution_preserves_typing : forall Gamma t c x U V T,
+  Gamma |- t \in T                 ->
+  remove_cvar Gamma x |- c ; U ~ V ->
+  get_cvar Gamma x = Some (U, V)   ->
+  remove_cvar Gamma x |- [x:=c]t \in T.
+Proof.
+  intros Gamma t c; generalize dependent Gamma; generalize dependent c;
+  t_cases (induction t) Case; intros; inversion H; subst;
+  simpl; econstructor;
+  try (eapply IHt; eassumption; eassumption; trivial);
+  try (eapply IHt1; eassumption; eassumption; trivial);
+  try (eapply IHt2; eassumption; eassumption; trivial);
+  try (eapply cn_substitution_preserves_coercion; trivial; eassumption;
+       trivial).
+  Case "tvar".
+    simpl. apply wf_context_strengthening_cvar. trivial.
+    rewrite <- remove_cvar_get_var. trivial.
+  Case "tabs".
+    assert (ext_var (remove_cvar Gamma x) t = remove_cvar (ext_var Gamma t) x)
+    by trivial. rewrite H2. eapply IHt. trivial. simpl.
+    eapply coercion_weakening_var with 0. apply typing_well_formed in H6.
+    inversion H6. constructor; inversion H4; subst. apply remove_cvar_ty_weakening.
+    trivial. apply wf_context_strengthening_cvar. trivial.
+    simpl. eassumption. trivial.
+  Case "ttapp".
+    eapply remove_cvar_ty_weakening. trivial.
+    apply wf_context_strengthening_cvar. trivial.
+  Case "ttabs".
+    assert (ext_tvar (remove_cvar Gamma x) = remove_cvar (ext_tvar Gamma) x) by
+      trivial.
+    rewrite H2. eapply IHt. trivial. simpl. eapply coercion_weakening_tvar.
+    apply coercion_well_formed in H0. inversion H0. inversion H5. eassumption.
+    eassumption. simpl. rewrite H1. trivial.
+  Case "tcabs".
+    assert (ext_cvar (remove_cvar Gamma x) (t, t0) =
+            remove_cvar (ext_cvar Gamma (t, t0)) (S x)) by trivial.
+    rewrite H2. eapply IHt. trivial. simpl. apply coercion_weakening.
+    constructor. apply coercion_well_formed in H0. inversion H0. trivial.
+    apply remove_cvar_ty_weakening. trivial.
+    apply remove_cvar_ty_weakening. trivial.
+    simpl. eassumption. simpl. trivial. apply remove_cvar_ty_weakening. trivial.
+    apply remove_cvar_ty_weakening. trivial.
+Qed.
+    
+
 
 (** The substitution lemma can be viewed as a kind of "commutation"
     property.  Intuitively, it says that substitution and typing can
@@ -1609,6 +1655,19 @@ Proof.
     trivial.
 Qed.
 
+Lemma preservation_capp_cabs : forall Gamma t12 c T1 T2 U,
+  Gamma |- tcapp (tcabs T1 T2 t12) c \in U ->
+  Gamma |- [0 := c] t12 \in U.
+Proof.                               
+  intros. remember (tcapp (tcabs T1 T2 t12) c) as t.
+  induction H; try discriminate.
+    inversion Heqt; subst.
+    inversion H; subst.
+    eapply cn_substitution_preserves_typing with (x:=0) in H6.
+    simpl in H6. eassumption.
+    simpl. eassumption. simpl. trivial.
+Qed.
+
 
 Theorem preservation : forall Gamma t t' T,
      Gamma |- t \in T  ->
@@ -1659,11 +1718,26 @@ Proof with eauto.
     SCase "ST_AppAbs".
       eapply preservation_app_abs.
       inversion HT1... 
-    
+    SCase "ST_PushApp".
+      admit.
   Case "T_TApp".
     inversion HE; subst...
-    inversion HT; subst. apply preservation_tapp_tabs. constructor. trivial.
-    trivial. trivial. 
+    SCase "ST_TAppTAbs".
+      inversion HT; subst. apply preservation_tapp_tabs. constructor. trivial.
+      trivial. trivial. 
+    SCase "ST_PushTApp".
+      admit.
+  Case "T_CApp".
+    inversion HE; subst...
+    SCase "ST_CAppCAbs".
+      eapply preservation_capp_cabs...
+    SCase "ST_PushCApp".
+      admit.
+  Case "T_Coerce".
+    inversion HE; subst...
+    SCase "ST_CTrans".
+      inversion HT. econstructor. econstructor. eassumption. trivial.
+      trivial.
 Qed.
 
 (* ###################################################################### *)
@@ -1736,3 +1810,4 @@ Qed.
 (** [] *)
 
 End SYSTEMFPROP.
+

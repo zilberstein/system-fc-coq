@@ -662,7 +662,7 @@ Fixpoint subst_cn_in_tm_fix (x:nat) (c:cn) (t:tm) : tm :=
   | tapp t1 t2 => 
       tapp (subst_cn_in_tm_fix x c t1) (subst_cn_in_tm_fix x c t2)
   | ttabs t1 =>
-      ttabs (subst_cn_in_tm_fix x c t1) 
+      ttabs (subst_cn_in_tm_fix x (cshift_typ 0 c) t1) 
   | ttapp t' T' =>
       ttapp (subst_cn_in_tm_fix x c t') T'
   | tcabs T1 T2 t1 =>
@@ -688,7 +688,7 @@ Inductive subst_cn_in_tm (c:cn) (x:nat) : tm -> tm -> Prop :=
       subst_cn_in_tm c x t2 t2' ->
       subst_cn_in_tm c x (tapp t1 t2) (tapp t1' t2')
   | sct_ttabs : forall t t',
-      subst_cn_in_tm c x t t' ->
+      subst_cn_in_tm (cshift_typ 0 c) x t t' ->
       subst_cn_in_tm c x (ttabs t) (ttabs t')
   | sct_ttapp : forall t t' T,
       subst_cn_in_tm c x t t' ->
