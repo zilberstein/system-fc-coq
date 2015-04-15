@@ -1,10 +1,10 @@
 CC=coqc
 CFLAGS=
 
-all: SystemFC SystemFProp
+all: SystemFC SystemFCProp
 
-SystemFProp: SystemFProp.v SystemFC
-	$(CC) $(CFLAGS) SystemFProp.v
+SystemFCProp: SystemFCProp.v SystemFC
+	$(CC) $(CFLAGS) SystemFCProp.v
 
 SystemFC: SystemFC.v SfLib
 	$(CC) $(CFLAGS) SystemFC.v

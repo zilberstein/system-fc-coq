@@ -1,4 +1,4 @@
-(** * System F **)
+(** * System FC **)
 
 Require Export SfLib.
 
@@ -36,8 +36,7 @@ Inductive cn : Type :=
   | CTrans : cn -> cn -> cn
   | CApp   : cn -> cn -> cn
   | CAbs   : cn -> cn
-  | CLeft  : cn -> cn
-  | CRight : cn -> cn
+  | CNth   : nat -> cn -> cn
   | CTAbs  : cn -> cn
   | CTApp  : cn -> ty -> cn.
 
@@ -46,7 +45,7 @@ Tactic Notation "c_cases" tactic(first) ident(c) :=
   [ Case_aux c "CVar"   | Case_aux c "CRefl"
   | Case_aux c "CSym"   | Case_aux c "CTrans"
   | Case_aux c "CApp"   | Case_aux c "CAbs"
-  | Case_aux c "CLeft"  | Case_aux c "CRight"
+  | Case_aux c "CNth"
   | Case_aux c "CTAbs"  | Case_aux c "CTApp" ].
 
 Fixpoint cshift (X : nat) (c : cn) : cn :=
@@ -57,8 +56,7 @@ Fixpoint cshift (X : nat) (c : cn) : cn :=
   | CTrans c1 c2 => CTrans (cshift X c1) (cshift X c2)
   | CApp c1 c2   => CApp (cshift X c1) (cshift X c2)
   | CAbs c       => CAbs (cshift (S X) c)
-  | CLeft c      => CLeft (cshift X c)
-  | CRight c     => CRight (cshift X c)
+  | CNth n c     => CNth n (cshift X c)
   | CTAbs c      => CTAbs (cshift X c)
   | CTApp c T    => CTApp (cshift X c) T
   end.
@@ -71,8 +69,7 @@ Fixpoint cshift_typ (X : nat) (c : cn) : cn :=
   | CTrans c1 c2 => CTrans (cshift_typ X c1) (cshift_typ X c2)
   | CApp c1 c2   => CApp (cshift_typ X c1) (cshift_typ X c2)
   | CAbs c       => CAbs (cshift_typ X c)
-  | CLeft c      => CLeft (cshift_typ X c)
-  | CRight c     => CRight (cshift_typ X c)
+  | CNth n c     => CNth n (cshift_typ X c)
   | CTAbs c      => CTAbs (cshift_typ (S X) c)
   | CTApp c T    => CTApp (cshift_typ X c) (tshift X T)
   end.
@@ -193,8 +190,7 @@ Fixpoint subst_coercion_fix (x:nat) (d:cn) (c:cn) : cn :=
     | CTrans c1 c2 => CTrans (subst_coercion_fix x d c1) (subst_coercion_fix x d c2)
     | CApp c1 c2   => CApp (subst_coercion_fix x d c1) (subst_coercion_fix x d c2)
     | CAbs c       => CAbs (subst_coercion_fix (S x) (cshift 0 d) c)
-    | CLeft c      => CLeft (subst_coercion_fix x d c)
-    | CRight c     => CRight (subst_coercion_fix x d c)
+    | CNth n c     => CNth n (subst_coercion_fix x d c)
     | CTAbs c      => CTAbs (subst_coercion_fix x (cshift_typ 0 d) c)
     | CTApp c T    => CTApp (subst_coercion_fix x d c) T
   end.
@@ -228,12 +224,9 @@ Inductive subst_coercion : cn -> nat -> cn -> cn -> Prop :=
   | sc_cabs : forall d x c c',
       subst_coercion (cshift 0 d) (S x) c c' ->
       subst_coercion d x (CAbs c) (CAbs c')
-  | sc_left : forall d x c c',
+  | sc_nth : forall d x n c c',
       subst_coercion d x c c' ->
-      subst_coercion d x (CLeft c) (CLeft c')
-  | sc_right : forall d x c c',
-      subst_coercion d x c c' ->
-      subst_coercion d x (CRight c) (CRight c')
+      subst_coercion d x (CNth n c) (CNth n c')
   | sc_tabs : forall d x c c',
       subst_coercion (cshift_typ 0 d) x c c' ->
       subst_coercion d x (CTAbs c) (CTAbs c')
@@ -474,8 +467,7 @@ Fixpoint subst_ty_in_cn_fix (X:nat) (U:ty) (c:cn) : cn :=
     | CApp c1 c2   => CApp (subst_ty_in_cn_fix X U c1)
                            (subst_ty_in_cn_fix X U c2)
     | CAbs c       => CAbs (subst_ty_in_cn_fix X U c)
-    | CLeft c      => CLeft (subst_ty_in_cn_fix X U c)
-    | CRight c     => CRight (subst_ty_in_cn_fix X U c)
+    | CNth n c     => CNth n (subst_ty_in_cn_fix X U c)
     | CTAbs c      => CTAbs (subst_ty_in_cn_fix (S X) (tshift 0 U) c)
     | CTApp c T    => CTApp (subst_ty_in_cn_fix X U c) ([X := U] T)
   end.
@@ -503,12 +495,9 @@ Inductive subst_ty_in_cn (T:ty) (X:nat) : cn -> cn -> Prop :=
   | stc_cabs : forall c c',
       subst_ty_in_cn T X c c' ->
       subst_ty_in_cn T X (CAbs c) (CAbs c')
-  | stc_left : forall c c',
+  | stc_nth : forall c c' n,
       subst_ty_in_cn T X c c' ->
-      subst_ty_in_cn T X (CLeft c) (CLeft c')
-  | stc_right : forall c c',
-      subst_ty_in_cn T X c c' ->
-      subst_ty_in_cn T X (CRight c) (CRight c')
+      subst_ty_in_cn T X (CNth n c) (CNth n c')
   | stc_tabs : forall c c',
       subst_ty_in_cn (tshift 0 T) (S X) c c' ->
       subst_ty_in_cn T X (CTAbs c) (CTAbs c')
@@ -735,93 +724,6 @@ Proof.
 Qed.
 
 
-(* ################################### *)
-(** *** Reduction *)
-
-(** The small-step reduction relation for STLC now follows the same
-    pattern as the ones we have seen before.  Intuitively, to reduce a
-    function application, we first reduce its left-hand side until it
-    becomes a literal function; then we reduce its right-hand
-    side (the argument) until it is also a value; and finally we
-    substitute the argument for the bound variable in the body of the
-    function.  This last rule, written informally as
-      (\x:T.t12) v2 ==> [x:=v2]t12
-    is traditionally called "beta-reduction". *)
-
-(** 
-                               value v2
-                     ----------------------------                   (ST_AppAbs)
-                     (\x:T.t12) v2 ==> [x:=v2]t12
-
-                              t1 ==> t1'
-                           ----------------                           (ST_App1)
-                           t1 t2 ==> t1' t2
-
-                              value v1
-                              t2 ==> t2'
-                           ----------------                           (ST_App2)
-                           v1 t2 ==> v1 t2'
-*)
-
-
-Reserved Notation "t1 '==>' t2" (at level 40).
-
-Inductive step : tm -> tm -> Prop :=
-  | E_AppAbs : forall T t12 v2,
-         value v2 ->
-         (tapp (tabs T t12) v2) ==> [0:=v2]t12
-  | E_App1 : forall t1 t1' t2,
-         t1 ==> t1' ->
-         tapp t1 t2 ==> tapp t1' t2
-  | E_App2 : forall v1 t2 t2',
-         value v1 ->
-         t2 ==> t2' -> 
-         tapp v1 t2 ==> tapp v1  t2'
-  | E_TApp : forall t1 t1' T2,
-         t1 ==> t1' ->
-         ttapp t1 T2 ==> ttapp t1' T2
-  | E_TAppTAbs : forall t12 T2,
-         ttapp (ttabs t12) T2 ==> [0:=T2] t12
-  | E_CApp : forall t1 t1' c2,
-         t1 ==> t1' ->
-         tcapp t1 c2 ==> tcapp t1' c2
-  | E_CAppCAbs : forall t12 c2 T1 T2,
-         tcapp (tcabs T1 T2 t12) c2 ==> [0:=c2] t12
-  | E_Coerce : forall t1 t1' c2,
-         t1 ==> t1' ->
-         tcoerce t1 c2 ==> tcoerce t1' c2
-  | E_CTrans : forall c1 c2 t,
-         tcoerce (tcoerce t c1) c2 ==> tcoerce t (CTrans c1 c2)
-  | E_PushApp : forall v1 v2 c,
-         value v1 ->
-         value v2 ->
-         tapp (tcoerce v1 c) v2 ==>
-              tcoerce (tapp v1 (tcoerce v2 (CSym (CLeft c)))) (CRight c)
-  | E_PushTApp : forall v1 T2 c,
-         value v1 ->
-         ttapp (tcoerce v1 c) T2 ==>
-              tcoerce (ttapp v1 T2) (CTApp c T2)
-  | E_PushCApp : forall v1 c2 c,
-         value v1 ->
-         tcapp (tcoerce v1 c) c2 ==>
-              tcoerce (tcapp v1 c2) (CApp c c2)
-
-where "t1 '==>' t2" := (step t1 t2).
-
-Tactic Notation "step_cases" tactic(first) ident(c) :=
-  first;
-  [ Case_aux c "E_AppAbs"   | Case_aux c "E_App1" 
-  | Case_aux c "E_App2"     | Case_aux c "E_TApp" 
-  | Case_aux c "E_TAppTAbs" | Case_aux c "E_CApp"
-  | Case_aux c "E_CAppCAbs" | Case_aux c "E_Coerce"
-  | Case_aux c "E_CTrans"   | Case_aux c "E_PushApp"
-  | Case_aux c "E_PushTApp" | Case_aux c "E_PushCApp"
-  ].
-
-Hint Constructors step.
-
-Notation multistep := (multi step).
-Notation "t1 '==>*' t2" := (multistep t1 t2) (at level 40).
 
 (* ###################################################################### *)
 (** ** Typing *)
@@ -988,19 +890,28 @@ Inductive well_formed_coercion (Gamma : context) : cn -> ty -> ty -> Prop :=
       Gamma |- c1 ; U ~ V ->
       Gamma |- c2 ; V ~ W ->
       Gamma |- CTrans c1 c2 ; U ~ W
-  | C_App : forall c1 c2 U1 U2 V1 V2,
-      Gamma |- c1 ; U1 ~ V1 ->
-      Gamma |- c2 ; U2 ~ V2 ->
-      Gamma |- CApp c1 c2 ; (TArrow U1 U2) ~ (TArrow V1 V2)
+  | C_App : forall c1 c2 U1 U2 V1 V2 S T,
+      Gamma |- c1 ; (TCoerce U1 U2 S) ~ (TCoerce V1 V2 T) ->
+      Gamma |- c2 ; U1 ~ U2 ->
+      Gamma |- CApp c1 c2 ; S ~ T
   | C_Forall : forall c U V,
       ext_tvar Gamma |- c ; U ~ V ->
       Gamma |- CTAbs c ; TUniv U ~ TUniv V
-  | C_Left : forall c U1 U2 V1 V2,
+  | C_ALeft : forall c U1 U2 V1 V2,
       Gamma |- c ; (TArrow U1 U2) ~ (TArrow V1 V2) ->
-      Gamma |- CLeft c ; U1 ~ V1
-  | C_Right : forall c U1 U2 V1 V2,
+      Gamma |- CNth 1 c ; U1 ~ V1
+  | C_ARight : forall c U1 U2 V1 V2,
       Gamma |- c ; (TArrow U1 U2) ~ (TArrow V1 V2) ->
-      Gamma |- CRight c ; U2 ~ V2
+      Gamma |- CNth 2 c ; U2 ~ V2
+  | C_CLeft11 : forall c U1 U2 S V1 V2 T,
+      Gamma |- c ; TCoerce U1 U2 S ~ TCoerce V1 V2 T ->
+      Gamma |- CNth 1 (CNth 1 c) ; U1 ~ V1 
+  | C_CLeft12 : forall c U1 U2 S V1 V2 T,
+      Gamma |- c ; TCoerce U1 U2 S ~ TCoerce V1 V2 T ->
+      Gamma |- CNth 2 (CNth 1 c) ; U2 ~ V2
+  | C_CRight : forall c U1 U2 S V1 V2 T,
+      Gamma |- c ; TCoerce U1 U2 S ~ TCoerce V1 V2 T ->
+      Gamma |- CNth 2 c ; S ~ T  
   | C_Inst : forall c U V T,
       Gamma |- c ; TUniv U ~ TUniv V ->
       well_formed_type Gamma T       ->
@@ -1008,7 +919,16 @@ Inductive well_formed_coercion (Gamma : context) : cn -> ty -> ty -> Prop :=
     
 where "Gamma '|-' c ';' T1 '~' T2" := (well_formed_coercion Gamma c T1 T2).
 
+Tactic Notation "coercion_cases" tactic(first) ident(c) :=
+  first;
+  [ Case_aux c "C_Var"   | Case_aux c "C_Refl" 
+  | Case_aux c "C_Sym"   | Case_aux c "C_Trans" 
+  | Case_aux c "C_App"   | Case_aux c "C_Forall"
+  | Case_aux c "C_ALeft" | Case_aux c "C_ARight"
+  | Case_aux c "C_CLeft11" | Case_aux c "C_CLeft12"
+  | Case_aux c "C_CRight"  | Case_aux c "C_Inst" ].
 
+Hint Constructors well_formed_coercion.
 
 (** 
                              Gamma x = T
@@ -1088,6 +1008,104 @@ Tactic Notation "has_type_cases" tactic(first) ident(c) :=
   | Case_aux c "T_CApp" | Case_aux c "T_Coerce" ].
 
 Hint Constructors has_type.
+
+
+(* ################################### *)
+(** *** Reduction *)
+
+(** The small-step reduction relation for STLC now follows the same
+    pattern as the ones we have seen before.  Intuitively, to reduce a
+    function application, we first reduce its left-hand side until it
+    becomes a literal function; then we reduce its right-hand
+    side (the argument) until it is also a value; and finally we
+    substitute the argument for the bound variable in the body of the
+    function.  This last rule, written informally as
+      (\x:T.t12) v2 ==> [x:=v2]t12
+    is traditionally called "beta-reduction". *)
+
+(** 
+                               value v2
+                     ----------------------------                   (ST_AppAbs)
+                     (\x:T.t12) v2 ==> [x:=v2]t12
+
+                              t1 ==> t1'
+                           ----------------                           (ST_App1)
+                           t1 t2 ==> t1' t2
+
+                              value v1
+                              t2 ==> t2'
+                           ----------------                           (ST_App2)
+                           v1 t2 ==> v1 t2'
+*)
+
+
+Reserved Notation "t1 '==>' t2" (at level 40).
+
+Inductive step : tm -> tm -> Prop :=
+  | E_AppAbs : forall T t12 v2,
+         value v2 ->
+         (tapp (tabs T t12) v2) ==> [0:=v2]t12
+  | E_App1 : forall t1 t1' t2,
+         t1 ==> t1' ->
+         tapp t1 t2 ==> tapp t1' t2
+  | E_App2 : forall v1 t2 t2',
+         value v1 ->
+         t2 ==> t2' -> 
+         tapp v1 t2 ==> tapp v1 t2'
+  | E_TApp : forall t1 t1' T2,
+         t1 ==> t1' ->
+         ttapp t1 T2 ==> ttapp t1' T2
+  | E_TAppTAbs : forall t12 T2,
+         ttapp (ttabs t12) T2 ==> [0:=T2] t12
+  | E_CApp : forall t1 t1' c2,
+         t1 ==> t1' ->
+         tcapp t1 c2 ==> tcapp t1' c2
+  | E_CAppCAbs : forall t12 c2 T1 T2,
+         tcapp (tcabs T1 T2 t12) c2 ==> [0:=c2] t12
+  | E_Coerce : forall t1 t1' c2,
+         t1 ==> t1' ->
+         tcoerce t1 c2 ==> tcoerce t1' c2
+  | E_CTrans : forall c1 c2 v,
+         uncoerced_value v ->
+         tcoerce (tcoerce v c1) c2 ==> tcoerce v (CTrans c1 c2)
+  | E_PushApp : forall v1 v2 c U1 U2,
+         empty |- v1 \in TArrow U1 U2 ->
+         uncoerced_value v1 ->
+         value v2 ->
+         tapp (tcoerce v1 c) v2 ==>
+              tcoerce (tapp v1 (tcoerce v2 (CSym (CNth 1 c)))) (CNth 2 c)
+  | E_PushTApp : forall v T U c,
+         well_formed_type empty T ->
+         empty |- v \in TUniv U   ->
+         uncoerced_value v        ->
+         ttapp (tcoerce v c) T ==>
+              tcoerce (ttapp v T) (CTApp c T)
+  | E_PushCApp : forall v c c0 U1 U2 T V1 V2,
+         empty |- v \in TCoerce U1 U2 T ->
+         empty |- c ; V1 ~ V2           ->
+         uncoerced_value v ->
+         tcapp (tcoerce v c0) c ==>
+               tcoerce (tcapp v (CTrans (CTrans (CNth 1 (CNth 1 c0)) c)
+                                        (CSym (CNth 2 (CNth 1 c0)))))
+               (CNth 2 c0)
+
+where "t1 '==>' t2" := (step t1 t2).
+
+Tactic Notation "step_cases" tactic(first) ident(c) :=
+  first;
+  [ Case_aux c "E_AppAbs"   | Case_aux c "E_App1" 
+  | Case_aux c "E_App2"     | Case_aux c "E_TApp" 
+  | Case_aux c "E_TAppTAbs" | Case_aux c "E_CApp"
+  | Case_aux c "E_CAppCAbs" | Case_aux c "E_Coerce"
+  | Case_aux c "E_CTrans"   | Case_aux c "E_PushApp"
+  | Case_aux c "E_PushTApp" | Case_aux c "E_PushCApp"
+  ].
+
+Hint Constructors step.
+
+Notation multistep := (multi step).
+Notation "t1 '==>*' t2" := (multistep t1 t2) (at level 40).
+
 
 End SYSTEMFC.
 

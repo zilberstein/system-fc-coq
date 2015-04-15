@@ -1,4 +1,4 @@
-(** * SystemFProp: Properties of System F *)
+(** * SystemFCProp: Properties of System FC *)
 
 Require Export SystemFC.
 Require Export Coq.Logic.Decidable.
@@ -8,6 +8,7 @@ Import SYSTEMFC.
 
 (* ###################################################################### *)
 (** * Canonical Forms *)
+
 
 Lemma canonical_forms_fun : forall t T1 T2,
   empty |- t \in (TArrow T1 T2) ->
@@ -19,6 +20,11 @@ Proof.
   exists t0.  auto.
 Qed.
 
+Axiom canonical_coercion_fun : forall c Gamma T U1 U2,
+  Gamma |- c ; T ~ TArrow U1 U2 ->
+  exists V1 V2, T = TArrow V1 V2.
+
+
 Lemma canonical_forms_tabs : forall t T,
   empty |- t \in TUniv T ->
   uncoerced_value t ->
@@ -29,6 +35,9 @@ Proof.
   exists t0. reflexivity.
 Qed.
 
+Axiom canonical_coercion_tabs : forall Gamma c T U,
+  Gamma |- c ; T ~ TUniv U ->
+  exists V, T = TUniv V.
 
 Lemma canonical_forms_cabs : forall t U V T,
   empty |- t \in TCoerce U V T ->
@@ -38,6 +47,11 @@ Proof.
   intros; inversion H0; subst; inversion H; subst.
   exists t0. trivial.
 Qed.
+
+Axiom canonical_coercion_cabs : forall Gamma c T U1 U2 U,
+  Gamma |- c ; T ~ TCoerce U1 U2 U ->
+  exists V, T = TCoerce U1 U2 V.
+
 
 (* ###################################################################### *)
 (** * Progress *)
@@ -114,7 +128,11 @@ Proof with eauto.
           eapply canonical_forms_fun; eauto.
           destruct H1 as [t0 Heq]. subst.
           exists ([0:=t2]t0)...
-
+        SSSCase "t1 is a coerced value".
+          exists (tcoerce (tapp t (tcoerce t2 (CSym (CNth 1 c)))) (CNth 2 c)).
+          inversion Ht1. apply canonical_coercion_fun in H4. 
+          inversion H4. inversion H7. econstructor. subst. eassumption.
+          trivial. trivial.
       SSCase "t2 steps".
         inversion H0 as [t2' Hstp]. exists (tapp t1 t2')...
 
@@ -130,6 +148,10 @@ Proof with eauto.
         eapply canonical_forms_tabs; eauto.
         destruct H2; subst.
         exists ([0 := T2] x)...
+      SSCase "t1 is coerced".
+        exists (tcoerce (ttapp t T2) (CTApp c T2)).
+        inversion Ht. apply canonical_coercion_tabs in H5. inversion H5; subst.
+        econstructor. trivial. eassumption. trivial.
     SCase "t1 also steps".
       inversion H1. exists (ttapp x T2)...
 
@@ -141,7 +163,15 @@ Proof with eauto.
         assert (exists t0, t = tcabs U1 U2 t0).
         eapply canonical_forms_cabs...
         destruct H1; subst. exists ([0:=c] x)...
-    SCase "t steps".
+      SSCase "t is coerced".    
+        exists (tcoerce (tcapp t (CTrans (CTrans (CNth 1 (CNth 1 c0)) c)
+                                         (CSym (CNth 2 (CNth 1 c0)))))
+                        (CNth 2 c0)).
+        inversion Ht; subst. apply canonical_coercion_cabs in H4.
+        inversion H4; subst. econstructor. eassumption. eassumption.
+        trivial.
+
+SCase "t steps".
       inversion H0. exists (tcapp x c)...
 
   Case "T_Coerce".
@@ -151,6 +181,7 @@ Proof with eauto.
     SCase "t steps". 
       right. inversion H0. exists (tcoerce x c)...
 Qed.
+
 
 (* [] *)
 
@@ -985,47 +1016,51 @@ Lemma coercion_well_formed : forall Gamma c U V,
   well_formed_context Gamma /\
   well_formed_type Gamma U /\ well_formed_type Gamma V.
 Proof.
-  intros Gamma c; generalize dependent Gamma;
-  induction c; intros; inversion H; subst;
-  try (apply IHc in H1; inversion H1; inversion H2; inversion H3; inversion H4;
-      split; trivial; split; assumption);
-  try (apply IHc in H1);
-  try (apply IHc1 in H2; inversion H2; inversion H1);
-  try (apply IHc2 in H5; inversion H5; inversion H7);
-  try (split; trivial; split; assumption).
-  Case "CVar".
+  intros; coercion_cases (induction H) Case; intros;
+  try (inversion IHwell_formed_coercion; inversion H1; split; trivial; split;
+      assumption);
+  try (inversion IHwell_formed_coercion);
+  try (inversion IHwell_formed_coercion1; inversion IHwell_formed_coercion2; 
+       inversion H2; inversion H4; subst);
+  try (split; trivial; split; assumption);
+  try (inversion H1; inversion H2; inversion H3; subst; split; trivial;
+       split; assumption).
+  Case "C_Var".
     split. trivial. eapply type_in_context_wf_coercion. trivial. eassumption.
-  Case "CSym".
-    inversion H1. inversion H2. split. trivial. split; trivial.
-  Case "CApp".
-    split. trivial. split; constructor; trivial.
-  Case "CTAbs".
-    inversion H1. inversion H2.
-    split. inversion H0. trivial. split; constructor; trivial.
-  Case "CTApp".
-    apply IHc in H2. inversion H2. inversion H1.
-    split. trivial. inversion H4. subst.
-    split; apply forall_type_well_formed; trivial. 
+  Case "C_App".
+    inversion H2. inversion H9. inversion H10. split. trivial. split; trivial.
+  Case "C_Forall".
+    inversion H1; subst. split. inversion H0. trivial. split; constructor; trivial.
+  Case "C_Inst".
+    subst. split. trivial. inversion H2. split; apply forall_type_well_formed;
+    trivial. 
 Qed.
 
-Lemma ext_var_coercion_strengthening : forall Gamma Gamma' c n U V,
-  remove_var Gamma n = Gamma'  ->
-  Gamma  |- c ; U ~ V ->
-  Gamma' |- c ; U ~ V.
+
+Lemma ext_var_coercion_strengthening : forall Gamma c n U V,
+  Gamma |- c ; U ~ V ->
+  remove_var Gamma n |- c ; U ~ V.
 Proof.
-  intros Gamma Gamma' c; generalize dependent Gamma; generalize dependent Gamma';
-  induction c; intros;  inversion H0; subst; econstructor;
-  try (eapply IHc; try reflexivity; eassumption);
-  try (eapply IHc1; try reflexivity; eassumption);
-  try (eapply IHc2; try reflexivity; eassumption);
+  intros; coercion_cases (induction H) Case; try constructor;
+  try (eapply C_Trans); try (eapply C_App);
+  try (inversion IHwell_formed_coercion; subst; eassumption);
+  try (inversion IHwell_formed_coercion1; subst; eassumption);
+  try (inversion IHwell_formed_coercion2; subst; eassumption);
   try (apply wf_type_remove_var; trivial);
-  try (apply wf_context_weakening; trivial);
-  repeat (eapply wf_strengthening_var; eassumption).
-  Case "CVar".
+  try (apply wf_context_weakening; trivial); trivial.
+  Case "C_Var".
     erewrite <- remove_var_get_cvar. trivial.
-  Case "CTAbs".
-    eapply IHc with (ext_tvar Gamma) n. simpl. trivial. trivial.
-Qed.    
+  Case "C_ALeft".
+    eapply C_ALeft. eassumption.
+  Case "C_ARight".
+    eapply C_ARight. eassumption.
+  Case "C_CLeft11".
+    eapply C_CLeft11. eassumption.
+  Case "C_CLeft12".
+    eapply C_CLeft12. eassumption.
+  Case "C_CRight".
+    eapply C_CRight. eassumption.
+Qed.
 
     
 Lemma get_cvar_remove_lt : forall Gamma x y,
@@ -1061,20 +1096,36 @@ Proof.
 Qed.
 
 Lemma coercion_weakening : forall Gamma c X U V,
-  well_formed_context Gamma        ->
+  well_formed_context Gamma ->
   remove_cvar Gamma X |- c ; U ~ V ->
   Gamma |- cshift X c ; U ~ V.
 Proof.
-  intros Gamma c; generalize dependent Gamma; induction c; intros; inversion H0;
-  subst; simpl; econstructor; try (apply IHc; try constructor; eassumption);
-  try (apply IHc1; eassumption); try (apply IHc2; eassumption); trivial;
-  try (eapply remove_cvar_ty_strengthening; eassumption).
-  Case "CVar".
-    trivial. destruct (le_gt_dec X n); rewrite <- H3.
+  intros; remember (remove_cvar Gamma X) as G; generalize dependent Gamma;
+  coercion_cases (induction H0) Case; intros; subst; simpl;
+  try constructor; trivial;
+  try (eapply C_Trans); try (eapply C_App);
+  try (eapply remove_cvar_ty_strengthening; eassumption);
+  try (eapply IHwell_formed_coercion; trivial);
+  try (eapply IHwell_formed_coercion1; trivial);
+  try (eapply IHwell_formed_coercion2; trivial).
+  Case "C_Var".
+    destruct (le_gt_dec X x); rewrite <- H0.
     SCase "X <= n".
       apply get_cvar_remove_ge; omega.
     SCase "X > n".
       apply get_cvar_remove_lt; omega.
+  Case "C_Forall".
+    constructor. trivial.
+  Case "C_ALeft".
+    eapply C_ALeft. apply IHwell_formed_coercion; trivial.
+  Case "C_ARight".
+    eapply C_ARight. apply IHwell_formed_coercion; trivial.
+  Case "C_CLeft11".
+    eapply C_CLeft11. apply IHwell_formed_coercion; trivial.
+  Case "C_CLeft12".
+    eapply C_CLeft12. apply IHwell_formed_coercion; trivial.
+  Case "C_CRight".
+    eapply C_CRight. apply IHwell_formed_coercion; trivial.
 Qed.
 
 
@@ -1101,19 +1152,30 @@ Lemma coercion_weakening_tvar_ind : forall Gamma Gamma' c n U V,
   Gamma' |- cshift_typ n c ; tshift n U ~ tshift n V.
 Proof.
   intros; generalize dependent Gamma'; generalize dependent n;
-  induction H0; intros; simpl; try econstructor;
+  coercion_cases (induction H0) Case; intros; simpl; try constructor;
+  try (eapply C_Trans); try (eapply C_App);
   try (eapply insert_tvar_wf_context; eassumption; trivial);
   try (apply IHwell_formed_coercion; trivial);
   try (apply IHwell_formed_coercion1; trivial);
   try (apply IHwell_formed_coercion2; trivial).
-  Case "CVar".    
+  Case "C_Var".    
     rewrite get_cvar_insert_tvar with Gamma Gamma' x n.
     rewrite H0. simpl. trivial. trivial.
-  Case "?".
+  Case "C_Refl".
     eapply insert_tvar_wf_type. eassumption. trivial.
-  Case "CTAbs".
+  Case "C_Forall".
     constructor. trivial.
-  Case "CTAppAbs".    
+  Case "C_ALeft".
+    eapply C_ALeft. apply IHwell_formed_coercion. trivial.
+  Case "C_ARight".
+    eapply C_ARight. apply IHwell_formed_coercion. trivial.
+  Case "C_CLeft11".
+    eapply C_CLeft11. apply IHwell_formed_coercion. trivial.
+  Case "C_CLeft12".
+    eapply C_CLeft12. apply IHwell_formed_coercion. trivial.
+  Case "C_CRight".
+    eapply C_CRight. apply IHwell_formed_coercion. trivial.
+  Case "C_Inst".    
     assert (n = 0 + n) by trivial. rewrite H2. rewrite tshift_subst_prop_2.
     rewrite tshift_subst_prop_2. constructor. apply IHwell_formed_coercion.
     trivial.
@@ -1134,14 +1196,15 @@ Lemma cn_substitution_preserves_coercion : forall Gamma x c c' U1 U2 V1 V2,
   get_cvar Gamma x = Some (V1, V2)    ->
   remove_cvar Gamma x |- [x := c'] c ; U1 ~ U2.
 Proof.
-  intros. generalize dependent x;  generalize dependent V1;
-          generalize dependent V2; generalize dependent c';
-          induction H; intros; simpl; try econstructor;
-          try (eapply IHwell_formed_coercion; eassumption; trivial);
-          try (eapply IHwell_formed_coercion1; eassumption; trivial);
-          try (eapply IHwell_formed_coercion2; eassumption; trivial);
-          try (apply wf_context_strengthening_cvar; trivial).
-  Case "CVar".
+  intros; generalize dependent x;  generalize dependent V1;
+  generalize dependent V2; generalize dependent c';
+  coercion_cases (induction H) Case; intros; simpl; try constructor;
+  try (eapply C_Trans); try (eapply C_App);
+  try (eapply IHwell_formed_coercion; eassumption; trivial);
+  try (eapply IHwell_formed_coercion1; eassumption; trivial);
+  try (eapply IHwell_formed_coercion2; eassumption; trivial);
+  try (apply wf_context_strengthening_cvar; trivial).
+  Case "C_Var".
     destruct (eq_nat_dec x0 x).
     SCase "x = x0".
       subst. rewrite H0 in H2. inversion H2; subst. trivial.
@@ -1156,64 +1219,25 @@ Proof.
       SSCase "x < x0".
         apply get_cvar_remove_lt. trivial.
   apply remove_cvar_ty_weakening; trivial.
-  Case "CTAbs".
+  Case "C_Forall".
     eapply IHwell_formed_coercion. simpl. remember H0 as Hx. clear HeqHx.
     apply coercion_well_formed in H0. inversion H0. inversion H3.
     eapply coercion_weakening_tvar. apply H4. eassumption.
     simpl. rewrite H1. simpl. trivial.
+  Case "C_ALeft".
+    eapply C_ALeft. eauto.
+  Case "C_ARight".
+    eapply C_ARight. eauto.
+  Case "C_CLeft11".
+    eapply C_CLeft11. eauto.
+  Case "C_CLeft12".
+    eapply C_CLeft12. eauto.
+  Case "C_CRight".
+    eapply C_CRight. eauto.
+  Case "C_Inst".
     apply remove_cvar_ty_weakening; trivial.
 Qed.
 
-(* Lemma ty_substitution_preserves_typing : forall Gamma Gamma' X t T U, *)
-(*   subst_context U X Gamma Gamma' -> *)
-(*   Gamma |- t \in T               -> *)
-(*   Gamma' |- [X := U] t \in [X := U] T. *)
-(* Proof. *)
-(*   intros. generalize dependent X. generalize dependent Gamma'. *)
-(*   generalize dependent U. has_type_cases (induction H0) Case; *)
-(*   intros. *)
-(*   Case "T_Var". *)
-(*     simpl. constructor. eapply subst_context_wf. *)
-(*     apply H1. trivial. *)
-(*     rewrite context_subst_get_var with (1 := H1). rewrite H0. *)
-(*     trivial. *)
-(*   Case "T_Abs". *)
-(*     simpl. constructor.  *)
-(*     apply IHhas_type. constructor. trivial. *)
-(*     apply subst_type_in_type_correct. trivial. *)
-(*   Case "T_App". *)
-(*     simpl. econstructor. simpl in IHhas_type1. apply IHhas_type1. trivial. *)
-(*     apply IHhas_type2. trivial. *)
-(*   Case "T_TAbs". *)
-(*     simpl. constructor. apply IHhas_type. assert (X + 1 = S X) by omega. *)
-(*     rewrite H1. constructor. trivial. *)
-(*   Case "T_TApp". *)
-(*     simpl.  *)
-(*     assert (subst_type_fix X U t1 = [X := U] t1) by trivial. rewrite H3; clear H3. *)
-(*     assert (subst_type_in_type_fix X U T2 = [X := U] T2) by trivial. *)
-(*       rewrite H3; clear H3. *)
-(*     assert (subst_type_in_type_fix 0 T2 T12 = [0 := T2] T12) by trivial. *)
-(*       rewrite H3; clear H3. *)
-(*     assert (subst_type_in_type_fix X U ([0:=T2]T12) = [X := U]([0:=T2]T12)) *)
-(*         by trivial. rewrite H3; clear H3. *)
-(*     assert (X = 0 + X) by trivial. rewrite H3.   *)
-(*     rewrite tsubst_tsubst_prop. constructor.  *)
-(*     assert (TUniv ([1 + 0 + X := tshift 0 U]T12) = [X := U](TUniv T12)). *)
-(*       simpl. assert (S X = X + 1) by omega. rewrite H4. trivial. *)
-(*     rewrite H4. apply IHhas_type. trivial.  *)
-(*     simpl. eapply subst_preserves_well_formed_type. apply H2. trivial. *)
-(*     eapply subst_context_wf. apply H2. trivial. *)
-(*     eapply subst_context_wf. apply H2. trivial. *)
-(*   Case "T_CAbs". *)
-(*     simpl. constructor. apply IHhas_type. trivial. *)
-(*   Case "T_CApp". *)
-(*     simpl. econstructor. simpl in IHhas_type. apply IHhas_type. trivial. *)
-    
-
-(* eapply cn_substitution_preserves_coercion in H. *)
-
-(*  apply IHhas_type. trivial. trivial. *)
-(* Qed. *)
 
 Lemma type_in_context_wf : forall x T Gamma,
   well_formed_context Gamma ->
@@ -1276,16 +1300,23 @@ Lemma coercion_weakening_var : forall Gamma c x U V,
   well_formed_context Gamma ->
   remove_var Gamma x |- c ; U ~ V ->
   Gamma |- c; U ~ V.
-Proof.
-  intros Gamma c; generalize dependent Gamma; induction c; intros;
-  inversion H0; subst; econstructor; trivial;
-  try (eapply IHc; try constructor; trivial; eassumption);
-  try (eapply IHc1; trivial; eassumption);
-  try (eapply IHc2; trivial; eassumption);
-  try (eapply wf_type_insert_var; eassumption).
-  Case "CVar".
+Proof with eauto.
+  intros; remember (remove_var Gamma x) as G; generalize dependent Gamma;
+  coercion_cases (induction H0) Case; intros; subst; try constructor;
+  try (eapply C_Trans); try (eapply C_App); trivial;
+  try (eapply wf_type_insert_var; eassumption);
+  try (apply IHwell_formed_coercion; trivial; trivial);
+  try (apply IHwell_formed_coercion1; trivial; trivial);
+  try (apply IHwell_formed_coercion2; trivial; trivial);
+  try (constructor; trivial).
+  Case "C_Var".
     erewrite remove_var_get_cvar. eassumption.
-Qed.    
+  Case "C_ALeft"; eapply C_ALeft...
+  Case "C_ARight"; eapply C_ARight...
+  Case "C_CLeft11"; eapply C_CLeft11...
+  Case "C_CLeft12"; eapply C_CLeft12...
+  Case "C_CRight"; eapply C_CRight...
+Qed.
 
 Lemma typing_weakening_var_ind : forall Gamma n t U,
   well_formed_context Gamma ->
@@ -1464,8 +1495,7 @@ Proof with auto.
     simpl. rewrite Hx. trivial.
   Case "tcapp".
     econstructor. eapply IHt. eassumption. eassumption.
-    trivial. eapply ext_var_coercion_strengthening. reflexivity.
-    trivial.
+    trivial. eapply ext_var_coercion_strengthening. trivial.
   Case "tcabs".
     constructor. assert (ext_cvar (remove_var Gamma x) (t, t0) =
                          remove_var (ext_cvar Gamma (t, t0)) x) by trivial.
@@ -1476,7 +1506,7 @@ Proof with auto.
     simpl. eassumption. simpl. trivial. apply wf_type_remove; trivial.
     apply wf_type_remove; trivial.
   Case "tcoerce".
-    econstructor. eapply ext_var_coercion_strengthening. reflexivity.
+    econstructor. eapply ext_var_coercion_strengthening.
     eassumption. eapply IHt. trivial. eassumption. trivial.
 Qed.
 
@@ -1560,23 +1590,29 @@ Lemma subst_typ_preserves_coercion_ind : forall Gamma Gamma' c U1 U2 V X,
   subst_context V X Gamma Gamma' ->
   Gamma  |- c ; U1 ~ U2          ->
   Gamma' |- [X := V] c ; [X := V] U1 ~ [X := V] U2.
-Proof.
+Proof with eauto.
   intros; generalize dependent Gamma'; generalize dependent X;
-  generalize dependent V; induction H0; intros; simpl; try econstructor;
+  generalize dependent V; coercion_cases (induction H0) Case; intros;
+  simpl; try constructor; try (eapply C_Trans); try (eapply C_App);
   try (eapply subst_context_wf; eassumption; trivial);
   try (apply IHwell_formed_coercion; trivial);
   try (apply IHwell_formed_coercion1; trivial);
   try (apply IHwell_formed_coercion2; trivial).
-  Case "CVar".
+  Case "C_Var".
     erewrite context_subst_get_cvar with (Gamma:=Gamma). erewrite H0.
     simpl. trivial. trivial.
-  Case "CRefl".
+  Case "C_Refl".
     eapply subst_preserves_well_formed_type. eassumption. trivial.
     eapply subst_context_wf. eassumption. trivial.
-  Case "CTAbs".
+  Case "C_Forall".
     assert (X + 1 = S X) by omega. rewrite H1. apply IHwell_formed_coercion.
     constructor. trivial.
-  Case "CTApp".
+  Case "C_ALeft"; eapply C_ALeft. apply IHwell_formed_coercion...
+  Case "C_ARight"; eapply C_ARight. apply IHwell_formed_coercion...
+  Case "C_CLeft11"; eapply C_CLeft11. apply IHwell_formed_coercion...
+  Case "C_CLeft12"; eapply C_CLeft12. apply IHwell_formed_coercion...
+  Case "C_CRight"; eapply C_CRight. apply IHwell_formed_coercion...  
+  Case "C_Inst".
     assert (X = 0 + X) by trivial. rewrite H2. rewrite tsubst_tsubst_prop. 
     rewrite tsubst_tsubst_prop. constructor.
     simpl in IHwell_formed_coercion. simpl.
@@ -1719,20 +1755,32 @@ Proof with eauto.
       eapply preservation_app_abs.
       inversion HT1... 
     SCase "ST_PushApp".
-      admit.
+      inversion HT1; subst. remember H5 as Hy. clear HeqHy.
+      apply canonical_coercion_fun in H5. inversion H5.
+      inversion H. inversion H. subst. econstructor. econstructor. eassumption.
+      econstructor. eassumption. econstructor. econstructor. econstructor.
+      eassumption. trivial.
   Case "T_TApp".
     inversion HE; subst...
     SCase "ST_TAppTAbs".
       inversion HT; subst. apply preservation_tapp_tabs. constructor. trivial.
       trivial. trivial. 
     SCase "ST_PushTApp".
-      admit.
+      inversion HT; subst. remember H7 as Hy; clear HeqHy.
+      apply canonical_coercion_tabs in H7. inversion H7; subst. 
+      econstructor. econstructor. eassumption. trivial. constructor.
+      trivial. trivial. trivial.
   Case "T_CApp".
     inversion HE; subst...
     SCase "ST_CAppCAbs".
       eapply preservation_capp_cabs...
     SCase "ST_PushCApp".
-      admit.
+      inversion HT; subst. remember H6 as Hy; clear HeqHy.
+      apply canonical_coercion_cabs in H6.
+      inversion H6.  subst.
+      econstructor. eapply C_CRight. eassumption.
+      econstructor. eassumption. econstructor. econstructor. eapply C_CLeft11.
+      eassumption. eassumption. econstructor. eapply C_CLeft12. eassumption.
   Case "T_Coerce".
     inversion HE; subst...
     SCase "ST_CTrans".
@@ -1772,42 +1820,6 @@ Proof.
     assumption. assumption. assumption.
 Qed.
 
-(* ###################################################################### *)
-(** * Uniqueness of Types *)
+End SYSTEMFCPROP.
 
-(** **** Exercise: 3 stars (types_unique) *)
-(** Another pleasant property of the STLC is that types are
-    unique: a given term (in a given context) has at most one
-    type. *)
-(** Formalize this statement and prove it. *)
-
-Theorem types_unique : forall t Gamma T T',
-  Gamma |- t \in T ->
-  Gamma |- t \in T' ->
-  T = T'.
-Proof.
-  intros t. t_cases (induction t) Case; intros Gamma T T' HT HT';
-    inversion HT; inversion HT'; subst.
-  Case "tvar".
-    rewrite -> H7 in H2. inversion H2. trivial.
-  Case "tapp".
-    assert (Ht1:TArrow T11 T=TArrow T0 T')
-           by (apply IHt1 with Gamma; assumption; assumption).
-    inversion Ht1. reflexivity.
-  Case "tabs".
-    assert (Ht:T12=T1).
-    SCase "Proof of Assertion".
-      eapply IHt. apply H3. apply H8.
-    subst. reflexivity.
-  Case "ttapp".
-    assert (Ht:TUniv T12 = TUniv T0).
-    SCase "Proof of Assertion".
-      eapply IHt. apply H1. apply H8.
-    inversion Ht. trivial.
-  Case "ttabs".
-    apply f_equal. eapply IHt. apply H1. apply H5.
-Qed.
-(** [] *)
-
-End SYSTEMFPROP.
 
