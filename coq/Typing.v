@@ -154,6 +154,24 @@ Inductive subst_context : ty -> nat -> context -> context -> Prop :=
 
 Hint Constructors subst_context.
 
+(* ################################### *)
+(** *** Homogeneity of Types *)
+
+Inductive types_homogenius : ty -> ty -> Prop :=
+  | HT_Var : forall X,
+      types_homogenius (TVar X) (TVar X)
+  | HT_Arrow : forall U1 U2 V1 V2,
+      types_homogenius U1 V1 ->
+      types_homogenius U2 V2 ->
+      types_homogenius (TArrow U1 U2) (TArrow V1 V2)
+  | HT_Forall : forall U V,
+      types_homogenius U V ->
+      types_homogenius (TUniv U) (TUniv V)
+  | HT_CAbs : forall U1 U2 U V1 V2 V,
+      types_homogenius U1 V1 ->
+      types_homogenius U2 V2 ->
+      types_homogenius U  V  ->
+      types_homogenius (TCoerce U1 U2 U) (TCoerce V1 V2 V).
 
 
 (* ################################### *)
@@ -165,6 +183,7 @@ Inductive well_formed_coercion (Gamma : context) : cn -> ty -> ty -> Prop :=
   | C_Var : forall x T1 T2,
       well_formed_context Gamma        ->
       get_cvar Gamma x = Some (T1, T2) ->
+      types_homogenius T1 T2           ->
       Gamma |- CVar x ; T1 ~ T2
   | C_Refl : forall T,
       well_formed_context Gamma ->

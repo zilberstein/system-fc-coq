@@ -25,11 +25,6 @@ Proof.
   exists t0.  auto.
 Qed.
 
-Axiom canonical_coercion_fun : forall c Gamma T U1 U2,
-  Gamma |- c ; T ~ TArrow U1 U2 ->
-  exists V1 V2, T = TArrow V1 V2.
-
-
 Lemma canonical_forms_tabs : forall t T,
   empty |- t \in TUniv T ->
   uncoerced_value t ->
@@ -40,10 +35,6 @@ Proof.
   exists t0. reflexivity.
 Qed.
 
-Axiom canonical_coercion_tabs : forall Gamma c T U,
-  Gamma |- c ; T ~ TUniv U ->
-  exists V, T = TUniv V.
-
 Lemma canonical_forms_cabs : forall t U V T,
   empty |- t \in TCoerce U V T ->
   uncoerced_value t        ->
@@ -53,10 +44,36 @@ Proof.
   exists t0. trivial.
 Qed.
 
-Axiom canonical_coercion_cabs : forall Gamma c T U1 U2 U,
-  Gamma |- c ; T ~ TCoerce U1 U2 U ->
-  exists V, T = TCoerce U1 U2 V.
+Lemma homogeneity_sym : forall U V,
+  types_homogenius U V ->
+  types_homogenius V U.
+Proof with auto.
+  intros; induction H; try (apply homogeneity_refl); constructor...
+Qed.
 
+Lemma homogeneity_trans : forall U V W,
+  types_homogenius U V ->
+  types_homogenius V W ->
+  types_homogenius U W.
+Proof with auto.
+  intros; generalize dependent U; generalize dependent W;
+  induction V; intros; inversion H; inversion H0; subst;
+  try (apply homogeneity_refl); constructor...
+Qed.
+
+Lemma coercion_homogeneity : forall Gamma c U V,
+  Gamma |- c ; U ~ V ->
+  types_homogenius U V.
+Proof with auto.
+  intros; coercion_cases (induction H) Case; trivial;
+  try (apply homogeneity_refl); try (eapply homogeneity_trans; eassumption);
+  try (apply homogeneity_sym; assumption);
+  try (apply subst_preserves_homogeneity);
+  try (inversion IHwell_formed_coercion; assumption);
+  try (inversion IHwell_formed_coercion1);
+  try (inversion IHwell_formed_coercion2);
+  try constructor...
+Qed.
 
 (* ###################################################################### *)
 (** * Progress *)
@@ -336,8 +353,8 @@ Proof with eauto.
       inversion HT1... 
     SCase "ST_PushApp".
       inversion HT1; subst. remember H4 as Hy. clear HeqHy.
-      apply canonical_coercion_fun in H4. inversion H4.
-      inversion H. inversion H. subst. econstructor. econstructor. eassumption.
+      apply coercion_homogeneity in H4. inversion H4; subst.
+      econstructor. econstructor. eassumption.
       econstructor. eassumption. econstructor. econstructor. econstructor.
       eassumption. trivial.
   Case "T_TApp".
@@ -347,7 +364,7 @@ Proof with eauto.
       trivial. trivial. 
     SCase "ST_PushTApp".
       inversion HT; subst. remember H5 as Hy; clear HeqHy.
-      apply canonical_coercion_tabs in H5. inversion H5; subst. 
+      apply coercion_homogeneity in H5. inversion H5; subst. 
       econstructor. econstructor. eassumption. trivial. constructor.
       trivial. trivial. trivial.
   Case "T_CApp".
@@ -356,7 +373,7 @@ Proof with eauto.
       eapply preservation_capp_cabs...
     SCase "ST_PushCApp".
       inversion HT; subst. remember H4 as Hy; clear HeqHy.
-      apply canonical_coercion_cabs in H4.
+      apply coercion_homogeneity in H4.
       inversion H4.  subst.
       econstructor. eapply C_CRight. eassumption.
       econstructor. eassumption. econstructor. econstructor. eapply C_CLeft11.
@@ -370,8 +387,6 @@ Qed.
 
 (* ###################################################################### *)
 (** * Type Soundness *)
-
-(** **** Exercise: 2 stars, optional (type_soundness) *)
 
 (** Put progress and preservation together and show that a well-typed
     term can _never_ reach a stuck state.  *)
@@ -401,5 +416,3 @@ Proof.
 Qed.
 
 End SYSTEMFCPROP.
-
-

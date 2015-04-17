@@ -918,6 +918,13 @@ Proof.
     simpl. destruct x. trivial. apply IHinsert_tvar.
 Qed.
 
+Lemma homogeneity_weakening : forall U V n,
+  types_homogenius U V ->
+  types_homogenius (tshift n U) (tshift n V).
+Proof with eauto.
+  intros; generalize dependent n; induction H; intros; simpl; try constructor...
+Qed.
+
 Lemma coercion_weakening_tvar_ind : forall Gamma Gamma' c n U V,
   insert_tvar n Gamma Gamma' ->
   Gamma  |- c ; U ~ V ->
@@ -932,7 +939,8 @@ Proof.
   try (apply IHwell_formed_coercion2; trivial).
   Case "C_Var".    
     rewrite get_cvar_insert_tvar with Gamma Gamma' x n.
-    rewrite H0. simpl. trivial. trivial.
+    rewrite H0. simpl. trivial. trivial. apply homogeneity_weakening.
+    trivial.
   Case "C_Refl".
     eapply insert_tvar_wf_type. eassumption. trivial.
   Case "C_Forall".
@@ -979,14 +987,14 @@ Proof.
   Case "C_Var".
     destruct (eq_nat_dec x0 x).
     SCase "x = x0".
-      subst. rewrite H0 in H2. inversion H2; subst. trivial.
+      subst. rewrite H0 in H3. inversion H3; subst. trivial.
     SCase "x <> x0".
       destruct le_lt_dec; constructor;
       try (apply wf_context_strengthening_cvar); trivial;
       rewrite <- H0; symmetry.
       SSCase "x0 <= x".
         assert (x = S (x-1)) by omega.
-        rewrite H3. assert (S (x-1) - 1 = x - 1) by omega. rewrite H4.
+        rewrite H4. assert (S (x-1) - 1 = x - 1) by omega. rewrite H5.
         apply get_cvar_remove_ge. omega.
       SSCase "x < x0".
         apply get_cvar_remove_lt. trivial.
@@ -1326,6 +1334,20 @@ Proof.
     apply remove_cvar_ty_weakening. trivial.
 Qed.
 
+Lemma homogeneity_refl : forall T,
+  types_homogenius T T.
+Proof with auto.
+  induction T; constructor... 
+Qed.  
+
+Lemma subst_preserves_homogeneity : forall U V W X,
+  types_homogenius U V ->
+  types_homogenius ([X := W] U) ([X := W] V).
+Proof with auto.
+  intros; generalize dependent X; generalize dependent W;
+  induction H; intros; try apply homogeneity_refl; constructor...
+Qed.
+
 Lemma subst_typ_preserves_coercion_ind : forall Gamma Gamma' c U1 U2 V X,
   subst_context V X Gamma Gamma' ->
   Gamma  |- c ; U1 ~ U2          ->
@@ -1340,18 +1362,18 @@ Proof with eauto.
   try (apply IHwell_formed_coercion2; trivial).
   Case "C_Var".
     erewrite context_subst_get_cvar with (Gamma:=Gamma). erewrite H0.
-    simpl. trivial. trivial.
+    simpl. trivial. trivial. apply subst_preserves_homogeneity. trivial.
   Case "C_Refl".
     eapply subst_preserves_well_formed_type. eassumption. trivial.
     eapply subst_context_wf. eassumption. trivial.
   Case "C_Forall".
     assert (X + 1 = S X) by omega. rewrite H1. apply IHwell_formed_coercion.
     constructor. trivial.
-  Case "C_ALeft"; eapply C_ALeft. apply IHwell_formed_coercion...
-  Case "C_ARight"; eapply C_ARight. apply IHwell_formed_coercion...
-  Case "C_CLeft11"; eapply C_CLeft11. apply IHwell_formed_coercion...
-  Case "C_CLeft12"; eapply C_CLeft12. apply IHwell_formed_coercion...
-  Case "C_CRight"; eapply C_CRight. apply IHwell_formed_coercion...  
+  Case "C_ALeft"; eapply C_ALeft; apply IHwell_formed_coercion...
+  Case "C_ARight"; eapply C_ARight; apply IHwell_formed_coercion...
+  Case "C_CLeft11"; eapply C_CLeft11; apply IHwell_formed_coercion...
+  Case "C_CLeft12"; eapply C_CLeft12; apply IHwell_formed_coercion...
+  Case "C_CRight"; eapply C_CRight; apply IHwell_formed_coercion...  
   Case "C_Inst".
     assert (X = 0 + X) by trivial. rewrite H2. rewrite tsubst_tsubst_prop. 
     rewrite tsubst_tsubst_prop. constructor.
