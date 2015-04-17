@@ -45,16 +45,16 @@ Proof.
 Qed.
 
 Lemma homogeneity_sym : forall U V,
-  types_homogenius U V ->
-  types_homogenius V U.
+  types_homogeneous U V ->
+  types_homogeneous V U.
 Proof with auto.
   intros; induction H; try (apply homogeneity_refl); constructor...
 Qed.
 
 Lemma homogeneity_trans : forall U V W,
-  types_homogenius U V ->
-  types_homogenius V W ->
-  types_homogenius U W.
+  types_homogeneous U V ->
+  types_homogeneous V W ->
+  types_homogeneous U W.
 Proof with auto.
   intros; generalize dependent U; generalize dependent W;
   induction V; intros; inversion H; inversion H0; subst;
@@ -63,7 +63,7 @@ Qed.
 
 Lemma coercion_homogeneity : forall Gamma c U V,
   Gamma |- c ; U ~ V ->
-  types_homogenius U V.
+  types_homogeneous U V.
 Proof with auto.
   intros; coercion_cases (induction H) Case; trivial;
   try (apply homogeneity_refl); try (eapply homogeneity_trans; eassumption);

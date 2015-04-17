@@ -919,8 +919,8 @@ Proof.
 Qed.
 
 Lemma homogeneity_weakening : forall U V n,
-  types_homogenius U V ->
-  types_homogenius (tshift n U) (tshift n V).
+  types_homogeneous U V ->
+  types_homogeneous (tshift n U) (tshift n V).
 Proof with eauto.
   intros; generalize dependent n; induction H; intros; simpl; try constructor...
 Qed.
@@ -1335,14 +1335,14 @@ Proof.
 Qed.
 
 Lemma homogeneity_refl : forall T,
-  types_homogenius T T.
+  types_homogeneous T T.
 Proof with auto.
   induction T; constructor... 
 Qed.  
 
 Lemma subst_preserves_homogeneity : forall U V W X,
-  types_homogenius U V ->
-  types_homogenius ([X := W] U) ([X := W] V).
+  types_homogeneous U V ->
+  types_homogeneous ([X := W] U) ([X := W] V).
 Proof with auto.
   intros; generalize dependent X; generalize dependent W;
   induction H; intros; try apply homogeneity_refl; constructor...
