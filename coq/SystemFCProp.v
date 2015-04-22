@@ -205,7 +205,7 @@ Proof with eauto.
   Case "C_Var".
     inversion H2.
   Case "C_Refl".
-    admit.
+    destruct V; try (inversion H0; inversion H5; inversion H7); constructor.
   Case "C_Sym".
     apply consistency_sym. apply H with (coercion_size c0) c0;
     simpl. omega; trivial. trivial. trivial.
