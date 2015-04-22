@@ -186,43 +186,44 @@ Proof.
   intros. induction H; simpl; constructor.
 Qed.
 
-Lemma coercion_consistency : forall c U V,
-  empty |- c ; U ~ V ->
+Lemma coercion_consistency : forall Gamma c U V,
+  (forall n, get_cvar Gamma n = None) ->
+  Gamma |- c ; U ~ V ->
   types_consistent U V.
 Proof with eauto.
   intros. remember (coercion_size c) as n.
   generalize dependent c; generalize dependent U; generalize dependent V; 
-  induction n using strong_induction; intros.
-  coercion_cases (inversion H0) Case; subst; try constructor;
-  try (apply admissibility in H1; inversion H1; clear H1; clear H3;
-       pose proof (H2 _ _ _ _ (conj eq_refl eq_refl));
-       destruct H1; destruct H1; destruct H1; destruct H3; destruct H4);
-  try (apply admissibility in H1; destruct H1; clear H1;
-       destruct H2; clear H1;
-       pose proof (H2 _ _ _ _ _ _ (conj eq_refl eq_refl));
-       destruct H1; destruct H1; destruct H1; destruct H1; destruct H3;
-       destruct H4; destruct H5; destruct H6).
+  generalize dependent Gamma; induction n using strong_induction; intros.
+  coercion_cases (inversion H1) Case; subst; try constructor;
+  try (apply admissibility in H2; inversion H2; clear H2; clear H4;
+       pose proof (H3 _ _ _ _ (conj eq_refl eq_refl));
+       destruct H2; destruct H2; destruct H2; destruct H4; destruct H5);
+  try (apply admissibility in H2; destruct H2; clear H2;
+       destruct H3; clear H2;
+       pose proof (H3 _ _ _ _ _ _ (conj eq_refl eq_refl));
+       destruct H2; destruct H2; destruct H2; destruct H2; destruct H4;
+       destruct H5; destruct H6; destruct H7).
   Case "C_Var".
-    inversion H2.
+    inversion H3. rewrite H0 in H5. inversion H5.
   Case "C_Refl".
-    destruct V; try (inversion H0; inversion H5; inversion H7); constructor.
+    admit.
   Case "C_Sym".
-    apply consistency_sym. apply H with (coercion_size c0) c0;
-    simpl. omega; trivial. trivial. trivial.
+    apply consistency_sym. apply H with (coercion_size c0) Gamma c0;
+    simpl. omega; trivial. trivial. trivial. trivial.
   Case "C_Trans".
     apply consistency_trans with V0.
-    apply H with (coercion_size c1) c1; try (simpl; omega); trivial. 
-    apply H with (coercion_size c2) c2; try (simpl; omega); trivial.
+    apply H with (coercion_size c1) Gamma c1; try (simpl; omega); trivial. 
+    apply H with (coercion_size c2) Gamma c2; try (simpl; omega); trivial.
   Case "C_ALeft".
-    apply H with (coercion_size x) x; try (simpl; omega); trivial.
+    apply H with (coercion_size x) Gamma x; try (simpl; omega); trivial.
   Case "C_ARight".
-    apply H with (coercion_size x0) x0; try (simpl; omega); trivial.
+    apply H with (coercion_size x0) Gamma x0; try (simpl; omega); trivial.
   Case "C_CLeft11".
-    apply H with (coercion_size x) x; try (simpl; omega); trivial.
+    apply H with (coercion_size x) Gamma x; try (simpl; omega); trivial.
   Case "C_CLeft12".
-    apply H with (coercion_size x0) x0; try (simpl; omega); trivial.
+    apply H with (coercion_size x0) Gamma x0; try (simpl; omega); trivial.
   Case "C_CRight".
-    apply H with (coercion_size x1) x1; try (simpl; omega); trivial.
+    apply H with (coercion_size x1) Gamma x1; try (simpl; omega); trivial.
   Case "C_Inst".
     apply subst_preserves_consistency.
     apply admissibility in H1; destruct H1; destruct H3; clear H1; clear H4.
