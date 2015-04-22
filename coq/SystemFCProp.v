@@ -111,52 +111,55 @@ Proof with auto.
   exists n...
 Qed.
 
-Lemma admissibility : forall c S T,
-  empty |- c ; S ~ T ->
+Lemma admissibility : forall Gamma c S T,
+  (forall n, get_cvar Gamma n = None) ->
+  Gamma |- c ; S ~ T ->
   (forall U1 U2 V1 V2,
      S = TArrow U1 U2 /\ T = TArrow V1 V2 ->
      exists c1 c2,
-       empty |- c1 ; U1 ~ V1 /\
-       empty |- c2 ; U2 ~ V2 /\
+       Gamma |- c1 ; U1 ~ V1 /\
+       Gamma |- c2 ; U2 ~ V2 /\
        coercion_size c1 < coercion_size c /\
        coercion_size c2 < coercion_size c) /\
   (forall U V,
      S = TUniv U /\ T = TUniv V ->
      exists c1,
-       ext_tvar empty |- c1 ; U ~ V /\
+       ext_tvar Gamma |- c1 ; U ~ V /\
        coercion_size c1 < coercion_size c) /\
   (forall U1 U2 U3 V1 V2 V3,
      S = TCoerce U1 U2 U3 /\ T = TCoerce V1 V2 V3 ->
      exists c1 c2 c3,
-       empty |- c1 ; U1 ~ V1 /\
-       empty |- c2 ; U2 ~ V2 /\
-       empty |- c3 ; U3 ~ V3 /\
+       Gamma |- c1 ; U1 ~ V1 /\
+       Gamma |- c2 ; U2 ~ V2 /\
+       Gamma |- c3 ; U3 ~ V3 /\
        coercion_size c1 < coercion_size c /\
        coercion_size c2 < coercion_size c /\
        coercion_size c3 < coercion_size c).
 Proof.
-  intros. remember empty as Gamma.
-  coercion_cases (induction H) Case; subst; split; intros; try split; intros.
+  intros.
+  coercion_cases (induction H0) Case; subst; split; intros; try split; intros.
   Case "C_Var".
-    inversion H0. inversion H0. inversion H0.
+    rewrite H in H1; inversion H1.
+    rewrite H in H1; inversion H1.
+    rewrite H in H1; inversion H1.
   Case "C_Refl".
     SCase "Arrow".
-      inversion H1; subst.
+      inversion H2; subst.
       exists (CRefl U1). exists (CRefl U2).
-      inversion H3; subst. inversion H0.
+      inversion H4; subst. inversion H1.
       split. constructor; trivial.
       split. constructor; trivial.
       split; simpl; omega.
     SCase "Univ".
-      inversion H1; subst.
+      inversion H2; subst.
       exists (CRefl V).
-      inversion H3; subst. inversion H0.
+      inversion H4; subst. inversion H1.
       split. constructor. constructor. trivial. trivial.
       simpl. omega.
     SCase "Coerce".
-      inversion H1; subst.
+      inversion H2; subst.
       exists (CRefl U1). exists (CRefl U2). exists (CRefl U3).
-      inversion H3; subst. inversion H0; subst.
+      inversion H4; subst. inversion H1; subst.
       split. constructor; trivial.
       split. constructor; trivial.
       split. constructor; trivial.
@@ -195,10 +198,10 @@ Proof with eauto.
   generalize dependent c; generalize dependent U; generalize dependent V; 
   generalize dependent Gamma; induction n using strong_induction; intros.
   coercion_cases (inversion H1) Case; subst; try constructor;
-  try (apply admissibility in H2; inversion H2; clear H2; clear H4;
+  try (apply (admissibility _ _ _ _ H0) in H2; inversion H2; clear H2; clear H4;
        pose proof (H3 _ _ _ _ (conj eq_refl eq_refl));
        destruct H2; destruct H2; destruct H2; destruct H4; destruct H5);
-  try (apply admissibility in H2; destruct H2; clear H2;
+  try (apply (admissibility _ _ _ _ H0) in H2; destruct H2; clear H2;
        destruct H3; clear H2;
        pose proof (H3 _ _ _ _ _ _ (conj eq_refl eq_refl));
        destruct H2; destruct H2; destruct H2; destruct H2; destruct H4;
@@ -215,7 +218,7 @@ Proof with eauto.
     apply H with (coercion_size c1) Gamma c1; try (simpl; omega); trivial. 
     apply H with (coercion_size c2) Gamma c2; try (simpl; omega); trivial.
   Case "C_ALeft".
-    apply H with (coercion_size x) Gamma x; try (simpl; omega); trivial.
+    apply H with (coercion_size x) Gamma x; try (simpl; omega); trivial. 
   Case "C_ARight".
     apply H with (coercion_size x0) Gamma x0; try (simpl; omega); trivial.
   Case "C_CLeft11".
@@ -226,11 +229,12 @@ Proof with eauto.
     apply H with (coercion_size x1) Gamma x1; try (simpl; omega); trivial.
   Case "C_Inst".
     apply subst_preserves_consistency.
-    apply admissibility in H1; destruct H1; destruct H3; clear H1; clear H4.
-    pose proof (H3 _ _ (conj eq_refl eq_refl)). destruct H1.
-    destruct H1.
-    apply H with (coercion_size x) x; try (simpl; omega); trivial.
-    
+    apply admissibility in H2. destruct H2. destruct H4. clear H2. clear H5.
+    pose proof (H4 _ _ (conj eq_refl eq_refl)). destruct H2.
+    destruct H2.
+    apply H with (coercion_size x) (ext_tvar Gamma) x; try (simpl; omega); trivial.
+    intros. simpl. rewrite H0. trivial. trivial.
+Qed.    
 
 
 Lemma canonical_coercion_abs : forall c T U1 U2,
