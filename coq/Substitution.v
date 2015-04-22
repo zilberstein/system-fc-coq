@@ -18,11 +18,13 @@ Fixpoint subst_coercion_fix (x:nat) (d:cn) (c:cn) : cn :=
       if eq_nat_dec x y then d
       else if le_lt_dec x y then CVar (y-1)
            else CVar y
-    | CRefl        => CRefl
+    | CRefl T      => CRefl T
     | CSym c       => CSym (subst_coercion_fix x d c)
     | CTrans c1 c2 => CTrans (subst_coercion_fix x d c1) (subst_coercion_fix x d c2)
-    | CApp c1 c2   => CApp (subst_coercion_fix x d c1) (subst_coercion_fix x d c2)
-    | CAbs c       => CAbs (subst_coercion_fix (S x) (cshift 0 d) c)
+    | CArrow c1 c2   => CArrow (subst_coercion_fix x d c1) (subst_coercion_fix x d c2)
+    | CTCoerce c1 c2 c3 => CTCoerce (subst_coercion_fix x d c1)
+                                    (subst_coercion_fix x d c2)
+                                    (subst_coercion_fix x d c3)
     | CNth n c     => CNth n (subst_coercion_fix x d c)
     | CTAbs c      => CTAbs (subst_coercion_fix x (cshift_typ 0 d) c)
     | CTApp c T    => CTApp (subst_coercion_fix x d c) T
@@ -41,8 +43,8 @@ Inductive subst_coercion : cn -> nat -> cn -> cn -> Prop :=
   | sc_var_gt : forall d x x',
       x > x' ->
       subst_coercion d x (CVar x') (CVar x')
-  | sc_refl : forall d x,
-      subst_coercion d x CRefl CRefl
+  | sc_refl : forall d x T,
+      subst_coercion d x (CRefl T) (CRefl T)
   | sc_sym : forall d x c c',
       subst_coercion d x c c' ->
       subst_coercion d x (CSym c) (CSym c')
@@ -50,13 +52,15 @@ Inductive subst_coercion : cn -> nat -> cn -> cn -> Prop :=
       subst_coercion d x c1 c1' ->
       subst_coercion d x c2 c2' ->
       subst_coercion d x (CTrans c1 c2) (CTrans c1' c2')
-  | sc_capp : forall d x c1 c1' c2 c2',
+  | sc_carrow : forall d x c1 c1' c2 c2',
       subst_coercion d x c1 c1' ->
       subst_coercion d x c2 c2' ->
-      subst_coercion d x (CApp c1 c2) (CApp c1' c2')
-  | sc_cabs : forall d x c c',
-      subst_coercion (cshift 0 d) (S x) c c' ->
-      subst_coercion d x (CAbs c) (CAbs c')
+      subst_coercion d x (CArrow c1 c2) (CArrow c1' c2')
+  | sc_ctcoerce : forall d x c1 c1' c2 c2' c3 c3',
+      subst_coercion d x c1 c1' ->
+      subst_coercion d x c2 c2' ->
+      subst_coercion d x c3 c3' ->
+      subst_coercion d x (CTCoerce c1 c2 c3) (CTCoerce c1' c2' c3')
   | sc_nth : forall d x n c c',
       subst_coercion d x c c' ->
       subst_coercion d x (CNth n c) (CNth n c')
@@ -91,10 +95,15 @@ Proof.
       rewrite <- H. constructor.
       apply IHc1. trivial.
       apply IHc2. trivial.
-    SCase "c = CApp c1 c2".
+    SCase "c = CArrow c1 c2".
       rewrite <- H. constructor.
       apply IHc1. trivial.
       apply IHc2. trivial.
+    SCase "c = CTCoerce c1 c2 c3".
+      rewrite <- H. constructor.
+      apply IHc1. trivial.
+      apply IHc2. trivial.
+      apply IHc3. trivial.
   Case "<-".
     intro H. induction H; simpl;
     subst; try reflexivity; try assumption.
@@ -293,13 +302,15 @@ Qed.
 Fixpoint subst_ty_in_cn_fix (X:nat) (U:ty) (c:cn) : cn :=
   match c with
     | CVar y       => CVar y
-    | CRefl        => CRefl
+    | CRefl T      => CRefl ([X := U] T)
     | CSym c       => CSym (subst_ty_in_cn_fix X U c)
     | CTrans c1 c2 => CTrans (subst_ty_in_cn_fix X U c1)
                              (subst_ty_in_cn_fix X U c2)
-    | CApp c1 c2   => CApp (subst_ty_in_cn_fix X U c1)
-                           (subst_ty_in_cn_fix X U c2)
-    | CAbs c       => CAbs (subst_ty_in_cn_fix X U c)
+    | CArrow c1 c2 => CArrow (subst_ty_in_cn_fix X U c1)
+                             (subst_ty_in_cn_fix X U c2)
+    | CTCoerce c1 c2 c3 => CTCoerce (subst_ty_in_cn_fix X U c1)
+                                    (subst_ty_in_cn_fix X U c2)
+                                    (subst_ty_in_cn_fix X U c3)
     | CNth n c     => CNth n (subst_ty_in_cn_fix X U c)
     | CTAbs c      => CTAbs (subst_ty_in_cn_fix (S X) (tshift 0 U) c)
     | CTApp c T    => CTApp (subst_ty_in_cn_fix X U c) ([X := U] T)
@@ -312,8 +323,9 @@ Instance subst_ty_cn : Subst nat ty cn := {
 Inductive subst_ty_in_cn (T:ty) (X:nat) : cn -> cn -> Prop :=
   | stc_var : forall x,
       subst_ty_in_cn T X (CVar x) (CVar x)
-  | stc_refl :
-      subst_ty_in_cn T X CRefl CRefl
+  | stc_refl : forall U U',
+      subst_type_in_type T X U U' ->
+      subst_ty_in_cn T X (CRefl U) (CRefl U')
   | stc_sym : forall c c',
       subst_ty_in_cn T X c c' ->
       subst_ty_in_cn T X (CSym c) (CSym c')
@@ -321,13 +333,15 @@ Inductive subst_ty_in_cn (T:ty) (X:nat) : cn -> cn -> Prop :=
       subst_ty_in_cn T X c1 c1' ->
       subst_ty_in_cn T X c2 c2' ->
       subst_ty_in_cn T X (CTrans c1 c2) (CTrans c1' c2')
-  | stc_capp : forall c1 c1' c2 c2',
+  | stc_carrow : forall c1 c1' c2 c2',
       subst_ty_in_cn T X c1 c1' ->
       subst_ty_in_cn T X c2 c2' ->
-      subst_ty_in_cn T X (CApp c1 c2) (CApp c1' c2')
-  | stc_cabs : forall c c',
-      subst_ty_in_cn T X c c' ->
-      subst_ty_in_cn T X (CAbs c) (CAbs c')
+      subst_ty_in_cn T X (CArrow c1 c2) (CArrow c1' c2')
+  | stc_ctcoerce : forall c1 c1' c2 c2' c3 c3',
+      subst_ty_in_cn T X c1 c1' ->
+      subst_ty_in_cn T X c2 c2' ->
+      subst_ty_in_cn T X c3 c3' ->
+      subst_ty_in_cn T X (CTCoerce c1 c2 c3) (CTCoerce c1' c2' c3')
   | stc_nth : forall c c' n,
       subst_ty_in_cn T X c c' ->
       subst_ty_in_cn T X (CNth n c) (CNth n c')
@@ -348,23 +362,18 @@ Proof.
     generalize dependent c'. generalize dependent X.
     generalize dependent U.
     induction c; intros; simpl in H;
-      try (subst; constructor; apply IHc; trivial).
-    SCase "c = CTrans c1 c2".
-      rewrite <- H. constructor.
-      apply IHc1. trivial.
-      apply IHc2. trivial.
-    SCase "c = CApp c1 c2".
-      rewrite <- H. constructor.
-      apply IHc1. trivial.
-      apply IHc2. trivial.
-    SCase "c = CInst c T".
-      rewrite <- H. constructor.
-      apply IHc. trivial.
-      apply subst_type_in_type_correct. trivial.
+      try (subst; constructor; apply IHc; trivial);
+      try (rewrite <- H; constructor);
+      try (apply IHc; trivial);
+      try (apply IHc1; trivial);
+      try (apply IHc2; trivial);
+      try (apply IHc3; trivial);
+      try (apply subst_type_in_type_correct; trivial).
   Case "<-".
     intro H. induction H; simpl;
-    subst; try reflexivity; try assumption.
-    apply subst_type_in_type_correct in H0. subst. trivial.
+    subst; try reflexivity; try assumption;
+    try (apply subst_type_in_type_correct in H; subst; trivial);
+    try (apply subst_type_in_type_correct in H0; subst; trivial).
 Qed.
 
 (* Type in Term Substitution *)

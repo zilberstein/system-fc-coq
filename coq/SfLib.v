@@ -251,3 +251,9 @@ Tactic Notation "solve" "by" "inversion" "3" :=
   solve_by_inversion_step (solve by inversion 2).
 Tactic Notation "solve" "by" "inversion" :=
   solve by inversion 1.
+
+Axiom strong_induction:
+forall (P : nat -> Prop),
+(forall n : nat, (forall k : nat, (k < n -> P k)) -> P n) ->
+forall n : nat, P n.
+

@@ -22,29 +22,30 @@ Fixpoint tshift (X : nat) (T : ty) : ty :=
 (* Coercions in Coercions *)
 Fixpoint cshift (X : nat) (c : cn) : cn :=
   match c with
-  | CVar Y       => CVar (if le_gt_dec X Y then 1 + Y else Y)
-  | CRefl        => CRefl
-  | CSym c       => CSym (cshift X c)
-  | CTrans c1 c2 => CTrans (cshift X c1) (cshift X c2)
-  | CApp c1 c2   => CApp (cshift X c1) (cshift X c2)
-  | CAbs c       => CAbs (cshift (S X) c)
-  | CNth n c     => CNth n (cshift X c)
-  | CTAbs c      => CTAbs (cshift X c)
-  | CTApp c T    => CTApp (cshift X c) T
+  | CVar Y            => CVar (if le_gt_dec X Y then 1 + Y else Y)
+  | CRefl T           => CRefl T
+  | CSym c            => CSym (cshift X c)
+  | CTrans c1 c2      => CTrans (cshift X c1) (cshift X c2)
+  | CArrow c1 c2      => CArrow (cshift X c1) (cshift X c2)
+  | CTCoerce c1 c2 c3 => CTCoerce (cshift X c1) (cshift X c2) (cshift X c3)
+  | CNth n c          => CNth n (cshift X c)
+  | CTAbs c           => CTAbs (cshift X c)
+  | CTApp c T         => CTApp (cshift X c) T
   end.
 
 (* Types in Coercions *)
 Fixpoint cshift_typ (X : nat) (c : cn) : cn :=
   match c with
-  | CVar Y       => CVar Y
-  | CRefl        => CRefl
-  | CSym c       => CSym (cshift_typ X c)
-  | CTrans c1 c2 => CTrans (cshift_typ X c1) (cshift_typ X c2)
-  | CApp c1 c2   => CApp (cshift_typ X c1) (cshift_typ X c2)
-  | CAbs c       => CAbs (cshift_typ X c)
-  | CNth n c     => CNth n (cshift_typ X c)
-  | CTAbs c      => CTAbs (cshift_typ (S X) c)
-  | CTApp c T    => CTApp (cshift_typ X c) (tshift X T)
+  | CVar Y            => CVar Y
+  | CRefl T           => CRefl (tshift X T)
+  | CSym c            => CSym (cshift_typ X c)
+  | CTrans c1 c2      => CTrans (cshift_typ X c1) (cshift_typ X c2)
+  | CArrow c1 c2      => CArrow (cshift_typ X c1) (cshift_typ X c2)
+  | CTCoerce c1 c2 c3 => CTCoerce (cshift_typ X c1) (cshift_typ X c2)
+                                  (cshift_typ X c3)
+  | CNth n c          => CNth n (cshift_typ X c)
+  | CTAbs c           => CTAbs (cshift_typ (S X) c)
+  | CTApp c T         => CTApp (cshift_typ X c) (tshift X T)
   end.
 
 (* ################################### *)

@@ -154,25 +154,6 @@ Inductive subst_context : ty -> nat -> context -> context -> Prop :=
 
 Hint Constructors subst_context.
 
-(* ################################### *)
-(** *** Homogeneity of Types *)
-
-Inductive types_homogeneous : ty -> ty -> Prop :=
-  | HT_Var : forall X,
-      types_homogeneous (TVar X) (TVar X)
-  | HT_Arrow : forall U1 U2 V1 V2,
-      types_homogeneous U1 V1 ->
-      types_homogeneous U2 V2 ->
-      types_homogeneous (TArrow U1 U2) (TArrow V1 V2)
-  | HT_Forall : forall U V,
-      types_homogeneous U V ->
-      types_homogeneous (TUniv U) (TUniv V)
-  | HT_CAbs : forall U1 U2 U V1 V2 V,
-      types_homogeneous U1 V1 ->
-      types_homogeneous U2 V2 ->
-      types_homogeneous U  V  ->
-      types_homogeneous (TCoerce U1 U2 U) (TCoerce V1 V2 V).
-
 
 (* ################################### *)
 (** *** Coercion Relation *)
@@ -183,12 +164,11 @@ Inductive well_formed_coercion (Gamma : context) : cn -> ty -> ty -> Prop :=
   | C_Var : forall x T1 T2,
       well_formed_context Gamma        ->
       get_cvar Gamma x = Some (T1, T2) ->
-      types_homogeneous T1 T2           ->
       Gamma |- CVar x ; T1 ~ T2
   | C_Refl : forall T,
       well_formed_context Gamma ->
       well_formed_type Gamma T  ->
-      Gamma |- CRefl ; T ~ T
+      Gamma |- CRefl T ; T ~ T
   | C_Sym : forall c T1 T2,
       Gamma |- c ; T1 ~ T2 ->
       Gamma |- CSym c ; T2 ~ T1
@@ -196,13 +176,18 @@ Inductive well_formed_coercion (Gamma : context) : cn -> ty -> ty -> Prop :=
       Gamma |- c1 ; U ~ V ->
       Gamma |- c2 ; V ~ W ->
       Gamma |- CTrans c1 c2 ; U ~ W
-  | C_App : forall c1 c2 U1 U2 V1 V2 S T,
-      Gamma |- c1 ; (TCoerce U1 U2 S) ~ (TCoerce V1 V2 T) ->
-      Gamma |- c2 ; U1 ~ U2 ->
-      Gamma |- CApp c1 c2 ; S ~ T
+  | C_Arrow : forall c1 c2 U1 U2 V1 V2,
+      Gamma |- c1 ; U1 ~ V1 ->
+      Gamma |- c2 ; U2 ~ V2 ->
+      Gamma |- CArrow c1 c2 ; TArrow U1 U2 ~ TArrow V1 V2
   | C_Forall : forall c U V,
       ext_tvar Gamma |- c ; U ~ V ->
       Gamma |- CTAbs c ; TUniv U ~ TUniv V
+  | C_CTCoerce : forall c1 c2 c3 U1 U2 U3 V1 V2 V3,
+      Gamma |- c1 ; U1 ~ V1 ->
+      Gamma |- c2 ; U2 ~ V2 ->
+      Gamma |- c3 ; U3 ~ V3 ->
+      Gamma |- CTCoerce c1 c2 c3 ; TCoerce U1 U2 U3 ~ TCoerce V1 V2 V3
   | C_ALeft : forall c U1 U2 V1 V2,
       Gamma |- c ; (TArrow U1 U2) ~ (TArrow V1 V2) ->
       Gamma |- CNth 1 c ; U1 ~ V1
@@ -211,13 +196,13 @@ Inductive well_formed_coercion (Gamma : context) : cn -> ty -> ty -> Prop :=
       Gamma |- CNth 2 c ; U2 ~ V2
   | C_CLeft11 : forall c U1 U2 S V1 V2 T,
       Gamma |- c ; TCoerce U1 U2 S ~ TCoerce V1 V2 T ->
-      Gamma |- CNth 1 (CNth 1 c) ; U1 ~ V1 
+      Gamma |- CNth 1 c ; U1 ~ V1 
   | C_CLeft12 : forall c U1 U2 S V1 V2 T,
       Gamma |- c ; TCoerce U1 U2 S ~ TCoerce V1 V2 T ->
-      Gamma |- CNth 2 (CNth 1 c) ; U2 ~ V2
+      Gamma |- CNth 2 c ; U2 ~ V2
   | C_CRight : forall c U1 U2 S V1 V2 T,
       Gamma |- c ; TCoerce U1 U2 S ~ TCoerce V1 V2 T ->
-      Gamma |- CNth 2 c ; S ~ T  
+      Gamma |- CNth 3 c ; S ~ T  
   | C_Inst : forall c U V T,
       Gamma |- c ; TUniv U ~ TUniv V ->
       well_formed_type Gamma T       ->
@@ -229,7 +214,8 @@ Tactic Notation "coercion_cases" tactic(first) ident(c) :=
   first;
   [ Case_aux c "C_Var"   | Case_aux c "C_Refl" 
   | Case_aux c "C_Sym"   | Case_aux c "C_Trans" 
-  | Case_aux c "C_App"   | Case_aux c "C_Forall"
+  | Case_aux c "C_Arrow" | Case_aux c "C_Forall"
+  | Case_aux c "C_CTCoerce"
   | Case_aux c "C_ALeft" | Case_aux c "C_ARight"
   | Case_aux c "C_CLeft11" | Case_aux c "C_CLeft12"
   | Case_aux c "C_CRight"  | Case_aux c "C_Inst" ].

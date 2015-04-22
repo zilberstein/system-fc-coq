@@ -21,21 +21,21 @@ Inductive ty : Type :=
 (** *** Coercions *)
 
 Inductive cn : Type :=
-  | CVar   : nat -> cn
-  | CRefl  : cn
-  | CSym   : cn -> cn
-  | CTrans : cn -> cn -> cn
-  | CApp   : cn -> cn -> cn
-  | CAbs   : cn -> cn
-  | CNth   : nat -> cn -> cn
-  | CTAbs  : cn -> cn
-  | CTApp  : cn -> ty -> cn.
+  | CVar     : nat -> cn
+  | CRefl    : ty -> cn
+  | CSym     : cn -> cn
+  | CTrans   : cn -> cn -> cn
+  | CArrow   : cn -> cn -> cn
+  | CTCoerce : cn -> cn -> cn -> cn
+  | CNth     : nat -> cn -> cn
+  | CTAbs    : cn -> cn
+  | CTApp    : cn -> ty -> cn.
 
 Tactic Notation "c_cases" tactic(first) ident(c) :=
   first;
   [ Case_aux c "CVar"   | Case_aux c "CRefl"
   | Case_aux c "CSym"   | Case_aux c "CTrans"
-  | Case_aux c "CApp"   | Case_aux c "CAbs"
+  | Case_aux c "CArrow" | Case_aux c "CTCoerce"
   | Case_aux c "CNth"
   | Case_aux c "CTAbs"  | Case_aux c "CTApp" ].
 
