@@ -56,201 +56,38 @@ Qed.
 (*   Case "C_Refl". *)
 (*     split; trivial. *)
 (*   Case "C_Sym". *)
-    
-Inductive types_consistent : ty -> ty -> Prop :=
-  | TC_Arrow : forall U1 U2 V1 V2,
-    types_consistent (TArrow U1 U2) (TArrow V1 V2)
-  | TC_Univ : forall U V,
-    types_consistent (TUniv U) (TUniv V)
-  | TC_Coerce : forall U1 U2 U3 V1 V2 V3,
-    types_consistent (TCoerce U1 U2 U3) (TCoerce V1 V2 V3).
 
-Fixpoint type_size (T:ty) : nat :=
-  match T with
-  | TVar _ => 1
-  | TArrow T1 T2 => 1 + type_size T1 + type_size T2
-  | TUniv T1     => 1 + type_size T1
-  | TCoerce T1 T2 T3 => 1 + type_size T1 + type_size T2 + type_size T3
-  end.
-
-Fixpoint coercion_size (c:cn) : nat :=
-  match c with
-  | CVar Y            => 1
-  | CRefl T           => 1 + type_size T
-  | CSym c            => 1 + coercion_size c
-  | CTrans c1 c2      => 1 + coercion_size c1 + coercion_size c2
-  | CArrow c1 c2      => 1 + coercion_size c1 + coercion_size c2
-  | CTCoerce c1 c2 c3 => 1 + coercion_size c1 + coercion_size c2 +
-                         coercion_size c3
-  | CNth n c          => 1 + coercion_size c
-  | CTAbs c           => 1 + coercion_size c
-  | CTApp c T         => 1 + coercion_size c + type_size T
-  end.
-
-Lemma ty_size_gt_0 : forall T,
-  type_size T > 0.
-Proof.
-  intros. induction T; simpl; omega.
-Qed.
-
-Lemma cn_size_gt_0 : forall c,
-  coercion_size c > 0.
-Proof.
-  intros. induction c; simpl; omega.
-Qed.
-
-Lemma cn_size_1 : forall c,
-  coercion_size c = 1 ->
-  exists X, c = CVar X.
-Proof with auto.
-  intros. induction c;
-  inversion H;
-  try (assert (type_size t > 0) by apply ty_size_gt_0; omega);
-  try (assert (coercion_size c > 0) by apply cn_size_gt_0; omega);
-  try (assert (coercion_size c1 > 0) by apply cn_size_gt_0; omega);
-  exists n...
-Qed.
-
-Lemma admissibility : forall Gamma c S T,
-  (forall n, get_cvar Gamma n = None) ->
-  Gamma |- c ; S ~ T ->
-  (forall U1 U2 V1 V2,
-     S = TArrow U1 U2 /\ T = TArrow V1 V2 ->
-     exists c1 c2,
-       Gamma |- c1 ; U1 ~ V1 /\
-       Gamma |- c2 ; U2 ~ V2 /\
-       coercion_size c1 < coercion_size c /\
-       coercion_size c2 < coercion_size c) /\
-  (forall U V,
-     S = TUniv U /\ T = TUniv V ->
-     exists c1,
-       ext_tvar Gamma |- c1 ; U ~ V /\
-       coercion_size c1 < coercion_size c) /\
-  (forall U1 U2 U3 V1 V2 V3,
-     S = TCoerce U1 U2 U3 /\ T = TCoerce V1 V2 V3 ->
-     exists c1 c2 c3,
-       Gamma |- c1 ; U1 ~ V1 /\
-       Gamma |- c2 ; U2 ~ V2 /\
-       Gamma |- c3 ; U3 ~ V3 /\
-       coercion_size c1 < coercion_size c /\
-       coercion_size c2 < coercion_size c /\
-       coercion_size c3 < coercion_size c).
-Proof.
-  intros.
-  coercion_cases (induction H0) Case; subst; split; intros; try split; intros.
-  Case "C_Var".
-    rewrite H in H1; inversion H1.
-    rewrite H in H1; inversion H1.
-    rewrite H in H1; inversion H1.
-  Case "C_Refl".
-    SCase "Arrow".
-      inversion H2; subst.
-      exists (CRefl U1). exists (CRefl U2).
-      inversion H4; subst. inversion H1.
-      split. constructor; trivial.
-      split. constructor; trivial.
-      split; simpl; omega.
-    SCase "Univ".
-      inversion H2; subst.
-      exists (CRefl V).
-      inversion H4; subst. inversion H1.
-      split. constructor. constructor. trivial. trivial.
-      simpl. omega.
-    SCase "Coerce".
-      inversion H2; subst.
-      exists (CRefl U1). exists (CRefl U2). exists (CRefl U3).
-      inversion H4; subst. inversion H1; subst.
-      split. constructor; trivial.
-      split. constructor; trivial.
-      split. constructor; trivial.
-      split; simpl; omega.
-Admitted.
-
-Lemma consistency_sym : forall U V,
-  types_consistent U V ->
-  types_consistent V U.
-Proof.
-  intros. inversion H; constructor.
-Qed.
-
-Lemma consistency_trans : forall U V W,
-  types_consistent U V ->
-  types_consistent V W ->
-  types_consistent U W.
-Proof.
-  intros. inversion H; inversion H0; subst; try constructor;
-  try inversion H0.
-Qed.
-
-Lemma subst_preserves_consistency : forall U V n (T:ty),
-  types_consistent U V ->
-  types_consistent ([n := T] U) ([n := T] V).
-Proof.
-  intros. induction H; simpl; constructor.
-Qed.
-
-Lemma coercion_consistency : forall Gamma c U V,
+Lemma coercion_consistency_ind : forall Gamma c U V,
   (forall n, get_cvar Gamma n = None) ->
   Gamma |- c ; U ~ V ->
-  types_consistent U V.
-Proof with eauto.
-  intros. remember (coercion_size c) as n.
-  generalize dependent c; generalize dependent U; generalize dependent V; 
-  generalize dependent Gamma. induction n using strong_induction; intros.
-  coercion_cases (inversion H1) Case; subst; try constructor;
-  try (apply (admissibility _ _ _ _ H0) in H2; inversion H2; clear H2; clear H4;
-       pose proof (H3 _ _ _ _ (conj eq_refl eq_refl));
-       destruct H2; destruct H2; destruct H2; destruct H4; destruct H5);
-  try (apply (admissibility _ _ _ _ H0) in H2; destruct H2; clear H2;
-       destruct H3; clear H2;
-       pose proof (H3 _ _ _ _ _ _ (conj eq_refl eq_refl));
-       destruct H2; destruct H2; destruct H2; destruct H2; destruct H4;
-       destruct H5; destruct H6; destruct H7).
-  Case "C_Var".
-    inversion H3. rewrite H0 in H5. inversion H5.
-  Case "C_Refl".
-    admit.
-  Case "C_Sym".
-    apply consistency_sym. apply H with (coercion_size c0) Gamma c0;
-    simpl. omega; trivial. trivial. trivial. trivial.
-  Case "C_Trans".
-    apply consistency_trans with V0.
-    apply H with (coercion_size c1) Gamma c1; try (simpl; omega); trivial. 
-    apply H with (coercion_size c2) Gamma c2; try (simpl; omega); trivial.
-  Case "C_ALeft".
-    apply H with (coercion_size x) Gamma x; try (simpl; omega); trivial. 
-  Case "C_ARight".
-    apply H with (coercion_size x0) Gamma x0; try (simpl; omega); trivial.
-  Case "C_CLeft11".
-    apply H with (coercion_size x) Gamma x; try (simpl; omega); trivial.
-  Case "C_CLeft12".
-    apply H with (coercion_size x0) Gamma x0; try (simpl; omega); trivial.
-  Case "C_CRight".
-    apply H with (coercion_size x1) Gamma x1; try (simpl; omega); trivial.
-  Case "C_Inst".
-    apply subst_preserves_consistency.
-    apply admissibility in H2. destruct H2. destruct H4. clear H2. clear H5.
-    pose proof (H4 _ _ (conj eq_refl eq_refl)). destruct H2.
-    destruct H2.
-    apply H with (coercion_size x) (ext_tvar Gamma) x; try (simpl; omega); trivial.
-    intros. simpl. rewrite H0. trivial. trivial.
-Qed.    
+  U = V.
+Proof.
+  intros Gamma c; generalize dependent Gamma;
+  c_cases (induction c) Case; intros; inversion H0; subst;
+  try (apply IHc1 in H3; apply IHc2 in H6; subst; trivial);
+  try (apply IHc in H5; inversion H5; trivial).
+  Case "CVar".
+    rewrite H in H3. inversion H3.
+  Case "CRefl".
+    trivial.
+  Case "CSym".
+    symmetry. eapply IHc. eassumption. trivial.
+  Case "CTCoerce".
+    apply IHc1 in H4; apply IHc2 in H7; apply IHc3 in H8; subst; trivial.
+  Case "CTAbs".
+    apply f_equal. apply IHc with (ext_tvar Gamma).
+    intro. simpl. rewrite H. trivial. trivial.
+  Case "CTApp".
+    apply IHc in H3. inversion H3. trivial.
+    trivial.
+Qed.
 
-
-Lemma canonical_coercion_abs : forall c T U1 U2,
-  (empty |- c ; T ~ TArrow U1 U2 \/
-   empty |- c ; TArrow U1 U2 ~ T) ->
-  exists V1 V2, T = TArrow V1 V2.
-Proof with eauto.
-  intros; remember empty as Gamma; remember (TArrow U1 U2) as V.
-  generalize dependent U1; generalize dependent U2.
-  coercion_cases (induction H) Case; intros...
-  Case "C_Var".
-    subst; inversion H0.
-  Case "C_Sym".
-    
- 
-    pose (IHwell_formed_coercion eq_refl U2 U1).
+Lemma coercion_consistency : forall c U V,
+  empty |- c ; U ~ V ->
+  U = V.
+Proof.
+  intros. apply coercion_consistency_ind with empty c. trivial. trivial.
+Qed.
 
 
 (* ###################################################################### *)
@@ -320,17 +157,16 @@ Proof with eauto.
        value or steps... *)
     right. destruct IHHt1...
     SCase "t1 is a value".
-      destruct IHHt2...
-      SSCase "t2 is also a value".
-        destruct H...
-        SSSCase "t1 is an uncoerced value".
-          assert (exists t0, t = tabs T11 t0).
-          eapply canonical_forms_fun; eauto.
-          destruct H1 as [t0 Heq]. subst.
-          exists ([0:=t2]t0)...
-
-      SSCase "t2 steps".
-        inversion H0 as [t2' Hstp]. exists (tapp t1 t2')...
+      destruct H...
+      SSCase "t1 is an uncoerced value".
+        assert (exists t0, t = tabs T11 t0).
+        eapply canonical_forms_fun; eauto.
+        destruct H0 as [t0 Heq]. subst.
+        exists ([0:=t2]t0)...
+      SSCase "t1 is coerced".
+        inversion Ht1; subst. apply coercion_consistency in H3; subst.
+        exists (tcoerce (tapp t (tcoerce t2 (CSym (CNth 1 c)))) (CNth 2 c)).
+        econstructor...
 
     SCase "t1 steps".
       inversion H as [t1' Hstp]. exists (tapp t1' t2)...
@@ -344,6 +180,9 @@ Proof with eauto.
         eapply canonical_forms_tabs; eauto.
         destruct H2; subst.
         exists ([0 := T2] x)...
+      SSCase "t1 in coerced".
+        inversion Ht; subst. apply coercion_consistency in H5; subst.
+        exists (tcoerce (ttapp t T2) (CTApp c T2))...
 
     SCase "t1 also steps".
       inversion H1. exists (ttapp x T2)...
@@ -356,8 +195,13 @@ Proof with eauto.
         assert (exists t0, t = tcabs U1 U2 t0).
         eapply canonical_forms_cabs...
         destruct H1; subst. exists ([0:=c] x)...
+      SSCase "t is coerced".
+        inversion Ht; subst. apply coercion_consistency in H4; subst.
+        exists (tcoerce (tcapp t (CTrans (CTrans (CNth 1 c0) c)
+                                        (CSym (CNth 3 c0))))
+               (CNth 2 c0))...
 
-SCase "t steps".
+    SCase "t steps".
       inversion H0. exists (tcapp x c)...
 
   Case "T_Coerce".
