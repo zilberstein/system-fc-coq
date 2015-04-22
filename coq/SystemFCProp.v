@@ -196,7 +196,7 @@ Lemma coercion_consistency : forall Gamma c U V,
 Proof with eauto.
   intros. remember (coercion_size c) as n.
   generalize dependent c; generalize dependent U; generalize dependent V; 
-  generalize dependent Gamma; induction n using strong_induction; intros.
+  generalize dependent Gamma. induction n using strong_induction; intros.
   coercion_cases (inversion H1) Case; subst; try constructor;
   try (apply (admissibility _ _ _ _ H0) in H2; inversion H2; clear H2; clear H4;
        pose proof (H3 _ _ _ _ (conj eq_refl eq_refl));

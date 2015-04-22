@@ -252,8 +252,36 @@ Tactic Notation "solve" "by" "inversion" "3" :=
 Tactic Notation "solve" "by" "inversion" :=
   solve by inversion 1.
 
-Axiom strong_induction:
-forall (P : nat -> Prop),
-(forall n : nat, (forall k : nat, (k < n -> P k)) -> P n) ->
-forall n : nat, P n.
+Theorem strongind_aux :
+  forall (P : nat -> Prop),
+  (forall n, (forall m, m < n -> P m) -> P n) ->
+  forall n, (forall m, ((m < n) -> P m)).
+Proof.
+  induction n as [ | n' IHn' ].
+    intros m H1.
+    inversion H1.
+    intros.
+    assert (m < n' \/ m = n'). omega.
+    inversion H1.
+    apply IHn'; assumption.
+    rewrite H2.
+    apply (H n'); assumption.
+Qed.
 
+Lemma weaken :
+  forall (P : nat -> Prop),
+  (forall n, (forall m, ((m < n) -> P m))) -> (forall n, P n).
+Proof.
+  intros. apply H with (S n).
+  omega.
+Qed.
+
+Theorem strong_induction :
+  forall (P : nat -> Prop),
+  (forall n : nat, (forall m, m < n -> P m) -> P n) ->
+  forall n : nat, P n.
+Proof.
+  intros.
+  apply weaken.
+  apply strongind_aux; assumption.
+Qed.
