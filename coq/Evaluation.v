@@ -50,8 +50,8 @@ Inductive step : tm -> tm -> Prop :=
          empty |- v \in TCoerce U1 U2 U ->
          tcapp (tcoerce v c0) c ==>
                tcoerce (tcapp v (CTrans (CTrans (CNth 1 c0) c)
-                                        (CSym (CNth 3 c0))))
-               (CNth 2 c0)
+                                        (CSym (CNth 2 c0))))
+               (CNth 3 c0)
 
 where "t1 '==>' t2" := (step t1 t2).
 
