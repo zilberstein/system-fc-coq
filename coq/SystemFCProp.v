@@ -577,94 +577,51 @@ Proof with eauto.
     simpl. omega.
 Qed.
 
-Lemma tarrow_weakening : forall Gamma t U1 U2,
-  empty |- t \in TArrow U1 U2 ->
-  well_formed_context Gamma   ->
-  exists V1 V2, Gamma |- t \in TArrow V1 V2.
+Lemma wf_type_weakening : forall Gamma T,
+  well_formed_context Gamma ->
+  well_formed_type empty T  ->
+  well_formed_type Gamma T.
 Proof.
-  intros. induction Gamma.
-  Case "empty".
-    exists U1. exists U2. trivial.
+  intros Gamma. induction Gamma; intros.
+  case "empty".
+    trivial.
   Case "ext_var".
-    assert (shift 0 t = t). eapply no_vars_shift. eassumption. rewrite <- H1. 
-    destruct IHGamma. inversion H0. trivial. destruct H2. exists x. exists x0.
-    apply typing_weakening_var. 
-    inversion H0. trivial. trivial.
+    apply wf_weakening_var. apply IHGamma. inversion H. trivial. trivial.
   Case "ext_tvar".
-    assert (shift_typ 0 t = t). eapply no_tvars_shift_typ_ind. eassumption.
-    trivial. rewrite <- H1.
-    destruct IHGamma. inversion H0. trivial.
-    destruct H2. exists (tshift 0 x). exists (tshift 0 x0).
-    assert (TArrow (tshift 0 x) (tshift 0 x0) = tshift 0 (TArrow x x0)) by trivial.
-    rewrite H3. apply typing_weakening_tvar_ind with Gamma. econstructor.
-    apply typing_well_formed in H2. destruct H2. eassumption. trivial.
-  Case "ext_cvar".  
-    destruct p. assert (shift_cn 0 t = t). eapply no_cvars_shift_cn_ind.
-    eassumption. trivial. rewrite <- H1.
-    destruct IHGamma. inversion H0. trivial. destruct H2.
-    exists x. exists x0. apply typing_weakening_cvar_ind. trivial.
-    simpl. trivial.
+    assert (tshift 0 T =  T). eapply no_tvars_tshift_ind. eassumption. trivial.
+    rewrite <- H1. apply wf_weakening_tvar. inversion H. apply IHGamma.
+    trivial. trivial.
+  Case "ext_cvar".
+    destruct p. apply wf_type_weakening_cvar. apply IHGamma. inversion H.
+    trivial. trivial.
 Qed.
 
-Lemma tuniv_weakening : forall Gamma t U,
-  empty |- t \in TUniv U ->
-  well_formed_context Gamma   ->
-  exists V, Gamma |- t \in TUniv V.
+Lemma typing_weakening : forall Gamma t T,
+  well_formed_context Gamma ->
+  empty |- t \in T          ->
+  Gamma |- t \in T.
 Proof.
-  intros. induction Gamma.
+  intros Gamma; induction Gamma; intros.
   Case "empty".
-    exists U. trivial.
+    trivial.
   Case "ext_var".
-    assert (shift 0 t = t). eapply no_vars_shift. eassumption. rewrite <- H1. 
-    destruct IHGamma. inversion H0. trivial. exists x.
-    apply typing_weakening_var. 
-    inversion H0. trivial. trivial.
+    assert (shift 0 t0 = t0). eapply no_vars_shift. eassumption. rewrite <- H1. 
+    inversion H. apply typing_weakening_var. trivial.
+    apply IHGamma. trivial. trivial.
   Case "ext_tvar".
     assert (shift_typ 0 t = t). eapply no_tvars_shift_typ_ind. eassumption.
-    trivial. rewrite <- H1.
-    destruct IHGamma. inversion H0. trivial.
-    exists (tshift 1 x). 
-    assert (TUniv (tshift 1 x) = tshift 0 (TUniv x)) by trivial.
-    rewrite H3. apply typing_weakening_tvar_ind with Gamma. econstructor.
-    apply typing_well_formed in H2. destruct H2. eassumption. trivial.
+    trivial. rewrite <- H1. inversion H. remember H0 as Ht. clear HeqHt.
+    apply typing_well_formed in H0.
+    destruct H0. assert (tshift 0 T = T). eapply no_tvars_tshift_ind.
+    eassumption. trivial. rewrite <- H5.
+    apply typing_weakening_tvar_ind with Gamma. econstructor.
+    apply wf_type_weakening. trivial. eassumption. apply IHGamma. trivial.
+    trivial.
   Case "ext_cvar".  
     destruct p. assert (shift_cn 0 t = t). eapply no_cvars_shift_cn_ind.
     eassumption. trivial. rewrite <- H1.
-    destruct IHGamma. inversion H0. trivial. exists x.
     apply typing_weakening_cvar_ind. trivial.
-    simpl. trivial.
-Qed.
-
-Lemma tcoerce_weakening : forall Gamma t U1 U2 U3,
-  empty |- t \in TCoerce U1 U2 U3 ->
-  well_formed_context Gamma   ->
-  exists V1 V2 V3, Gamma |- t \in TCoerce V1 V2 V3.
-Proof.
-  intros. induction Gamma.
-  Case "empty".
-    exists U1. exists U2. exists U3. trivial.
-  Case "ext_var".
-    assert (shift 0 t = t). eapply no_vars_shift. eassumption. rewrite <- H1. 
-    destruct IHGamma. inversion H0. trivial. destruct H2. destruct H2.
-    exists x. exists x0. exists x1.
-    apply typing_weakening_var. 
-    inversion H0. trivial. trivial.
-  Case "ext_tvar".
-    assert (shift_typ 0 t = t). eapply no_tvars_shift_typ_ind. eassumption.
-    trivial. rewrite <- H1.
-    destruct IHGamma. inversion H0. trivial.
-    destruct H2. destruct H2. exists (tshift 0 x). exists (tshift 0 x0).
-    exists (tshift 0 x1).
-    assert (TCoerce (tshift 0 x) (tshift 0 x0) (tshift 0 x1) =
-            tshift 0 (TCoerce x x0 x1)) by trivial.
-    rewrite H3. apply typing_weakening_tvar_ind with Gamma. econstructor.
-    apply typing_well_formed in H2. destruct H2. eassumption. trivial.
-  Case "ext_cvar".  
-    destruct p. assert (shift_cn 0 t = t). eapply no_cvars_shift_cn_ind.
-    eassumption. trivial. rewrite <- H1.
-    destruct IHGamma. inversion H0. trivial. destruct H2. destruct H2.
-    exists x. exists x0. exists x1. apply typing_weakening_cvar_ind. trivial.
-    simpl. trivial.
+    simpl. apply IHGamma. inversion H. trivial. trivial.
 Qed.
 
 
@@ -719,8 +676,8 @@ Proof with eauto.
       inversion HT1... 
     SCase "ST_PushApp".
       inversion HT1; subst. remember H4 as Hy. clear HeqHy. 
-      apply (tarrow_weakening Gamma) in H3. destruct H3. destruct H.      
-      pose proof (types_deterministic _ _ _ _ H H6). subst.
+      apply (typing_weakening Gamma) in H3.
+      pose proof (types_deterministic _ _ _ _ H3 H6). subst.
       econstructor. econstructor. eassumption.
       econstructor. eassumption. econstructor. econstructor. econstructor.
       eassumption. trivial. apply typing_well_formed in H6. inversion H6. trivial.
@@ -731,8 +688,8 @@ Proof with eauto.
       trivial. trivial. 
     SCase "ST_PushTApp".
       inversion HT; subst. remember H5 as Hy; clear HeqHy.
-      apply (tuniv_weakening Gamma) in H5. destruct H5.
-      pose proof (types_deterministic _ _ _ _ H1 H8). subst.
+      apply (typing_weakening Gamma) in H5.
+      pose proof (types_deterministic _ _ _ _ H5 H8). subst.
       econstructor. econstructor. eassumption. trivial. constructor.
       trivial. trivial. trivial. trivial.
   Case "T_CApp".
@@ -741,8 +698,8 @@ Proof with eauto.
       eapply preservation_capp_cabs...
     SCase "ST_PushCApp".
       inversion HT; subst. remember H4 as Hy; clear HeqHy.
-      apply (tcoerce_weakening Gamma) in H4. destruct H4. destruct H0. destruct H0.
-      pose proof (types_deterministic _ _ _ _ H0 H7). subst.
+      apply (typing_weakening Gamma) in H4.
+      pose proof (types_deterministic _ _ _ _ H4 H7). subst.
       econstructor. eapply C_CRight. eassumption.
       econstructor. eassumption. econstructor. econstructor. eapply C_CLeft11.
       eassumption. eassumption. econstructor. eapply C_CLeft12. eassumption.
