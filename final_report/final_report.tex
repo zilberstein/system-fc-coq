@@ -86,7 +86,30 @@ The strong static typing of Haskell is attractive because it allows the programm
 
 These advantages are founded on the believed type safety of Haskell. Type safety in a programming language refers to its resilience to type errors at runtime. In the context of a statically-typed language such as Haskell, type safety requires ensuring that the guarantees of behavior made at compile-time are preserved during program execution. Given type safety, one can be sure that the program does not exhibit undefined behavior (such as segmentation faults) during execution.
 
+\subsection{GHC Core}
+\label{sec:background-ghc-core}
 
+The Glasgow Haskell Compiler, or GHC, is an optimizing compiler used to generate native executables from Haskell code. As with most compilers, GHC compiles programs in multiple phases, translating the source between various intermediate representations. These phases of compilation are outlined in Figure~\ref{fig:desgar}. Whereas a surface language, such as Haskell, is structured to be easy for humans to work with, these intermediate representations (also known as \em{core languages}) are designed to be easy for a compiler to modify and optimize.
+
+In the first phase of compilation, Haskell code is type-checked and then converted into a desugared intermediate language called GHC Core. The conversion from Haskell to GHC Core involves adding explicit type annotations to all values (which, in Haskell, can be omitted by the programmer and subsequently inferred when type-checking), adding explicit type parameters to type declarations with polymorphic types, and assigning all identifiers globally-unique names. Once converted, GHC performs optimizations on the resulting GHC Core code before passing the program on to later stages of compilation.
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[max width=3in]{desgar.png}
+  \caption{The GHC compilation process}
+  \label{fig:desgar}
+\end{figure}
+
+
+\subsection{System FC}
+\label{sec:background-fc}
+
+GHC Core is an implementation of System FC, a programming language specification designed for use as a target language of Haskell. 
+
+\subsection{Type Safety}
+\label{sec:background-type-safety}
+
+Should this even be here?!?
 
 \section{Motivation}
 \label{sec:motivation}
