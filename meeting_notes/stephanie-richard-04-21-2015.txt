@@ -1,0 +1,99 @@
+Meeting notes 4-21
+
+in ghc, you can always look at coercions to see what it proves,
+so the type should be present on the refl.
+
+won't be able to prove type_unique without type in the refl.
+
+something about abs i missed.
+
+there are no lambdas at the type level of fc.
+
+no CArrow
+
+instead of having tarrow and tcoerce, have tconst for all type constants like arrow and double arrow
+then have tapp that's the application of a tconst to arguments.
+then we would need kinding. probably the next step.
+
+does CApp work?
+
+if you wanted to say t1 -> t2 ~ u1 -> u2, and build out of t1 -> u1 and t2 -> u2, you couldn't.
+
+Gamma1 Gamma2 is the congruence of equality through the application form (I think)
+
+terms are good.
+
+no kinds, don't change well_formed_type
+
+types_homogeneous is just reflexivity for types. don't really need this.
+
+well_formed_coercion:
+ - in C_Var we don't need types_homogeneous
+ - it's impossible to construct a proof of a coercion if two types don't have the same head.
+ - in C_App, that's not what app is for; want C_Arrow and C_TCoerce
+   - Opposite of nth
+   - 
+
+in the paper there were constants:
+ - T1 ~ T2 => T3
+   - not a type form.
+   - notation for (=>) T1 T2 T3
+   - which is ((((=>) T1) T2) T3)
+ - T1 -> T2
+   - (->) T1 T2
+ - [T1]
+   - [] T1
+
+-- don't use nested nths, use a number.
+
+G1 : T1 ~ U1, G2 : T2 ~ U2, G3 : T3 ~ U3
+---------------------------------------------------
+(G1 ~ G2) => G3 : (T1 ~ T2) => T3 ~ (U1 ~ U2) => U3
+
+under the assumption int == bool, it should all still hold.
+
+C_Inst can have another coercion T1 ~ T2 and T1 on left and T2 on right. (i think)
+
+T_CAbs can construct with different types but can't use them.
+
+You made it call-by-value.
+PushApp and App2 E_AppAbs need to be changed so it isn't call by value.
+"Well you did ML with coercions"
+
+typing assumptions put in push rules so you wouldn't need axioms for preservation.
+axioms should be required to prove progress.
+
+could change to lambda instead of v in the rules, and we should get preservation.
+or you could make sure data constructors are always fully applied.
+
+axioms:
+canonical_coercion_fun is too strong.
+ - want to say that T is not one of the other forms (should only use in proof of canonical forms).
+ - shouldn't need it in perservation, 
+   - either need to phrase push rule as a lambda or have the typing stuff in push rules.
+
+looking at preservation:
+ - want weakening to say v \in T1, v \in TArrow -> T1 is TArrow.
+ - typing is deterministic
+
+in the empty context, canonical_coercion_fun should be provable.
+need a normal form for coercion proofs
+prove you can convert all of your coercion proofs to normal form without transitivity (i think)
+
+use remember a lot.
+
+if c is a coercion between t1 and t2 and exists u1 and u2 ... 
+
+so we should be able to prove this.
+and prove types_deterministic and types_unique.
+couldn't prove because don't have ty on refl coercion.
+get rid of abs
+fix nth.
+rewriting app to arrow rule.
+
+if we do datatypes then we need kinds.
+add kinds first.
+well_formed_type to has_kind.
+
+hard code a small universe of types and hard code their kinds. make it separate.
+have app in type form and arrow in datatypes.
