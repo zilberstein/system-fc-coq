@@ -56,7 +56,7 @@ There are two main benefits to this project. First, the verification would provi
  }
 
 \textit{
-Haskell is a statically-typed functional programming language that is commonly used for the compile-time guarantees about program behavior that its type system is believed to provide. Despite this usage, the type safety of  Haskell has not been formally proven. A foundation for a mechanized proof of Haskell's type safety is presented via a mechanized proof of the type safety of a substantial subset of System FC, the theor
+(draft) Haskell is a statically-typed functional programming language that is commonly used for the compile-time guarantees about program behavior that its type system is believed to provide. Despite this usage, the type safety of  Haskell has not been formally proven. A foundation for a mechanized proof of Haskell's type safety is presented via a mechanized proof of the type safety of a substantial subset of System FC, the theor
  }
 \end{abstract}
 
@@ -68,9 +68,6 @@ Haskell is a statically-typed functional programming language that is commonly u
 % `Section~\ref{sec:intro}', which is useful if the section number
 % changes.
 
-%  
-%
-%
 \section{Introduction}
 \label{sec:intro}
 
@@ -79,6 +76,17 @@ Content content content
 
 \section{Background}
 \label{sec:background}
+
+\subsection{Haskell}
+\label{sec:background-haskell}
+
+Haskell is a functional programming language originally released in 1990. Haskell is a statically-typed language; the types of all expressions and variables are determined at compile-time via either type inference or explicit type annotations by the programmer. Haskell is strongly-typed, meaning that the usage of values in identifier declarations and functions must be consistent with the statically-declared types of these functions; Haskell will not implicitly convert values from one type to another in order to satisfy the static typing of the program. Haskell is also a purely-functional language; a function defined in Haskell is guaranteed not to have side-effects such as I/O or the mutation of data structures in the running environment unless this is explictly allowed by the programmer. 
+
+The strong static typing of Haskell is attractive because it allows the programmer to make certain guarantees about the properties of his or her program at compilation, rather than runtime. Such guarantees include the guarantee that a function is never called with an invalid input type, or the guarantee that a function defines a behavior for null inputs. By determining these properties at compile-time, one can rule out entire classes of errors prior to ever running the program.
+
+These advantages are founded on the believed type safety of Haskell. Type safety in a programming language refers to its resilience to type errors at runtime. In the context of a statically-typed language such as Haskell, type safety requires ensuring that the guarantees of behavior made at compile-time are preserved during program execution. Given type safety, one can be sure that the program does not exhibit undefined behavior (such as segmentation faults) during execution.
+
+
 
 \section{Motivation}
 \label{sec:motivation}
