@@ -126,17 +126,38 @@ Content content content
 \section{Implementation}
 \label{sec:implementation}
 
-Content content content
+The system is implemented as several Coq modules. These modules each serve a specific purpose. Some of these modules formalize the langauges, others define fixpoint functions for manipulating expressions, and other contains proofs of lemmas and theorems to achieve the full proof.
+
+The formalization of System FC is included in SystemFC.v. This includes formalizations of types, coercions, terms, as well as values. The formalization follows from the rules for System F from [INSERT TAPL CITATION HERE] and the description of coercions from [INSERT PAPER CITATION HERE]. The particular implementation strategy relies on a choice of how to model variable naming. In programming, variables are named with strings, but these can conflict. Conflicting variable names creates a problem for handling shadowing and substitution. For example, given a function $(\lambda x:Int.\:x + y)$ and attempting to substitute some externally defined variable $x$ for all instances of $y$, problems arise. Performing a na\"ive substitution of $[y \mapsto x] (\lambda x:Int.\:x + y)$ results in a function $\lambda x:Int.\:x + x$. This changes how the function evaluates, so it doesn't preserve program semantics.
+
+There are several ways to get around this substitution issue. The way substitution is handled in the system described is through the use of De Bruijn indices [INSERT DE BRUIJN CITATION HERE]. This means that variables are encoded with natural number values. The value represents the number of binders between the variable's use and its binding site. Given this representation of variables, there cannot be naming conflicts. Consider the following example:
+$$\Lambda T.\:\Lambda U.\:\lambda f:T \rightarrow U.\:\lambda x:T.\:f\:x$$
+which has type:
+$$\forall T.\:\forall U.\:(T \rightarrow U) \rightarrow T \rightarrow U$$
+Using De Bruijn indices for both types and terms, the expression becomes:
+$$\Lambda.\:\Lambda.\:\lambda : 1 \rightarrow 0.\:\lambda : 1.\:\overline{1}\:\overline{0}$$
+which has type:
+$$\forall.\:\forall.\:(1 \rightarrow 0) \rightarrow 1 \rightarrow 0$$
+
+Note that the above uses bars to describe identifiers for terms. The $0$ refers to the closest type variable binder and $\overline{0}$ refers to the closest term variable binder. The first expression with traditionally named variables is a simple pair of type abstractions containing a pair of term abstractions related to the types introduced in the outer type abstractions. The variables must be explicitly named at the binding site. This is noted by the $\Lambda T.$ or $\lambda x:T$. Using De Bruijn indices eliminates this need, as referring to a binder just requires determining the distance from the usage site to the binding site. The $\Lambda T.$ in the first example is replaced simply by $\Lambda.$ and the $\lambda x:T$ is transformed into $\lambda : 1$. The $1$ here replaces the $T$, as there is a single type variable binder between the usage of the type and the desired binder.
+
+This representation of variable names using De Bruijn indices is noted in the formalization in SystemFC.v in the variable cases in $ty$, $tm$, and $cn$. All of these definitions take in a natural number as the variable name. This formalization affects the proofs through the rest of the implementation, most notably introducing the need for index shifting. Take, for example, the substitution $[Y \mapsto X] (\Lambda X.\:X \rightarrow Y)$ where $X$ is to be substituted for $Y$ in the type abstraction. Using De Bruijn indices, assume the outer $X$ is known as $2$ and the outer $Y$ is known as $3$ at the binding site outside of the lambda. If this were the case, then the inner $X$ would have to be $0$ using De Bruijn indices, as it refers to the closest binding lambda to it. The inner $Y$ would then refer to the same binder as the outer $Y$. Even though the outer $Y$ is known as $3$ outside of the type abstraction, it must be known as $4$ inside of the abstraction, as an extra binder is introduced between the two uses of $Y$. Despite the confusion this may introduce, this makes the substitution $[3 \mapsto 2] (\Lambda.\:0 \rightarrow 4)$. This is where shifting is relevant. A na\"ive substitution would look for all instances of $3$ and replace them with $2$. This is not correct, though, as the search for uses of $3$ passes a binding site for type variables. This means that what used to be $3$ binders away from the binding site is now $4$ away. Thusly, shifting the index of the substituted variable is necessary to preserve program semantics and adequately work toward a proof of the type safety of System FC.
+
+The fixpoints for shifting types, terms, or coercions are contained in Shifting.v. These shifting functions are used throughout the formalization and proof, most notably through the shifting lemmata contained in SubstProp.v.
+
+The formalization of the evaluation semantics of System FC are defined in Evaluation.v. This includes, most importantly, the step relation. In order to ensure the safety of a type system, some formalization of how expressiosn in the language evaluate is needed to reason about the full execution of a program in the target language. The described formalization takes from the small-step language semantics [CITE SOMEONE HERE] to define how a single expression can take a single step toward its final value. The rules in Evaluation.v form a deterministic relation that is used in defining the major theorems to be proven. These theorems, progress and preservation, rely on the step relation to define how an expression can be evaluated so that they can guaranteed properties about the types at all discrete steps in the program's execution. The theorems for progress, preservation, and soundness are all contained in SystemFCProp.v. This module contains the proof of the type safety of this subset of System FC.
+
+[I'M NOT SURE WHAT TO PUT HERE].
 
 \section{Results}
 \label{sec:results}
 
-Content content content
+(Tate should do this)
 
 \section{Future Work}
 \label{sec:future-work}
 
-Content content content
+(Tate should do this)
 
 \section{Ethical Considerations}
 \label{sec:ethics}
