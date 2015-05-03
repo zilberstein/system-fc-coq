@@ -128,7 +128,19 @@ Content content content
 
 The system is implemented as several Coq modules. These modules each serve a specific purpose. Some of these modules formalize the langauges, others define fixpoint functions for manipulating expressions, and other contains proofs of lemmas and theorems to achieve the full proof.
 
-The formalization of System FC is included in SystemFC.v. This includes formalizations of types, coercions, terms, as well as values. The formalization follows from the rules for System F from [INSERT TAPL CITATION HERE] and the description of coercions from [INSERT PAPER CITATION HERE]. The particular implementation strategy relies on a choice of how to model variable naming. In programming, variables are named with strings, but these can conflict. Conflicting variable names creates a problem for handling shadowing and substitution. For example, given a function $(\lambda x:Int.\:x + y)$ and attempting to substitute some externally defined variable $x$ for all instances of $y$, problems arise. Performing a na\"ive substitution of $[y \mapsto x] (\lambda x:Int.\:x + y)$ results in a function $\lambda x:Int.\:x + x$. This changes how the function evaluates, so it doesn't preserve program semantics.
+The formalization of System FC is included in SystemFC.v. This includes formalizations of types, terms, values, and coercions. The formalization follows from the rules for System F from [INSERT TAPL CITATION HERE] and the description of coercions from [INSERT PAPER CITATION HERE]. These rules are formalized in the Coq language through inductive definitions. 
+
+[ How are types defined? ]
+
+[ How are terms defined? ]
+
+[ What are values? ]
+
+[ How are coercions defined? ]
+
+[ Talk about step rules ]
+
+In this formalization of the language, the question of how to model variable naming is addressed. In programming, variables are named with strings, but these can conflict. Conflicting variable names creates a problem for handling shadowing and substitution. For example, when given a function $(\lambda x:Int.\:x + y)$ and attempting to substitute some externally defined variable $x$ for all instances of $y$, problems arise. Performing a na\"ive substitution of $[y \mapsto x] (\lambda x:Int.\:x + y)$ results in a function $\lambda x:Int.\:x + x$. This changes how the function evaluates, so it does not preserve program semantics. Continuing without addressing this source of error in the specification of the operational semantics of the language would make proving the type system to be sound impossible.
 
 There are several ways to get around this substitution issue. The way substitution is handled in the system described is through the use of De Bruijn indices [INSERT DE BRUIJN CITATION HERE]. This means that variables are encoded with natural number values. The value represents the number of binders between the variable's use and its binding site. Given this representation of variables, there cannot be naming conflicts. Consider the following example:
 $$\Lambda T.\:\Lambda U.\:\lambda f:T \rightarrow U.\:\lambda x:T.\:f\:x$$
@@ -152,12 +164,22 @@ The formalization of the evaluation semantics of System FC are defined in Evalua
 \section{Results}
 \label{sec:results}
 
-(Tate should do this)
+The system as it stands is a full mechanical proof of the type safety of System F with coercions. The type safety of all features of System FC have previously been proven by hand [CITE THIS], though it has never been done mechanically using a proof assistant. The system described is the first mechanical proof of this particular subset of System FC, namely System F with coercions. Other mechanical proofs of the type safety of System F exist, though none contain a formalization of coercions as described in [CITE SOME PAPER HERE]. 
+
+Given that the Coq interpreter has accepted the proof, it is thought to be verified as a proper proof. The benefits of a mechanical proof over a handwritten one are many in number. A mechanical proof makes use of the Curry-Howard isomorphism to verify the proof instead of relying on the writer and other human verifiers. Beyond just correctness, a mechanical proof is also highly extensible. The system itself is a first for this subset of System FC, but it also allows for further extension to a larger subset, moreso than a handwritten proof could.
+
+[ WHAT EVEN GOES IN THIS SECTION ]
 
 \section{Future Work}
 \label{sec:future-work}
 
-(Tate should do this)
+As the formalization stands, it does not contain all features commonly thought to be part of System FC. In order to fully match System FC, it would need to be extended to include datatypes and type families. These two additions would create the full formalization of System FC. It would then be necessary to adjust the proofs accordingly so that the Coq interpreter would accept them.
+
+The mechanical proof as it stands is very extensible. This allows for a large number of potential extensions and use cases. Modifying a mechanical proof can be done by adding to an already proper formalization and then walking through the proof with the help of the Coq interpreter. Given that most of the proofs in the system are done by induction on some inductive definition in the formalization, adding to the formalization would add new cases, and much of the proof structure and many of the proofs would be preserved.
+
+Possible future proofs include verifying the safety of various GHC language extensions. GHC includes many features, but programmers are given even more options via extensions to the language. These can be included by annotating the program or including command-line flags to include certain extensions. Many commonly used language extensions add to Haskell's type system, so being able to prove the type safety of an extension would allow for an added level of guarantees to the potentially unsafe extension.
+
+GHC Core is an intermediate representation used in the compilation process of Haskell code. At this level, GHC does many of its optimization passes. Using the formalization and proof of type safety, one could extend the formalization to include a set of optimizations. These optimizations could then be proven to be type safe to ensure the semantics of a program cannot be changed through an invalid optimization done at the GHC Core level.
 
 \section{Ethical Considerations}
 \label{sec:ethics}
