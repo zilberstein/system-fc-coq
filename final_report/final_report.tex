@@ -47,17 +47,13 @@
 % Next we write out our abstract -- generally a two paragraph maximum,
 % executive summary of the motivation and contributions of the work.
 \begin{abstract}
-  \textit{
-Haskell's compiler, the Glasgow Haskell Compiler (GHC), generates code in GHC Core. The Coq proof assistant is used to verify substantial subset of System FC, the theoretical basis for GHC Core. A translation from the formal language to GHC Core, the concrete implementation of System FC that is used in GHC, will then be proven. The goal of verification is to prove that the evaluation semantics of System FC are sound.
-  }
-
-  \textit{
-There are two main benefits to this project. First, the verification would provide assurance regarding the safety and accuracy of GHC. Second, and perhaps more importantly, it will provide foundation to verify other properties of GHC such as compiler optimizations.
- }
+\textit{
+Haskell is a statically-typed functional programming language that is commonly used for the robust compile-time guarantees provided by its type system. Despite this usage, the type safety of Haskell has not been mechanically proven; it may be possible to write Haskell programs that type-check at compile-time but fall into an inconsistent state at runtime. Many safety critical systems such as flight controllers, self driving cars, and missile controllers are powered by software. If the type systems underlying this code are not verified, then the code itself is unsafe.
+}
 
 \textit{
-(draft) Haskell is a statically-typed functional programming language that is commonly used for the compile-time guarantees about program behavior that its type system is believed to provide. Despite this usage, the type safety of  Haskell has not been formally proven. A foundation for a mechanized proof of Haskell's type safety is presented via a mechanized proof of the type safety of a substantial subset of System FC, the theor
- }
+This work approaches this problem by verifying System FC, the formalization of the core language of the Haskell compiler. It presents a mechanized proof for a large subset of System FC using the Coq Proof Assistant.  The type system of System FC is the basis for the type system of Haskell, so the results translate directly into safety guarantees at the program level.
+}
 \end{abstract}
 
 % Then we proceed into the body of the report itself. The effect of
