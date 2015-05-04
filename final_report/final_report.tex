@@ -123,26 +123,73 @@ Content content content
 
 Content content content
 
+\section{System Model}
+\label{sec:model}
+At a high-level, the system is composed of a formalization of the semantics of System FC, and a series of proofs of the properties of this formalization. The formalization itself is a representation of the System FC language using the language features of Coq. This is accomplished by defining inductive datatypes to serve as Coq correlates to the types (universally quantified types, function types, etc.) and terms (variables, type abstractions, etc.) introduced in System FC.  With these, one can in theory construct a representation of any System FC program. Actually modeling the execution of this is accomplished by translating the execution semantics of System FC to Coq. This is done by creating in Coq a series of relations and fixpoints (the Coq terminology for a function, like those defined in Haskell or OCaml) that map terms to terms and types to terms according to the execution rules of System FC. With this formalization of the execution semantics, one is able to create a representation of any System FC program and then simulate its execution in the context of Coq. More importantly, the complete formalization of the operational semantics for System FC allows for proofs to be written in Coq about these operational semantics which are essential to mechanically demonstrating the type soundness of System FC.
+
 \section{Implementation}
 \label{sec:implementation}
 
-The system is implemented as several Coq modules. These modules each serve a specific purpose. Some of these modules formalize the langauges, others define fixpoint functions for manipulating expressions, and other contains proofs of lemmas and theorems to achieve the full proof.
+The formalization of System F in Coq follows directly from the definitions in~\cite{Pierce:TAPL}. A formalization of coercions comes from [CITE SOMETHING]. First, types, coercions, terms, and values are defined as inductive datatypes. Inductive datatypes are datatypes over which Coq can perform inductive proofs. This property is quite useful when proving the Progress and Preservation theorems. The formalization of System F syntax is shown in Figure~\ref{fig:syntax-coq} where \texttt{tm} represents a System FC term,  \texttt{ty} represents a System FC type, and \texttt{cn} represents a System FC coercion.
 
-The formalization of System FC is included in SystemFC.v. This includes formalizations of types, terms, values, and coercions. The formalization follows from the rules for System F from [INSERT TAPL CITATION HERE] and the description of coercions from [INSERT PAPER CITATION HERE]. These rules are formalized in the Coq language through inductive definitions. 
+\begin{figure}[h!]
+\begin{lstlisting}
+(** *** Types *)
+Inductive ty : Type := 
+  | TVar    : nat -> ty 
+  | TArrow  : ty -> ty -> ty
+  | TUniv   : ty -> ty
+  | TCoerce : ty -> ty -> ty -> ty.
 
-[ How are types defined? ]
+(** *** Coercions *)
 
-[ How are terms defined? ]
+Inductive cn : Type :=
+  | CVar     : nat -> cn
+  | CRefl    : ty -> cn
+  | CSym     : cn -> cn
+  | CTrans   : cn -> cn -> cn
+  | CArrow   : cn -> cn -> cn
+  | CTCoerce : cn -> cn -> cn -> cn
+  | CNth     : nat -> cn -> cn
+  | CTAbs    : cn -> cn
+  | CTApp    : cn -> ty -> cn.
 
-[ What are values? ]
+(** *** Terms *)
+Inductive tm : Type :=
+  | tvar    : nat -> tm
+  | tapp    : tm -> tm -> tm
+  | tabs    : ty -> tm -> tm
+  | ttapp   : tm -> ty -> tm
+  | ttabs   : tm -> tm
+  | tcapp   : tm -> cn -> tm
+  | tcabs   : ty -> ty -> tm -> tm
+  | tcoerce : tm -> cn -> tm.
 
-[ How are coercions defined? ]
+(** *** Values *)
+Inductive uncoerced_value : tm -> Prop :=
+  | uv_abs : forall T t,
+      uncoerced_value (tabs T t)
+  | uv_tabs : forall t,
+      uncoerced_value (ttabs t)
+  | uv_cabs : forall t T1 T2,
+      uncoerced_value (tcabs T1 T2 t).
 
-[ Talk about step rules ]
+Inductive value : tm -> Prop :=
+  | v_uncoerced : forall t,
+      uncoerced_value t ->
+      value t
+  | v_coerced : forall t c,
+      uncoerced_value t ->
+      value (tcoerce t c).
 
-In this formalization of the language, the question of how to model variable naming is addressed. In programming, variables are named with strings, but these can conflict. Conflicting variable names creates a problem for handling shadowing and substitution. For example, when given a function $(\lambda x:Int.\:x + y)$ and attempting to substitute some externally defined variable $x$ for all instances of $y$, problems arise. Performing a na\"ive substitution of $[y \mapsto x] (\lambda x:Int.\:x + y)$ results in a function $\lambda x:Int.\:x + x$. This changes how the function evaluates, so it does not preserve program semantics. Continuing without addressing this source of error in the specification of the operational semantics of the language would make proving the type system to be sound impossible.
+\end{lstlisting}
+\caption{System FC syntax defined in Coq}
+\label{fig:syntax-coq}
+\end{figure}
 
-There are several ways to get around this substitution issue. The way substitution is handled in the system described is through the use of De Bruijn indices [INSERT DE BRUIJN CITATION HERE]. This means that variables are encoded with natural number values. The value represents the number of binders between the variable's use and its binding site. Given this representation of variables, there cannot be naming conflicts. Consider the following example:
+In this formalization of the language, variables are parameterized by a natural number instead of a string as one would normally expect. Generally, variables are named with strings, but two different variables could share a name, which causes issues when reasoning about a language using Coq. Conflicting variable names creates a problem for handling shadowing and substitution. For example, when given a function $(\lambda x:Int.\:x + y)$ and attempting to substitute some externally defined variable $x$ for all instances of $y$, problems arise. Performing a na\"ive substitution of $[y \mapsto x] (\lambda x:Int.\:x + y)$ results in a function $\lambda x:Int.\:x + x$. This changes how the function evaluates, so it does not preserve program semantics. Continuing without addressing this source of error in the specification of the operational semantics of the language would make proving the type system to be sound impossible.
+
+There are several ways to get around this substitution issue. The way substitution is handled in the system described is through the use of De Bruijn indices~\cite{Vouillon12}. This means that variables are encoded with natural number values. The value represents the number of binders between the variable's use and its binding site. Given this representation of variables, there cannot be naming conflicts. Consider the following example:
 $$\Lambda T.\:\Lambda U.\:\lambda f:T \rightarrow U.\:\lambda x:T.\:f\:x$$
 which has type:
 $$\forall T.\:\forall U.\:(T \rightarrow U) \rightarrow T \rightarrow U$$
@@ -151,22 +198,22 @@ $$\Lambda.\:\Lambda.\:\lambda : 1 \rightarrow 0.\:\lambda : 1.\:\overline{1}\:\o
 which has type:
 $$\forall.\:\forall.\:(1 \rightarrow 0) \rightarrow 1 \rightarrow 0$$
 
-Note that the above uses bars to describe identifiers for terms. The $0$ refers to the closest type variable binder and $\overline{0}$ refers to the closest term variable binder. The first expression with traditionally named variables is a simple pair of type abstractions containing a pair of term abstractions related to the types introduced in the outer type abstractions. The variables must be explicitly named at the binding site. This is noted by the $\Lambda T.$ or $\lambda x:T$. Using De Bruijn indices eliminates this need, as referring to a binder just requires determining the distance from the usage site to the binding site. The $\Lambda T.$ in the first example is replaced simply by $\Lambda.$ and the $\lambda x:T$ is transformed into $\lambda : 1$. The $1$ here replaces the $T$, as there is a single type variable binder between the usage of the type and the desired binder.
+Note that the above uses bars to describe identifiers for terms. The $0$ refers to the closest type variable binder and $\overline{0}$ refers to the closest term variable binder. The first expression with traditionally named variables is a simple pair of type abstractions containing a pair of term abstractions related to the types introduced in the outer type abstractions. The variables must be explicitly named at the binding site. This is noted by the $\Lambda T.$ or $\lambda x:T$. Using De Bruijn indices eliminates this need, as referring to a binder just requires determining the distance from the usage site to the binding site. The $\Lambda T.$ in the first example is replaced simply by $\Lambda.$ and the $\lambda x:T$ is transformed into $\lambda : 1$. This is more clear in Figure~\ref{fig:syntax-coq}, where \texttt{tabs} and \texttt{ttabs} are not bound with associated identifiers as they would be with named variables. The $1$ here replaces the $T$, as there is a single type variable binder between the usage of the type and the desired binder.
 
-This representation of variable names using De Bruijn indices is noted in the formalization in SystemFC.v in the variable cases in $ty$, $tm$, and $cn$. All of these definitions take in a natural number as the variable name. This formalization affects the proofs through the rest of the implementation, most notably introducing the need for index shifting. Take, for example, the substitution $[Y \mapsto X] (\Lambda X.\:X \rightarrow Y)$ where $X$ is to be substituted for $Y$ in the type abstraction. Using De Bruijn indices, assume the outer $X$ is known as $2$ and the outer $Y$ is known as $3$ at the binding site outside of the lambda. If this were the case, then the inner $X$ would have to be $0$ using De Bruijn indices, as it refers to the closest binding lambda to it. The inner $Y$ would then refer to the same binder as the outer $Y$. Even though the outer $Y$ is known as $3$ outside of the type abstraction, it must be known as $4$ inside of the abstraction, as an extra binder is introduced between the two uses of $Y$. Despite the confusion this may introduce, this makes the substitution $[3 \mapsto 2] (\Lambda.\:0 \rightarrow 4)$. This is where shifting is relevant. A na\"ive substitution would look for all instances of $3$ and replace them with $2$. This is not correct, though, as the search for uses of $3$ passes a binding site for type variables. This means that what used to be $3$ binders away from the binding site is now $4$ away. Thusly, shifting the index of the substituted variable is necessary to preserve program semantics and adequately work toward a proof of the type safety of System FC.
+This representation of variable names using De Bruijn indices is noted in the formalization in Figure~\ref{fig:syntax-coq} in the variable cases in $ty$, $tm$, and $cn$. All of these definitions take in a natural number as the variable name. This formalization affects the proofs through the rest of the implementation, most notably introducing the need for index shifting. Take, for example, the substitution $[Y \mapsto X] (\Lambda X.\:X \rightarrow Y)$ where $X$ is to be substituted for $Y$ in the type abstraction. Using De Bruijn indices, assume the outer $X$ is known as $2$ and the outer $Y$ is known as $3$ outside of the lambda. If this were the case, then the inner $X$ would have to be $0$ using De Bruijn indices, as it refers to the closest binding lambda to it. The inner $Y$ would then refer to the same binder as the outer $Y$. Even though the outer $Y$ is known as $3$ outside of the type abstraction, it must be known as $4$ inside of the abstraction, as an extra binder is introduced between the two uses of $Y$. Despite the confusion this may introduce, this makes the substitution $[3 \mapsto 2] (\Lambda.\:0 \rightarrow 4)$. This is where shifting is relevant. A na\"ive substitution would look for all instances of $3$ and replace them with $2$. This is not correct, though, as the search for uses of $3$ passes a binding site for type variables as it enters the lambda. This means that what used to be $3$ binders away from the binding site is now $4$ away. Thusly, shifting the index of the substituted variable is necessary to preserve program semantics and adequately work toward a proof of the type safety of System FC.
 
-The fixpoints for shifting types, terms, or coercions are contained in Shifting.v. These shifting functions are used throughout the formalization and proof, most notably through the shifting lemmata contained in SubstProp.v.
+In order to handle the several forms of substitutions that can occur in the language, substitution is defined as Coq Notation. Notation in Coq allwos the user to refer to fixpoints (functions) and datatypes using operators instead of names. In this implementation, the notation for substitutions is \texttt{[x := s]t} meaning substitute the identifier \texttt{x} with \texttt{s} in \texttt{t}. There are a number of different types of substitutions that an occur in the language between all permutations of types, terms, and coercions, meaning that \texttt{s} and \texttt{t} are not always the same type. In order for the substitution notation to be be reusable for the different kinds of substitutions, there is a \texttt{Subst} typeclass that has instances for the combinations of types for \texttt{x}, \texttt{s}, and \texttt{t}. In addition to being defined using fixpoints, substitutions are defined inductively. Fixpoints provide a nice notation for substitutions while the inductive definition is useful in proofs. In order to reconcile this, several lemmata are proven that verify the equivalence between the fixpoint and inductive definitions for substitutions. This allows theorems to use the more readable notation, while the proofs of those theorems use the inductive definitions.
 
-The formalization of the evaluation semantics of System FC are defined in Evaluation.v. This includes, most importantly, the step relation. In order to ensure the safety of a type system, some formalization of how expressiosn in the language evaluate is needed to reason about the full execution of a program in the target language. The described formalization takes from the small-step language semantics [CITE SOMEONE HERE] to define how a single expression can take a single step toward its final value. The rules in Evaluation.v form a deterministic relation that is used in defining the major theorems to be proven. These theorems, progress and preservation, rely on the step relation to define how an expression can be evaluated so that they can guaranteed properties about the types at all discrete steps in the program's execution. The theorems for progress, preservation, and soundness are all contained in SystemFCProp.v. This module contains the proof of the type safety of this subset of System FC.
+After formalizing syntax and substitutions for System FC, the evaluation semantics of System FC are then defined via the step relation. In order to ensure the safety of a type system, some formalization of how expressions in the language evaluate is needed to reason about the full execution of a program in the target language. The described formalization takes from the small-step language semantics in [CITE SOMEONE HERE] to define how a single expression can take a single step toward its final value. This is defined inductively with the associated notation \texttt{t1 ==> t2} meaning that term \texttt{t1} steps to a term \texttt{t2}. [NOAM CAN INSERT RULES HERE IF HE WANTS].
 
-[I'M NOT SURE WHAT TO PUT HERE].
+[ DO MORE ]
 
 \section{Results}
 \label{sec:results}
 
 The system as it stands is a full mechanical proof of the type safety of System F with coercions. The type safety of all features of System FC have previously been proven by hand [CITE THIS], though it has never been done mechanically using a proof assistant. The system described is the first mechanical proof of this particular subset of System FC, namely System F with coercions. Other mechanical proofs of the type safety of System F exist, though none contain a formalization of coercions as described in [CITE SOME PAPER HERE]. 
 
-Given that the Coq interpreter has accepted the proof, it is thought to be verified as a proper proof. The benefits of a mechanical proof over a handwritten one are many in number. A mechanical proof makes use of the Curry-Howard isomorphism to verify the proof instead of relying on the writer and other human verifiers. Beyond just correctness, a mechanical proof is also highly extensible. The system itself is a first for this subset of System FC, but it also allows for further extension to a larger subset, moreso than a handwritten proof could.
+Given that the Coq interpreter has accepted the proof, it is thought to be verified as a proper proof. The benefits of a mechanical proof over a handwritten one are many in number. A mechanical proof makes use of the Curry-Howard isomorphism to verify the proof instead of relying on the writer and other human verifiers. Beyond just correctness, a mechanical proof is also highly extensible. The system itself is a first for this subset of System FC, but it also allows for further extension to a larger subset, moreso than a handwritten proof could. 
 
 [ WHAT EVEN GOES IN THIS SECTION ]
 
@@ -180,6 +227,8 @@ The mechanical proof as it stands is very extensible. This allows for a large nu
 Possible future proofs include verifying the safety of various GHC language extensions. GHC includes many features, but programmers are given even more options via extensions to the language. These can be included by annotating the program or including command-line flags to include certain extensions. Many commonly used language extensions add to Haskell's type system, so being able to prove the type safety of an extension would allow for an added level of guarantees to the potentially unsafe extension.
 
 GHC Core is an intermediate representation used in the compilation process of Haskell code. At this level, GHC does many of its optimization passes. Using the formalization and proof of type safety, one could extend the formalization to include a set of optimizations. These optimizations could then be proven to be type safe to ensure the semantics of a program cannot be changed through an invalid optimization done at the GHC Core level.
+
+[ BASICALLY REDO; WAS RUSHED ]
 
 \section{Ethical Considerations}
 \label{sec:ethics}
