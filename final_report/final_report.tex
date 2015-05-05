@@ -70,9 +70,6 @@ This work approaches this problem by verifying System FC, the formalization of t
 \section{Introduction}
 \label{sec:intro}
 
-
-Content content content
-
 \section{Background}
 \label{sec:background}
 
@@ -613,14 +610,12 @@ A mechanical proof of the type safety of GHC Core could also be used to check pr
 
 As discussed above, one of the primary areas of future work with this formalization is using it as the foundation for future verification of optimizations and language extensions. These use cases raise the concern that the presented formalizations and thus presented proofs are incorrect. In the case where this work were to falsely suggest that System FC is type-safe, one would be left with the concern that numerous language extensions, compiler systems, and software systems were constructed on the false premise that their underlying type system was not inherently flawed. The real-world impact of these flaws is dependent on how likely it is for runtime systems to reach an inconsistent state in the flawed type system and how critical the systems that demonstrate these flaws are. 
 
-Another potential issue arises in the case where this work were to falsely suggest that System FC is not type-safe. This would present a major breach of the trust people place in programming languages such as Haskell that are reliant on System FC, potentially leading to the adoption of less safe languages for critical systems.
-
-MAKE PARAGRAPHS BECAUSE THIS IS VERY SENSATIONALISTIC AND PRETTY BAD
+Another potential issue arises in the case where this work were to falsely suggest that System FC is not type-safe. This would present a major breach of the trust people place in programming languages such as Haskell that are reliant on System FC, potentially leading to the adoption of less safe languages for critical systems. As discussed earlier, the adoption of unsafe languages for critical systems can have disastrous consequences, allowing whole classes of program errors to be uncaught and potentially exploited by malicious parties.
 
 \section{Conclusion}
 \label{sec:conclusion}
 
-Content content content
+Formal verification, as a tool, allows one to verify and prove properties of systems with a rigor and explicitness much greater than that afforded by other techniques. As such, it is worthwhile to use formal verification to prove the core assumptions behind the software systems that we use. We have demonstrated that a significant portion of System FC, the theoretical basis of the Haskell programming language, is sound; while we cannot yet rule out all logical errors that can be introduced by the programmer, we can now rest assured that a compiling Haskell program should not fall into a state of undefined behavior during its execution. Along with demonstrating the correctness of Haskell today, this proof paves the way for the formal verification of the more exotic and expressive type systems of tomorrow.
 
 % We next move onto the bibliography.
 \bibliographystyle{plain} % Please do not change the bib-style
