@@ -200,6 +200,15 @@ $t$ & $::=$ & & \textbf{Terms} \\
     & $|$   & $t\; \gamma$ & {\small Coercion Application} \\
     & $|$   & $t \triangleright \gamma$ & {\small Safe Casting} \\
 &&\; \hspace{.75in} \;& \\
+$u$ & $::=$ & & \textbf{Uncoerced Value} \\
+    & $|$   & $\lambda x:\tau.t$ & {\small Term Abstraction} \\
+    & $|$   & $\Lambda \alpha.t$ & {\small Type Abstraction} \\
+    & $|$   & $\lambda c:\varphi.t$ & {\small Coercion Abstraction} \\
+&&\; \hspace{.75in} \;& \\
+$v$ & $::=$ & & \textbf{Value} \\
+    & $|$   & $u$ & {\small Uncoerced Value} \\
+    & $|$   & $u \triangleright \gamma$ & {\small Coerced Value} \\
+&&\; \hspace{.75in} \;& \\
 $\Gamma$ & $::=$ & & \textbf{Contexts} \\
          & $|$   & $\varnothing$ & {\small Empty Context} \\
          & $|$   & $\Gamma,\; x:\tau$ & {\small Term Variable Binding} \\
