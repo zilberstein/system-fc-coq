@@ -100,13 +100,20 @@ In the first phase of compilation, Haskell code is type-checked and then convert
 \subsection{System FC}
 \label{sec:background-fc}
 
-(THIS IS ROUGH)
+GHC Core is an implementation of System FC, a formal language specification designed for use as an intermediate representation during the compilation of Haskell code \cite{conf/tldi/SulzmannCJD07}. The theoretical foundation of System FC is the untyped lambda calculus, a formal language used to express computations. The untyped lambda calculus builds up computations in terms of functions, allowing for one to construct function abstractions (which define a function in terms of some input variable) and function applications (which take an input argument and substitute instances of the function's input variable with that argument). From its small core, one can extend the untyped lambda calculus with additional features which may be useful in studying features of a language implementing an equivalent type system. One of the most widely-known extensions to the untyped lambda calculus is the simply-typed lambda calculus. This system is similar to the untyped lambda calculus, but adds the annotation of types to the arguments of functions. Whereas any value may be passed as an argument to a function in the untyped lambda calculus, an expression is only valid in the simply-typed lambda calculus if the type of an expression passed as an argument to a function is the same as the type annotation for that variable. This typing system is further extended by System F, also known as the polymorphic lambda calculus. In this system, the direct precursor to System FC, the simply-typed lambda calculus is extended with the ability to express universally quantified types. Universally quantified types are types which are parametrized by other types: for example, System F allows one to express a type $\Lambda\alpha.\alpha\rightarrow\alpha$, which is the type of a function which takes an input type $\alpha$ and a single expression of type $\alpha$ and returns an expression of type $\alpha$. This feature essentially allows for functions to take types as parameters, granting the ability to define functions whose actual types vary based on these input types, which can be useful in modeling surface language features such as parametric polymorphism or generics. 
 
-GHC Core is an implementation of System FC, a programming language specification designed for use as a target language for Haskell. System FC is based off the simply typed lambda calculus, an abstract functional language that extends the lambda calculus (consisting of function definitions and function applications) with a constructor for typed functions. 
+System FC is a programming language specification defined in 2007 as a superset of the features present in System F \cite{conf/tldi/SulzmannCJD07}. System FC was introduced due to perceived shortcomings in System F as an intermediate language specification in GHC. While System F used to be sufficient as an intermediate representation for Haskell code, language designers have started experimenting with novel type systems such as generalized algebraic datatypes (or GADTs) and associated types that are either difficult or impossible to represent in System F. System FC ameliorates these issues by introducing features such as type coercions, type families, and datatypes. 
+
+In particular, type coercions allow for type families and generalized algebraic datatypes to exist in System FC by acting as a witness for equality between syntactically different types~\cite{DBLP:conf/rta/VytiniotisJ13}. For an example of coercions, see Figure 4. Types can be equal in different ways and therefore there is a complex set of coercion rules that can be used to construct correct equality proofs~\cite{Breitner:2014:SZC:2628136.2628141}. System F, with these added features, becomes system F
+
+System FC was derived as an extension to System F defining a superset of features, While System F long served as one of the intermediate language specifications for GHC, the desire for language designers to introduce 
 
 
 
-COERCIONS
+
+
+
+COERCIONS + SPLIT ABOVE INTO PARAGRAPHS
 
 \subsection{Type Safety}
 \label{sec:background-type-safety}
