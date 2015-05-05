@@ -161,8 +161,21 @@ This work is also motivated by the future extensions that can be made to the pro
 
 \section{Related Work}
 \label{sec:related-work}
+This work is built upon the idea of formal verification, wherein one generates a formal
+model of the system under study using a theorem-proving system such as Coq, and then proves 
+that this model satisfies certain desired properties~\cite{series/natosec/CousotC10}. This 
+methodology has been developed as an alternative to other program verification methods, such as 
+model-checking, static analysis, or unit testing. This development was intended to sidestep the 
+issue that it is either computationally infeasible or impossible to provide a guarantee of the 
+system's correctness and safety using other verification methods.
 
-Content content content
+Prior work has demonstrated that programming languages are targets for verification using 
+formal methods. There exist full specifications and verifications for simple programming
+models, such as the simply-typed lambda calculus, as proven in~\cite{Pierce:SF} for example. In particular, it is desirable to verify the intermediate representation languages for compilers because the correctness of compilers is crucial in order to correctly execute and reason about programs written in that language~\cite{Zhao:2012:FLI:2103656.2103709}.
+
+Previous work has been done to formally verify the type safety of System F$_\omega$, or System F with subtyping [CITE HERE]. This formalization was done in Coq using DeBruijn indices. Additionally, some work has gone into formalizing the specification for System FC, including a basic 
+Coq translation provided with the initial proposal of System FC~\cite{conf/tldi/SulzmannCJD07}. Coercions themselves are also a very rich research topic, and a lot of previous work regarding coercions exist. Among other things, [CITE HERE] and [CITE HERE] provide a detailed concrete syntax of coercions as well as their inference rules.
+To our knowledge, however, though non-mechanized proofs of the type soundness of System FC exist [CITE HERE], there has not been any substantial progress in a formal proof of the type soundness of System FC, or even System F with coercions.
 
 \section{System Model}
 \label{sec:model}
