@@ -164,6 +164,11 @@ At a high-level, the system is composed of a formalization of the semantics of S
 \section{Implementation}
 \label{sec:implementation}
 
+The proof is implemented using the Coq Proof Assistant. First, the language semantics are formalized in the Coq language and then the key theorems are proven based on this formalization. The main theorems are the Progress, Preservation, and Soundness theorems.
+
+\subsection{Formalization}
+\label{sec:implementation-formalization}
+
 The formalization of System F in Coq follows directly from the definitions in~\cite{Pierce:TAPL}. The formalization of coercions comes from~\cite{Breitner:2014:SZC:2628136.2628141} and~\cite{DBLP:conf/tldi/YorgeyWCJVM12}. First, types, coercions, terms, and values are defined as inductive datatypes. Inductive datatypes are datatypes over which Coq can perform inductive proofs. This property is quite useful when proving the Progress and Preservation theorems. The formalization of System F syntax is shown in Figure~\ref{fig:syntax-coq} where \texttt{tm} represents a System FC term,  \texttt{ty} represents a System FC type, and \texttt{cn} represents a System FC coercion.
 
 \begin{figure}[h!]
@@ -244,6 +249,11 @@ Variable binding contexts are implemented as an inductive datatype where \texttt
 
 With contexts defined, it is possible to define the final piece of the System FC formalization, typing. Typing is defined as an inductive proposition called \texttt{has\textunderscore type}. A notation is also defined for the typing relation: \texttt{Gamma |- t \textbackslash in T} means that the term \texttt{t} has type \texttt{T} under the context \texttt{Gamma}. Since the type of this expression in Coq is \texttt{Prop} (short for proposition), it is an expression that must be true if it can be proven in Coq. Given the formalization presented above, it is possible to prove that any well typed term \texttt{t} with type \texttt{T} indeed has type \texttt{T}. If \texttt{t} is not well-typed, then it is impossible to prove that it has any type.
 
+\subsection{Progress}
+\label{sec:implementation-progress}
+
+The next step after fully formalizing System FC is to prove the Progress theorem. The formal definition of Progress in Coq can be seen in Figure~\ref{fig:progress-coq}. More intuitively, the Progress theorem states that any term that is well-typed under the empty context is either a value or it can take a step. The proof of progress is by induction on the typing derivation \texttt{empty |- t \textbackslash in T}. Recall that the \texttt{has\textunderscore type} relation is defined inductively, therefore it is possible to proceed with an inductive proof over the relation.
+
 \begin{figure}[h!]
 \begin{lstlisting}
 Theorem progress : forall t T, 
@@ -254,11 +264,14 @@ Theorem progress : forall t T,
 \label{fig:progress-coq}
 \end{figure}
 
-The next step after fully formalizing System FC is to prove the Progress theorem. The formal definition of Progress in Coq can be seen in Figure~\ref{fig:progress-coq}. More intuitively, the Progress theorem states that any term that is well-typed under the empty context is either a value or it can take a step. The proof of progress is by induction on the typing derivation \texttt{empty |- t \textbackslash in T}. Recall that the \texttt{has\textunderscore type} relation is defined inductively, therefore it is possible to proceed with an inductive proof over the relation.
-
 The proof is laid out so as to have a separate case for every constructor in the inductive definition of \texttt{has\textunderscore type}. The cases for the typing relations of values represent base cases in the inductive proof. In the other cases, Coq provides induction hypotheses that must be applied in order to complete the proof. Most of the cases can be automated by Coq; the goals are straightforward to prove. The most involved cases are term application, type application, and coercion application. These are more complicated because it is necessary to handle the sub-cases where the terms, types, or coercions in the application could be values or could step.
 
 [ Push rules? ]
+
+\subsection{Preservation}
+\label{sec:implementation-preservation}
+
+The proof of Preservation is significantly more involved than the proof of Progress. The formal definition of Progress in Coq can be seen in Figure~\ref{fig:preservation-coq}. The Preservation theorem states that any term will preserve its type when taking a step. If a term has type \texttt{T} and then takes a step, the resulting term will also have type \texttt{T}. 
 
 \begin{figure}[h!]
 \begin{lstlisting}
@@ -271,7 +284,12 @@ Theorem preservation : forall Gamma t t' T,
 \label{fig:preservation-coq}
 \end{figure}
 
-The proof of Preservation is significantly more involved than the proof of Progress. The formal definition of Progress in Coq can be seen in Figure~\ref{fig:preservation-coq}. The Preservation theorem states that any term will preserve its type when taking a step. If a term has type \texttt{T} and then takes a step, the resulting term will also have type \texttt{T}. Several lemmata must be proven before Preservation itself can be proven. Among these, several weakening and strengthening lemmata help one reason about the well-formedness of a context or a coercion with a variable extended or removed. Also included are several substitution lemmata which are used to prove that substituting a type, term, or coercion in an expression preserves the type of the expression. Using these lemmata, the Preservation theorem is also proven by induction on the typing derivation \texttt{Gamma |- t \textbackslash in T}. Much like the Progress theorem, the majority of the work done in the proof takes place in cases for term, type, and coercion application.
+Several lemmata must be proven before Preservation itself can be proven. Among these, several weakening and strengthening lemmata help one reason about the well-formedness of a context or a coercion with a variable extended or removed. Also included are several substitution lemmata which are used to prove that substituting a type, term, or coercion in an expression preserves the type of the expression. Using these lemmata, the Preservation theorem is also proven by induction on the typing derivation \texttt{Gamma |- t \textbackslash in T}. Much like the Progress theorem, the majority of the work done in the proof takes place in cases for term, type, and coercion application.
+
+\subsection{Soundness}
+\label{sec:implementation-soundness}
+
+The final theorem in proving the type safety of System FC is the Soundness Theorem. The formal definition of Soundness in Coq can be seen in Figure~\ref{fig:soundness-coq}. This theorem states that at any point in a well-typed term's execution, after any number of discrete steps, the term will not be in a stuck state, where a stuck state is any state where the term is not a value but also cannot take a step. More explicitly, this theorem says that if the type checker considers a term well-typed, then it will never get stuck in some inconsistent state, which is one standard definition of type safety. The proof of the Soundness theorem is done by induction on the number of discrete steps taken and a straightforward application of the Progress and Preservation theorems.
 
 \begin{figure}[h!]
 \begin{lstlisting}
@@ -283,8 +301,6 @@ Theorem soundness : forall t t' T,
 \caption{The Soundness Theorem written in Coq}
 \label{fig:soundness-coq}
 \end{figure}
-
-The final theorem in proving the type safety of System FC is the Soundness Theorem. The formal definition of Soundness in Coq can be seen in Figure~\ref{fig:soundness-coq}. This theorem states that at any point in a well-typed term's execution, after any number of discrete steps, the term will not be in a stuck state, where a stuck state is any state where the term is not a value but also cannot take a step. More explicitly, this theorem says that if the type checker considers a term well-typed, then it will never get stuck in some inconsistent state, which is one standard defining type safety. The proof of the Soundness theorem is done by induction on the number of discrete steps taken and a straightforward application of the Progress and Preservation theorems.
 
 \section{Results}
 \label{sec:results}
@@ -300,15 +316,13 @@ Given that the Coq interpreter has accepted the proof, it is thought to be verif
 \section{Future Work}
 \label{sec:future-work}
 
-As the formalization stands, it does not contain all features commonly thought to be part of System FC. In order to fully match System FC, it would need to be extended to include datatypes and type families. These two additions would create the full formalization of System FC. It would then be necessary to adjust the proofs accordingly so that the Coq interpreter would accept them.
+As the formalization stands, it does not contain all features commonly thought to be part of System FC. In order to reach feature parity with the full System FC, it would need to be extended to include data types and type families. These two additions would create the full formalization of System FC. It would then be necessary to adjust the proofs accordingly so that the Coq interpreter would accept them. A proof of the type safety of this more complete version of System FC would be a big step toward a proof of the type safety of Haskell. Recall that System FC is a specification for GHC Core, the actual implementation used in GHC, so a correctness proof of the translation from System FC to GHC Core would be necessary to have a proof of the type safety of System FC as used in the Haskell compilation process.
 
-The mechanical proof as it stands is very extensible. This allows for a large number of potential extensions and use cases. Modifying a mechanical proof can be done by adding to an already proper formalization and then walking through the proof with the help of the Coq interpreter. Given that most of the proofs in the system are done by induction on some inductive definition in the formalization, adding to the formalization would add new cases, and much of the proof structure and many of the proofs would be preserved.
+The mechanical proof as it stands is very extensible. This allows for a large number of potential extensions and use cases. Modifying a mechanical proof can be done by adding to an already proper formalization and then walking through the proof with the help of the Coq interpreter to fix anything broken by the change to the formalization. Given that most of the proofs in the system are done by induction on some inductive definition in the formalization, adding to the formalization would in most cases only add new cases, and much of the proof structure and the correctness of many of the proofs would be preserved.
 
-Possible future proofs include verifying the safety of various GHC language extensions. GHC includes many features, but programmers are given even more options via extensions to the language. These can be included by annotating the program or including command-line flags to include certain extensions. Many commonly used language extensions add to Haskell's type system, so being able to prove the type safety of an extension would allow for an added level of guarantees to the potentially unsafe extension.
+With a full formalization and proof of System FC, possible extensions include verifying the safety of various GHC language extensions. GHC includes many features, but programmers are given even more options via extensions to the language. These can be included by annotating the program or adding command-line flags. Many commonly used language extensions add to Haskell's type system, so being able to prove the type safety of an extension would allow for an added level of guarantees to the potentially unsafe extension.
 
-GHC Core is an intermediate representation used in the compilation process of Haskell code. At this level, GHC does many of its optimization passes. Using the formalization and proof of type safety, one could extend the formalization to include a set of optimizations. These optimizations could then be proven to be type safe to ensure the semantics of a program cannot be changed through an invalid optimization done at the GHC Core level.
-
-[ BASICALLY REDO; WAS RUSHED ]
+A mechanical proof of the type safety of GHC Core could also be used to check properties of compiler optimizations. At the GHC Core stage of GHC's compilation process, GHC does many of its optimization passes. Using the formalization and proof of type safety, one could extend the formalization to include a set of compiler optimizations. These optimizations could then be proven to be type safe to ensure the semantics of a program cannot be changed through an invalid optimization done at the GHC Core level.
 
 \section{Ethics}
 \label{sec:ethics}
