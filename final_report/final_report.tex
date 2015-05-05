@@ -19,14 +19,17 @@
 \usepackage{url}
 \usepackage{tabularx}
 \usepackage{tikz}
+\usepackage{mathbbol}
 \usetikzlibrary{shapes,arrows}
 \usepackage[export]{adjustbox}
 \usepackage{lipsum,adjustbox}
 \usepackage{listings}% http://ctan.org/pkg/listings
+\DeclareMathSymbol{\fcmp}{\mathrel}{bbold}{\lq\;}
 \lstset{
   basicstyle=\ttfamily,
   mathescape
 }\begin{document} 
+
 
 % We setup the parameters to our title header before 'making' it. Note
 % that your proposals should have actual titles, not the generic one
@@ -160,8 +163,21 @@ This work is also motivated by the future extensions that can be made to the pro
 
 \section{Related Work}
 \label{sec:related-work}
+This work is built upon the idea of formal verification, wherein one generates a formal
+model of the system under study using a theorem-proving system such as Coq, and then proves 
+that this model satisfies certain desired properties~\cite{series/natosec/CousotC10}. This 
+methodology has been developed as an alternative to other program verification methods, such as 
+model-checking, static analysis, or unit testing. This development was intended to sidestep the 
+issue that it is either computationally infeasible or impossible to provide a guarantee of the 
+system's correctness and safety using other verification methods.
 
-Content content content
+Prior work has demonstrated that programming languages are targets for verification using 
+formal methods. There exist full specifications and verifications for simple programming
+models, such as the simply-typed lambda calculus, as proven in~\cite{Pierce:SF} for example. In particular, it is desirable to verify the intermediate representation languages for compilers because the correctness of compilers is crucial in order to correctly execute and reason about programs written in that language~\cite{Zhao:2012:FLI:2103656.2103709}.
+
+Previous work has been done to formally verify the type safety of System F$_\omega$, or System F with subtyping [CITE HERE]. This formalization was done in Coq using DeBruijn indices. Additionally, some work has gone into formalizing the specification for System FC, including a basic 
+Coq translation provided with the initial proposal of System FC~\cite{conf/tldi/SulzmannCJD07}. Coercions themselves are also a very rich research topic, and a lot of previous work regarding coercions exist. Among other things, [CITE HERE] and [CITE HERE] provide a detailed concrete syntax of coercions as well as their inference rules.
+To our knowledge, however, though non-mechanized proofs of the type soundness of System FC exist [CITE HERE], there has not been any substantial progress in a formal proof of the type soundness of System FC, or even System F with coercions.
 
 \section{System Model}
 \label{sec:model}
@@ -176,6 +192,271 @@ The proof is implemented using the Coq Proof Assistant. First, the language sema
 \label{sec:implementation-formalization}
 
 The formalization of System F in Coq follows directly from the definitions in~\cite{Pierce:TAPL}. The formalization of coercions comes from~\cite{Breitner:2014:SZC:2628136.2628141} and~\cite{DBLP:conf/tldi/YorgeyWCJVM12}. First, types, coercions, terms, and values are defined as inductive datatypes. Inductive datatypes are datatypes over which Coq can perform inductive proofs. This property is quite useful when proving the Progress and Preservation theorems. The formalization of System F syntax is shown in Figure~\ref{fig:syntax-coq} where \texttt{tm} represents a System FC term,  \texttt{ty} represents a System FC type, and \texttt{cn} represents a System FC coercion.
+
+\begin{figure}[h!]
+\begin{tabular}{lcll}
+$t$ & $::=$ & & \textbf{Terms} \\
+    & $|$   & $x$ & {\small Variables} \\
+    & $|$   & $\lambda x:\tau.t$ & {\small Term Abstraction} \\
+    & $|$   & $t_1\; t_2$ & {\small Term Application} \\
+    & $|$   & $\Lambda \alpha.t$ & {\small Type Abstraction} \\
+    & $|$   & $t\; \tau$ & {\small Type Application} \\
+    & $|$   & $\lambda c:\varphi.t$ & {\small Coercion Abstraction} \\
+    & $|$   & $t\; \gamma$ & {\small Coercion Application} \\
+    & $|$   & $t \triangleright \gamma$ & {\small Safe Casting} \\
+&&\; \hspace{.75in} \;& \\
+$\Gamma$ & $::=$ & & \textbf{Contexts} \\
+         & $|$   & $\varnothing$ & {\small Empty Context} \\
+         & $|$   & $\Gamma,\; x:\tau$ & {\small Term Variable Binding} \\
+         & $|$   & $\Gamma,\; \alpha$ & {\small Type Variable Binding} \\
+         & $|$   & $\Gamma,\; c:\varphi$ & {\small Coercion Variable Binding}
+\end{tabular}
+\caption{System FC term and context syntax}
+\label{fig:syntax-tex}
+\end{figure}
+
+\begin{figure}[h!]
+\begin{tabular}{lcll}
+$\tau$ & $::=$ & & \textbf{Types} \\
+       & $|$   & $\alpha$ & {\small Variables} \\
+       & $|$   & $\forall \alpha.\tau$ & {\small Polymorphic Types} \\
+       & $|$   & $(\sigma_1 \sim \sigma_2) \Rightarrow \tau$ & {\small Coercion Polymorphism} \\
+       & $|$   & $\tau_1 \rightarrow \tau_2$ & {\small Arrows} \\
+&&\; \hspace{.75in} \;& \\
+$\gamma$ & $::=$ & & \textbf{Coercions} \\
+         & $|$   & $c$ & {\small Variables} \\
+         & $|$   & $\langle\tau\rangle$ & {\small Reflexivity} \\
+         & $|$   & $\textbf{sym}\gamma$ & {\small Symmetry} \\
+         & $|$   & $\gamma_1 \fcmp\gamma_2$ & {\small Transitivity} \\
+         & $|$   & $\gamma_1 \rightarrow\gamma_2$ & {\small Arrows} \\
+         & $|$   & $\forall \alpha.\gamma$ & {\small Type Polymorphism} \\
+         & $|$   & $(\gamma_1\sim\gamma_2)\Rightarrow\gamma$ & {\small Coercion Polymorphism} \\
+         & $|$   & $\textbf{nth}^i\gamma$ & {\small Nth Argument Projection} \\
+         & $|$   & $\gamma_1\; [\gamma_2]$ & {\small Instantiation} \\
+\end{tabular}
+\caption{System FC type and coercion syntax}
+\label{fig:type-syntax}
+\end{figure}
+
+\begin{figure}[h!]
+\begin{tabular}{cl}
+\multicolumn{1}{l}{$\boxed{\vdash\Gamma}$} & \textbf{Well Formed Contexts} \\\\
+\begin{tabular}{c}
+  \hline
+  $\vdash\varnothing$
+\end{tabular} & {\small Empty Context} \\\\
+\begin{tabular}{c}
+  $\vdash\Gamma \;\;\;\; \Gamma \vdash \tau$ \\
+  \hline
+  $\vdash\Gamma,x:\tau$
+\end{tabular} & {\small Term Variable Binding} \\\\
+\begin{tabular}{c}
+  $\vdash \Gamma$ \\
+  \hline
+  $\vdash\Gamma,\alpha$
+\end{tabular} & {\small Type Variable Bindings} \\\\
+\begin{tabular}{c}
+  $\vdash\Gamma \;\;\;\; \Gamma\vdash\sigma_1 \;\;\;\; \Gamma\vdash\sigma_2$ \\
+  \hline
+  $\vdash\Gamma,c:(\sigma_1\sim\sigma_2)$
+\end{tabular} & {\small Coercion Variable Bindings} \\
+\; \hspace{.75in} \;& \\
+\multicolumn{1}{l}{$\boxed{\Gamma \vdash \tau}$} & \textbf{Well Formed Types} \\\\
+\begin{tabular}{c}
+  $\alpha \in \Gamma$ \\
+  \hline
+  $\Gamma\vdash\alpha$
+\end{tabular} & {\small Type Variables} \\\\
+\begin{tabular}{c}
+  $\Gamma\vdash\tau_1 \;\;\;\; \Gamma\vdash\tau_2$ \\
+  \hline
+  $\Gamma\vdash \tau_1\rightarrow\tau_2$
+\end{tabular} & {\small Arrows} \\\\
+\begin{tabular}{c}
+  $\Gamma, \alpha\vdash \tau$ \\
+  \hline
+  $\Gamma\vdash \forall\alpha.\tau$
+\end{tabular} & {\small Polymorphic Types} \\\\
+\begin{tabular}{c}
+  $\Gamma\vdash\sigma_1 \;\;\;\; \Gamma\vdash\sigma_2 \;\;\;\; \Gamma\vdash\tau$ \\
+  \hline
+  $\Gamma\vdash (\sigma_1\sim\sigma_2)\Rightarrow\tau$
+\end{tabular} & {\small Coercion Polymorphism} \\
+\end{tabular}
+\caption{System FC well-formedness rules for contexts and types}
+\label{fig:type-syntax}
+\end{figure}
+
+
+\begin{figure}[h!]
+\begin{tabular}{cl}
+\multicolumn{1}{l}{$\boxed{\Gamma \vdash \gamma : \varphi}$} & \textbf{Coercion Typing} \\\\
+\begin{tabular}{c}
+  $\vdash\Gamma \;\;\;\; c : \varphi \in \Gamma$ \\
+  \hline
+  $\Gamma\vdash c : \varphi$
+\end{tabular} & {\small Coercion Variables} \\\\
+\begin{tabular}{c}
+  $\vdash\Gamma \;\;\;\; \Gamma\vdash\tau$ \\
+  \hline
+  $\Gamma\vdash \langle\tau\rangle : \tau\sim\tau$
+\end{tabular} & {\small Reflexivity} \\\\
+\begin{tabular}{c}
+  $\Gamma\vdash \gamma : \sigma_1\sim\sigma_2$ \\
+  \hline
+  $\Gamma\vdash \textbf{sym}\gamma : \sigma_2\sim\sigma_1$
+\end{tabular} & {\small Symmetry} \\\\
+\begin{tabular}{c}
+  $\Gamma\vdash\gamma_1 : \sigma_1\sim\sigma_2$ \\
+  $\Gamma\vdash\gamma_2 : \sigma_2\sim\sigma_3$ \\
+  \hline
+  $\Gamma\vdash \gamma_1\fcmp\gamma_2 : \sigma_1\sim\sigma_3$
+\end{tabular} & {\small Transitivity} \\\\
+%% \begin{tabular}{c}
+%%   $\Gamma\vdash\gamma_1 : \sigma_1\sim\sigma_2$ \\
+%%   $\Gamma\vdash\gamma_2 : \tau_1\sim\tau_2$ \\
+%%   \hline
+%%   $\Gamma\vdash \gamma_1\rightarrow\gamma_2 : \sigma_1\rightarrow\tau_1\sim\sigma_2\rightarrow\tau_2$
+%% \end{tabular} & {\small Arrows} \\\\
+%% \begin{tabular}{c}
+%%   $\Gamma\vdash\gamma : \sigma_1\sim\sigma_2$ \\
+%%   \hline
+%%   $\Gamma\vdash \forall\alpha.\gamma : \forall\alpha.\sigma_1 \sim \forall\alpha.\sigma_2$
+%% \end{tabular} & {\small Type Polymorphism} \\\\
+%% \begin{tabular}{c}
+%%   $\Gamma\vdash\gamma_1 : \sigma_1\sim\tau_1$ \\
+%%   $\Gamma\vdash\gamma_2 : \sigma_2\sim\tau_2$ \\
+%%   $\Gamma\vdash\gamma_3 : \sigma_3\sim\tau_3$ \\
+%%   \hline
+%%   $\Gamma\vdash (\gamma_1\sim\gamma_2)\Rightarrow\gamma_3 : (\sigma_1\sim\sigma_2)\Rightarrow\sigma_3 \sim (\tau_1\sim\tau_2)\Rightarrow\tau_3$
+%% \end{tabular} & {\small Coercion Polymorphism} \\\\
+\begin{tabular}{c}
+  $\Gamma\vdash\gamma_1 : \forall\alpha.\tau_1 \sim \forall\alpha.\tau_2$ \\
+  $\Gamma\vdash\gamma_2 : \sigma_1   \sim \sigma_2$ \\
+  \hline
+  $\Gamma\vdash \gamma_1\;[\gamma_2] : \tau_1[\sigma_1/\alpha] \sim \tau_2[\sigma_2/\alpha]$
+\end{tabular} & {\small Instantiation} \\\\
+\end{tabular}
+\caption{Selected System FC coercion typing rules}
+\label{fig:coercion-typing}
+\end{figure}
+
+
+\begin{figure}[h!]
+\begin{tabular}{cl}
+\multicolumn{1}{l}{$\boxed{\Gamma \vdash t : \tau}$} & \textbf{Term Typing} \\\\
+\begin{tabular}{c}
+  $\vdash\Gamma \;\;\;\; x : \tau \in \Gamma$ \\
+  \hline
+  $\Gamma\vdash x : \tau$
+\end{tabular} & {\small Variables} \\\\
+\begin{tabular}{c}
+  $\Gamma,x:\tau_1 \vdash t : \tau_2$ \\
+  \hline
+  $\Gamma\vdash \lambda x:\tau_1.t : \tau_1 \rightarrow\tau_2$
+\end{tabular} & {\small Term Abstraction} \\\\
+\begin{tabular}{c}
+  $\Gamma\vdash t_1 : t_1\rightarrow t_2$ \\
+  $\Gamma\vdash t_2 : t_1$ \\
+  \hline
+  $\Gamma\vdash t_1\; t_2 : \tau_2$
+\end{tabular} & {\small Term Application} \\\\
+\begin{tabular}{c}
+  $\Gamma,\alpha:\sigma\vdash t_1 : t : \tau$ \\
+  \hline
+  $\Gamma\vdash \Lambda\alpha.t : \forall\alpha.\tau$
+\end{tabular} & {\small Type Abstraction} \\\\
+\begin{tabular}{c}
+  $\vdash\Gamma \;\;\;\; \Gamma\vdash\tau$ \\
+  $\Gamma\vdash t : \forall\alpha.\sigma$ \\
+  \hline
+  $\Gamma\vdash t\; [\sigma] : \tau[\sigma/\alpha]$
+\end{tabular} & {\small Type Application} \\\\
+\begin{tabular}{c}
+  $\Gamma\vdash\varphi \;\;\;\; \Gamma,c:\varphi\vdash t : \tau$ \\
+  $\Gamma\vdash t : \forall\alpha.\sigma$ \\
+  \hline
+  $\Gamma\vdash \lambda c:\varphi.t : \varphi\Rightarrow\tau$
+\end{tabular} & {\small Coercion Abstraction} \\\\
+\begin{tabular}{c}
+  $\Gamma\vdash t : \varphi \Rightarrow \tau$ \\
+  $\Gamma\vdash \gamma : \varphi$ \\
+  \hline
+  $\Gamma\vdash t\; \gamma : \tau$
+\end{tabular} & {\small Coercion Application} \\\\
+\begin{tabular}{c}
+  $\Gamma\vdash \gamma : \tau_1\sim\tau_2$ \\
+  $\Gamma\vdash t : \tau_1$ \\
+  \hline
+  $\Gamma\vdash t \triangleright \gamma : \tau_2$
+\end{tabular} & {\small Safe Casting} \\\\
+
+\end{tabular}
+\caption{System FC term typing rules}
+\label{fig:term-typing}
+\end{figure}
+
+\begin{figure}[h!]
+\begin{tabular}{cl}
+\multicolumn{1}{l}{$\boxed{t_1\longrightarrow t_2}$} & \textbf{One-Step Reduction} \\\\
+\begin{tabular}{c}
+  $t_1 \longrightarrow t'_2$ \\ 
+  \hline
+  $t_1\; t_2 \longrightarrow t'_1\; t_2$
+\end{tabular} & {\small Term Reduction} \\\\
+\begin{tabular}{c}
+  \hline
+  $(\lambda x:\tau.t)\; t' \longrightarrow t[t'/x]$
+\end{tabular} & {\small Term Application} \\\\
+\begin{tabular}{c}
+  $t_1 \longrightarrow t'_2$ \\ 
+  \hline
+  $t_1\; [\tau] \longrightarrow t'_1\; [\tau]$
+\end{tabular} & {\small Type Reduction} \\\\
+\begin{tabular}{c}
+  \hline
+  $(\Lambda\alpha.t)\; [\tau] \longrightarrow t[\tau/\alpha]$
+\end{tabular} & {\small Type Application} \\\\
+\begin{tabular}{c}
+  $t_1 \longrightarrow t'_2$ \\ 
+  \hline
+  $t_1\; \gamma \longrightarrow t'_1\; \gamma$
+\end{tabular} & {\small Coercion Reduction} \\\\
+\begin{tabular}{c}
+  \hline
+  $(\lambda c:\varphi.t)\; \gamma \longrightarrow t[\gamma/c]$
+\end{tabular} & {\small Coercion Application} \\\\
+\begin{tabular}{c}
+  $t_1 \longrightarrow t'_2$ \\ 
+  \hline
+  $t_1 \triangleright \gamma \longrightarrow t'_1\triangleright \gamma$
+\end{tabular} & {\small Casting Reduction} \\\\
+\begin{tabular}{c}
+  \hline
+  $(t\triangleright\gamma_1) \triangleright\gamma_2 \longrightarrow t\triangleright \gamma_1\fcmp\gamma_2$
+\end{tabular} & {\small Coercion Transitivity} \\\\
+\begin{tabular}{c}
+  $\varnothing\vdash v : \sigma_1 \rightarrow \sigma_2$ \\
+  \hline
+  $(v \triangleright \gamma) t \longrightarrow$ \\
+  $v (t \triangleright \textbf{sym}(\textbf{nth}^1\gamma)) \triangleright \textbf{nth}^2\gamma$
+\end{tabular} & {\small Term Application Push} \\\\
+\begin{tabular}{c}
+  $\varnothing\vdash v : \forall\alpha.\tau$ \\
+  \hline
+  $(v \triangleright \gamma)\; [\sigma] \longrightarrow v\; [\sigma] \triangleright \gamma\; [\sigma]$
+\end{tabular} & {\small Type Application Push} \\\\
+\begin{tabular}{c}
+  $\gamma' = \textbf{nth}^1\gamma_0 \fcmp \gamma \fcmp \textbf{sym}(\textbf{nth}^2\gamma_0)$ \\
+  $\varnothing\vdash v : (\sigma_1 \sim \sigma_2) \Rightarrow \tau$ \\
+  \hline
+  $(v \triangleright \gamma_0) \gamma \longrightarrow v\; \gamma' \triangleright \textbf{nth}^3\gamma_0$
+\end{tabular} & {\small Coercion Application Push} \\\\
+\end{tabular}
+\caption{System FC evaluation rules}
+\label{fig:evaluation}
+\end{figure}
+
 
 \begin{figure}[h!]
 \begin{lstlisting}
