@@ -130,7 +130,7 @@ f = $\lambda$(a :: *). $\lambda$(x :: G a)
     G2 c $\rightarrow$ True $\triangleright$ sym c
 \end{lstlisting}
 \begin{center}
-\it Figure 4b: Translation of Haskell code in Figure 4a to System FC. The necessity of is demonstrated here.
+\it Figure 4b: Translation of Haskell code in Figure 4a to System FC. This demonstrates the necessity of coercions.
 \end{center}
 
 This is a basic example of datatypes in Haskell and a trivial use of them. \texttt{G} is a parameterized datatype with kind {\tt *} $\rightarrow$ {\tt *}. A \textit{kind} in Haskell represents the type of a type constructor. In Haskell, the types \texttt{Int} and \texttt{Bool} both have kind \texttt{*}. \texttt{f} is a function that takes something of type \texttt{G a} and returns something of type \texttt{a}. In Haskell, this only compiles because of coercions.
@@ -170,9 +170,9 @@ Prior work has demonstrated that programming languages are targets for verificat
 formal methods. There exist full specifications and verifications for simple programming
 models, such as the simply-typed lambda calculus, as proven in~\cite{Pierce:SF} for example. In particular, it is desirable to verify the intermediate representation languages for compilers because the correctness of compilers is crucial in order to correctly execute and reason about programs written in that language~\cite{Zhao:2012:FLI:2103656.2103709}.
 
-Previous work has been done to formally verify the type safety of System F$_\omega$, or System F with subtyping [CITE HERE]. This formalization was done in Coq using DeBruijn indices. Additionally, some work has gone into formalizing the specification for System FC, including a basic 
-Coq translation provided with the initial proposal of System FC~\cite{conf/tldi/SulzmannCJD07}. Coercions themselves are also a very rich research topic, and a lot of previous work regarding coercions exist. Among other things, [CITE HERE] and [CITE HERE] provide a detailed concrete syntax of coercions as well as their inference rules.
-To our knowledge, however, though non-mechanized proofs of the type soundness of System FC exist [CITE HERE], there has not been any substantial progress in a formal proof of the type soundness of System FC, or even System F with coercions.
+Previous work has been done to formally verify the type safety of System F$_\omega$, or System F with subtyping [CITE HERE]. This formalization was done in Coq using De Bruijn indices. Additionally, some work has gone into formalizing the specification for System FC, including a basic 
+Coq translation provided with the initial proposal of System FC~\cite{conf/tldi/SulzmannCJD07}. Coercions themselves are also a very rich research topic, and a lot of previous work regarding coercions exist. Among other things,~\cite{Breitner:2014:SZC:2628136.2628141} and~\cite{DBLP:conf/tldi/YorgeyWCJVM12} provide a detailed concrete syntax of coercions as well as their inference rules.
+Though non-mechanized proofs of the type soundness of System FC exist [CITE HERE], there has not been any substantial progress in a formal proof of the type soundness of System FC, or even System F with coercions.
 
 \section{System Model}
 \label{sec:model}
@@ -565,7 +565,7 @@ Theorem preservation : forall Gamma t t' T,
 \label{fig:preservation-coq}
 \end{figure}
 
-Several lemmata must be proven before Preservation itself can be proven. Among these, several weakening and strengthening lemmata help one reason about the well-formedness of a context or a coercion with a variable extended or removed. Also included are several substitution lemmata which are used to prove that substituting a type, term, or coercion in an expression preserves the type of the expression. Using these lemmata, the Preservation theorem is also proven by induction on the typing derivation \texttt{Gamma |- t \textbackslash in T}. Much like the Progress theorem, the majority of the work done in the proof takes place in cases for term, type, and coercion application.
+In order to prove Preservation, many lemmata must first be defined and proven. Among these, several weakening and strengthening lemmata help one reason about the well-formedness of a context or a coercion with a variable extended or removed. Also included are several substitution lemmata which are used to prove that substituting a type, term, or coercion in an expression preserves the type of the expression. Using these lemmata, the Preservation theorem is also proven by induction on the typing derivation \texttt{Gamma |- t \textbackslash in T}. Much like the Progress theorem, the majority of the work done in the proof takes place in cases for term, type, and coercion application.
 
 \subsection{Soundness}
 \label{sec:implementation-soundness}
@@ -586,13 +586,7 @@ Theorem soundness : forall t t' T,
 \section{Results}
 \label{sec:results}
 
-The system as it stands is a full mechanical proof of the type safety of System F with coercions. The type safety of all features of System FC have previously been proven by hand [CITE THIS], though it has never been done mechanically using a proof assistant. The system described is the first mechanical proof of this particular subset of System FC, namely System F with coercions. Other mechanical proofs of the type safety of System F exist, though none contain a formalization of coercions as described in~\cite{Breitner:2014:SZC:2628136.2628141} and~\cite{DBLP:conf/tldi/YorgeyWCJVM12}.
-
-[ This means that this formalization of coercions is type safe when added to System F ].
-
-Given that the Coq interpreter has accepted the proof, it is thought to be verified as a proper proof. The benefits of a mechanical proof over a handwritten one are many in number. A mechanical proof makes use of the Curry-Howard isomorphism to verify the proof instead of relying on the writer and other human verifiers. Beyond just correctness, a mechanical proof is also highly extensible. The system itself is a first for this subset of System FC, but it also allows for further extension to a larger subset, moreso than a handwritten proof could. 
-
-[ WHAT EVEN GOES IN THIS SECTION ]
+The system as it stands is a full mechanical proof of the type safety of System F with coercions. The type safety of all features of System FC have previously been proven by hand [CITE THIS], though it has never been done mechanically using a proof assistant. The system described is the first mechanical proof of this particular subset of System FC, namely System F with coercions. Other mechanical proofs of the type safety of System F exist, though none contain a formalization of coercions as described in~\cite{Breitner:2014:SZC:2628136.2628141} and~\cite{DBLP:conf/tldi/YorgeyWCJVM12}. Given this, it is the first result that verifies that System F with coercions is type safe. 
 
 \section{Future Work}
 \label{sec:future-work}
