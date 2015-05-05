@@ -150,9 +150,11 @@ Proving that a language's typing and evaluation semantics exclude the possibilit
 \section{Motivation}
 \label{sec:motivation}
 
+The primary motivation for this project is verify that the type safety guarantees provided by Haskell are actually well-founded. Haskell has found widespread usage due to the belief that its strong type system
 
+Demonstrating the efficacy of Haskell's type system could also help to increase its adoption in critical systems, which could help to prevent catastrophic failures of these systems. Two recent software flaws which could have potentially been prevented through the use of type safe languages were the Shellshock and Heartbleed bugs.
 
-This work is also motivated by the future extensions that can be made to the proofs. One area of direct extension is in proving that language extensions made to System FC in order to support new features in Haskell are type safe. Providing formal proofs of such features becomes increasingly relevant as the scope and complexity of System FC (and thus, the potential for errors in its formulation and verification) increases. Another area of direct extension for these proofs is in proving that the safety of various compiler optimizations.
+This work is also motivated by the future extensions that can be made to the proofs. One area of direct extension is in proving that language extensions made to System FC in order to support new features in Haskell are type safe. Providing formal proofs of such features becomes increasingly relevant as the scope and complexity of System FC (and thus, the potential for errors in its formulation and verification) increases. Another area of direct extension for these proofs is in proving that the safety of various compiler optimizations, which risk changing the evaluation semantics of a given piece of code.
 
 \section{Related Work}
 \label{sec:related-work}
