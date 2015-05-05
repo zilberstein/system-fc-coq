@@ -185,7 +185,7 @@ $t$ & $::=$ & & \textbf{Terms} \\
     & $|$   & $\lambda x:\tau.t$ & {\small Term Abstraction} \\
     & $|$   & $t_1\; t_2$ & {\small Term Application} \\
     & $|$   & $\Lambda \alpha.t$ & {\small Type Abstraction} \\
-    & $|$   & $t\; \tau$ & {\small Type Application} \\
+    & $|$   & $t\; [\tau]$ & {\small Type Application} \\
     & $|$   & $\lambda c:\varphi.t$ & {\small Coercion Abstraction} \\
     & $|$   & $t\; \gamma$ & {\small Coercion Application} \\
     & $|$   & $t \triangleright \gamma$ & {\small Safe Casting} \\
@@ -341,25 +341,24 @@ $\gamma$ & $::=$ & & \textbf{Coercions} \\
   $\Gamma\vdash \lambda x:\tau_1.t : \tau_1 \rightarrow\tau_2$
 \end{tabular} & {\small Term Abstraction} \\\\
 \begin{tabular}{c}
-  $\Gamma\vdash t_1 : t_1\rightarrow t_2$ \\
-  $\Gamma\vdash t_2 : t_1$ \\
+  $\Gamma\vdash t_1 : \tau_1\rightarrow \tau_2$ \\
+  $\Gamma\vdash t_2 : \tau_1$ \\
   \hline
   $\Gamma\vdash t_1\; t_2 : \tau_2$
 \end{tabular} & {\small Term Application} \\\\
 \begin{tabular}{c}
-  $\Gamma,\alpha:\sigma\vdash t_1 : t : \tau$ \\
+  $\Gamma,\alpha\vdash t : \tau$ \\
   \hline
   $\Gamma\vdash \Lambda\alpha.t : \forall\alpha.\tau$
 \end{tabular} & {\small Type Abstraction} \\\\
 \begin{tabular}{c}
-  $\vdash\Gamma \;\;\;\; \Gamma\vdash\tau$ \\
+  $\vdash\Gamma \;\;\;\; \Gamma\vdash\sigma$ \\
   $\Gamma\vdash t : \forall\alpha.\sigma$ \\
   \hline
   $\Gamma\vdash t\; [\sigma] : \tau[\sigma/\alpha]$
 \end{tabular} & {\small Type Application} \\\\
 \begin{tabular}{c}
   $\Gamma\vdash\varphi \;\;\;\; \Gamma,c:\varphi\vdash t : \tau$ \\
-  $\Gamma\vdash t : \forall\alpha.\sigma$ \\
   \hline
   $\Gamma\vdash \lambda c:\varphi.t : \varphi\Rightarrow\tau$
 \end{tabular} & {\small Coercion Abstraction} \\\\
@@ -385,7 +384,7 @@ $\gamma$ & $::=$ & & \textbf{Coercions} \\
 \begin{tabular}{cl}
 \multicolumn{1}{l}{$\boxed{t_1\longrightarrow t_2}$} & \textbf{One-Step Reduction} \\\\
 \begin{tabular}{c}
-  $t_1 \longrightarrow t'_2$ \\ 
+  $t_1 \longrightarrow t'_1$ \\ 
   \hline
   $t_1\; t_2 \longrightarrow t'_1\; t_2$
 \end{tabular} & {\small Term Reduction} \\\\
@@ -394,7 +393,7 @@ $\gamma$ & $::=$ & & \textbf{Coercions} \\
   $(\lambda x:\tau.t)\; t' \longrightarrow t[t'/x]$
 \end{tabular} & {\small Term Application} \\\\
 \begin{tabular}{c}
-  $t_1 \longrightarrow t'_2$ \\ 
+  $t_1 \longrightarrow t'_1$ \\ 
   \hline
   $t_1\; [\tau] \longrightarrow t'_1\; [\tau]$
 \end{tabular} & {\small Type Reduction} \\\\
@@ -403,7 +402,7 @@ $\gamma$ & $::=$ & & \textbf{Coercions} \\
   $(\Lambda\alpha.t)\; [\tau] \longrightarrow t[\tau/\alpha]$
 \end{tabular} & {\small Type Application} \\\\
 \begin{tabular}{c}
-  $t_1 \longrightarrow t'_2$ \\ 
+  $t_1 \longrightarrow t'_1$ \\ 
   \hline
   $t_1\; \gamma \longrightarrow t'_1\; \gamma$
 \end{tabular} & {\small Coercion Reduction} \\\\
@@ -412,7 +411,7 @@ $\gamma$ & $::=$ & & \textbf{Coercions} \\
   $(\lambda c:\varphi.t)\; \gamma \longrightarrow t[\gamma/c]$
 \end{tabular} & {\small Coercion Application} \\\\
 \begin{tabular}{c}
-  $t_1 \longrightarrow t'_2$ \\ 
+  $t_1 \longrightarrow t'_1$ \\ 
   \hline
   $t_1 \triangleright \gamma \longrightarrow t'_1\triangleright \gamma$
 \end{tabular} & {\small Casting Reduction} \\\\
