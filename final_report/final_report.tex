@@ -70,14 +70,15 @@ This work approaches this problem by verifying System FC, the formalization of t
 \section{Introduction}
 \label{sec:intro}
 
-Haskell is often used for its strong, static type system. This system allows for programmers to specify types for their programs that provide some guarantees about the behavior of the program before it is ever executed. Haskell is often thought to be a type safe language, meaning any program accepted as well-typed will never reach an inconsistent state. This type safety has never been mechanically proven for Haskell, and the existence of such a proof would rule out a whole class of potential errors in Haskell code.
+Haskell is often used for its strong, static type system. This system allows for programmers to specify types for their programs that provide some guarantees about the behavior of the program before it is ever executed. Haskell is often thought to be a type safe language, meaning any program accepted as well-typed will never reach an inconsistent state~\cite{Pierce:SF}. This type safety has never been mechanically proven for Haskell, and the existence of such a proof would rule out a whole class of potential errors in Haskell code. This mechanical proof could also allow for more general adoption of the Haskell language for more safety critical applications.
 
-[ Motivation ]
-[ Use Cases ]
-[ Approach ]
-[ Technical Challenges ]
-[ Contributions ]
-[ Results ]
+A fully mechanical proof is also easily extensible so that other properties could be proven. A mechanized proof of System FC (a language specification implemented by the Haskell compiler) would provide a starting point for authors of Haskell language extensions or optimizations to formally prove the type safety of their extensions. If all extensions and optimizations were proven within a working proof system, it would be easier for language designers to reason about the interaction of their addition with the base language that is being extended.
+
+Proving Haskell's type safety is done through a formalization and proof of a specification of Haskell's core language. Haskell code is compiled into a different language called GHC Core. This language is more explicit about the types of expressions and is much easier for the compiler to reason about than normal Haskell code. GHC Core is an implementation of a language specification called System FC. The system described is a formalization and proof of the type safety of System FC. Using the Coq Proof Assistant, the syntax, typing relations, and evaluation rules of System FC are first formalized, and then proofs of several properties are completed. Most importantly, the Soundness theorem is proven as an application of the Progress and Preservation theorems. The Progress theorem states that no well-typed program will ever reach a stuck state, and the Preservation theorem states that if a program can take a discrete step toward its completion, the type of the expression will not change as a result of taking the step.
+
+In the creation of this formalization and proof, there are several technical challenges. A language is often described with variables represented as strings. These strings could be the same and could allow for shadowing and troubles when substituting variables within expressions. A formalization without taking this into account would allow for substituting variables to change the semantics of a program. As a means of avoiding naming conflicts, variables are described using De Bruijn indices~\cite{Vouillon12} instead of strings.
+
+The resulting system is a full formalization and mechanical proof of the type saftey of System F~\cite{Pierce:TAPL} with coercions~\cite{DBLP:conf/rta/VytiniotisJ13}. This is the first mechanical proof of this particular subset of System FC, and it can be used as a base formalization and proof system for future work in proving the type safety of Haskell as well as any language extensions or optimizations in GHC.
 
 \section{Background}
 \label{sec:background}
