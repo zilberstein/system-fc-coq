@@ -70,6 +70,15 @@ This work approaches this problem by verifying System FC, the formalization of t
 \section{Introduction}
 \label{sec:intro}
 
+Haskell is often used for its strong, static type system. This system allows for programmers to specify types for their programs that provide some guarantees about the behavior of the program before it is ever executed. Haskell is often thought to be a type safe language, meaning any program accepted as well-typed will never reach an inconsistent state. This type safety has never been mechanically proven for Haskell, and the existence of such a proof would rule out a whole class of potential errors in Haskell code.
+
+[ Motivation ]
+[ Use Cases ]
+[ Approach ]
+[ Technical Challenges ]
+[ Contributions ]
+[ Results ]
+
 \section{Background}
 \label{sec:background}
 
@@ -299,56 +308,6 @@ Inductive value : tm -> Prop :=
 \label{fig:syntax-coq}
 \end{figure}
 
-
-\begin{figure}[h!]
-\begin{tabular}{cl}
-\multicolumn{1}{l}{$\boxed{\vdash\Gamma}$} & \textbf{Well Formed Contexts} \\\\
-\begin{tabular}{c}
-  \hline
-  $\vdash\varnothing$
-\end{tabular} & {\small Empty Context} \\\\
-\begin{tabular}{c}
-  $\vdash\Gamma \;\;\;\; \Gamma \vdash \tau$ \\
-  \hline
-  $\vdash\Gamma,x:\tau$
-\end{tabular} & {\small Term Variable Binding} \\\\
-\begin{tabular}{c}
-  $\vdash \Gamma$ \\
-  \hline
-  $\vdash\Gamma,\alpha$
-\end{tabular} & {\small Type Variable Bindings} \\\\
-\begin{tabular}{c}
-  $\vdash\Gamma \;\;\;\; \Gamma\vdash\sigma_1 \;\;\;\; \Gamma\vdash\sigma_2$ \\
-  \hline
-  $\vdash\Gamma,c:(\sigma_1\sim\sigma_2)$
-\end{tabular} & {\small Coercion Variable Bindings} \\
-\; \hspace{.75in} \;& \\
-\multicolumn{1}{l}{$\boxed{\Gamma \vdash \tau}$} & \textbf{Well Formed Types} \\\\
-\begin{tabular}{c}
-  $\alpha \in \Gamma$ \\
-  \hline
-  $\Gamma\vdash\alpha$
-\end{tabular} & {\small Type Variables} \\\\
-\begin{tabular}{c}
-  $\Gamma\vdash\tau_1 \;\;\;\; \Gamma\vdash\tau_2$ \\
-  \hline
-  $\Gamma\vdash \tau_1\rightarrow\tau_2$
-\end{tabular} & {\small Arrows} \\\\
-\begin{tabular}{c}
-  $\Gamma, \alpha\vdash \tau$ \\
-  \hline
-  $\Gamma\vdash \forall\alpha.\tau$
-\end{tabular} & {\small Polymorphic Types} \\\\
-\begin{tabular}{c}
-  $\Gamma\vdash\sigma_1 \;\;\;\; \Gamma\vdash\sigma_2 \;\;\;\; \Gamma\vdash\tau$ \\
-  \hline
-  $\Gamma\vdash (\sigma_1\sim\sigma_2)\Rightarrow\tau$
-\end{tabular} & {\small Coercion Polymorphism} \\
-\end{tabular}
-\caption{System FC well-formedness rules for contexts and types}
-\label{fig:type-syntax}
-\end{figure}
-
 In this formalization of the language, variables are parameterized by a natural number instead of a string as one would normally expect. Generally, variables are named with strings, but two different variables could share a name, which causes issues when reasoning about a language using Coq. Conflicting variable names creates a problem for handling shadowing and substitution. For example, when given a function $(\lambda x:Int.\:x + y)$ and attempting to substitute some externally defined variable $x$ for all instances of $y$, problems arise. Performing a na\"ive substitution of $[y \mapsto x] (\lambda x:Int.\:x + y)$ results in a function $\lambda x:Int.\:x + x$. This changes how the function evaluates, so it does not preserve program semantics. Continuing without addressing this source of error in the specification of the operational semantics of the language would make proving the type system to be sound impossible.
 
 There are several ways to get around this substitution issue. The way substitution is handled in the system described is through the use of De Bruijn indices~\cite{Vouillon12}. This means that variables are encoded with natural number values. The value represents the number of binders between the variable's use and its binding site. Given this representation of variables, there cannot be naming conflicts. Consider the following example:
@@ -366,7 +325,6 @@ This representation of variable names using De Bruijn indices is noted in the fo
 
 In order to handle the several forms of substitutions that can occur in the language, substitution is defined as Coq Notation. Notation in Coq allows the user to refer to fixpoints (functions) and datatypes using operators instead of names. In this implementation, the notation for substitutions is \texttt{[x := s]t} meaning substitute the identifier \texttt{x} with \texttt{s} in \texttt{t}. There are a number of different types of substitutions that an occur in the language between all permutations of types, terms, and coercions, meaning that \texttt{s} and \texttt{t} are not always the same type. In order for the substitution notation to be be reusable for the different kinds of substitutions, there is a \texttt{Subst} typeclass that has instances for the combinations of types for \texttt{x}, \texttt{s}, and \texttt{t}. In addition to being defined using fixpoints, substitutions are defined inductively. Fixpoints provide a nice notation for substitutions while the inductive definition is useful in proofs. In order to reconcile this, several lemmata are proven that verify the equivalence between the fixpoint and inductive definitions for substitutions. This allows theorems to use the more readable notation, while the proofs of those theorems use the inductive definitions.
 
-After formalizing syntax and substitutions for System FC, the evaluation semantics of System FC are then defined via the step relation. In order to ensure the safety of a type system, some formalization of how expressions in the language evaluate is needed to reason about the full execution of a program in the target language. The described formalization takes from the small-step language semantics in~\cite{Pierce:SF} to define how a single expression can take a single step toward its final value. The evaluation rules are detailed in Figure~\ref{fig:evaluation}. This is defined inductively with the associated notation \texttt{t1 ==> t2} meaning that term \texttt{t1} steps to a term \texttt{t2}. [NOAM SHOULD INSERT RULES HERE].
 
 \begin{figure}[h!]
 \begin{tabular}{cl}
@@ -429,6 +387,7 @@ After formalizing syntax and substitutions for System FC, the evaluation semanti
 \label{fig:evaluation}
 \end{figure}
 
+After formalizing syntax and substitutions for System FC, the evaluation semantics of System FC are then defined via the step relation. In order to ensure the safety of a type system, some formalization of how expressions in the language evaluate is needed to reason about the full execution of a program in the target language. The described formalization takes from the small-step language semantics in~\cite{Pierce:SF} to define how a single expression can take a single step toward its final value. The evaluation rules are detailed in Figure~\ref{fig:evaluation}. This is defined inductively with the associated notation \texttt{t1 ==> t2} meaning that term \texttt{t1} steps to a term \texttt{t2}.
 
 Variable binding contexts are implemented as an inductive datatype where \texttt{empty} represents the empty context and the data constructors \texttt{ext\textunderscore var} and \texttt{ext\textunderscore tvar} extend a context with a term or type variable binding respectively. Since variables are identified by de Bruijn indices, there is no need to specify any kind of identifier when binding a variable. By definition, a variable with de Bruijn index $n$ is bound $n$ levels up from the current scope. This means that the binding is the $n^\text{th}$ deep type/term/coercion variable binding in the context \texttt{Gamma}~\cite{Vouillon12}.
 
@@ -561,8 +520,6 @@ Theorem progress : forall t T,
 
 The proof is laid out so as to have a separate case for every constructor in the inductive definition of \texttt{has\textunderscore type}. The cases for the typing relations of values represent base cases in the inductive proof. In the other cases, Coq provides induction hypotheses that must be applied in order to complete the proof. Most of the cases can be automated by Coq; the goals are straightforward to prove. The most involved cases are term application, type application, and coercion application. These are more complicated because it is necessary to handle the sub-cases where the terms, types, or coercions in the application could be values or could step.
 
-[ Push rules? ]
-
 \subsection{Preservation}
 \label{sec:implementation-preservation}
 
@@ -579,7 +536,57 @@ Theorem preservation : forall Gamma t t' T,
 \label{fig:preservation-coq}
 \end{figure}
 
-In order to prove Preservation, many lemmata must first be defined and proven. Among these, several weakening and strengthening lemmata help one reason about the well-formedness of a context or a coercion with a variable extended or removed. Also included are several substitution lemmata which are used to prove that substituting a type, term, or coercion in an expression preserves the type of the expression. Using these lemmata, the Preservation theorem is also proven by induction on the typing derivation \texttt{Gamma |- t \textbackslash in T}. Much like the Progress theorem, the majority of the work done in the proof takes place in cases for term, type, and coercion application.
+
+\begin{figure}[h!]
+\begin{tabular}{cl}
+\multicolumn{1}{l}{$\boxed{\vdash\Gamma}$} & \textbf{Well Formed Contexts} \\\\
+\begin{tabular}{c}
+  \hline
+  $\vdash\varnothing$
+\end{tabular} & {\small Empty Context} \\\\
+\begin{tabular}{c}
+  $\vdash\Gamma \;\;\;\; \Gamma \vdash \tau$ \\
+  \hline
+  $\vdash\Gamma,x:\tau$
+\end{tabular} & {\small Term Variable Binding} \\\\
+\begin{tabular}{c}
+  $\vdash \Gamma$ \\
+  \hline
+  $\vdash\Gamma,\alpha$
+\end{tabular} & {\small Type Variable Bindings} \\\\
+\begin{tabular}{c}
+  $\vdash\Gamma \;\;\;\; \Gamma\vdash\sigma_1 \;\;\;\; \Gamma\vdash\sigma_2$ \\
+  \hline
+  $\vdash\Gamma,c:(\sigma_1\sim\sigma_2)$
+\end{tabular} & {\small Coercion Variable Bindings} \\
+\; \hspace{.75in} \;& \\
+\multicolumn{1}{l}{$\boxed{\Gamma \vdash \tau}$} & \textbf{Well Formed Types} \\\\
+\begin{tabular}{c}
+  $\alpha \in \Gamma$ \\
+  \hline
+  $\Gamma\vdash\alpha$
+\end{tabular} & {\small Type Variables} \\\\
+\begin{tabular}{c}
+  $\Gamma\vdash\tau_1 \;\;\;\; \Gamma\vdash\tau_2$ \\
+  \hline
+  $\Gamma\vdash \tau_1\rightarrow\tau_2$
+\end{tabular} & {\small Arrows} \\\\
+\begin{tabular}{c}
+  $\Gamma, \alpha\vdash \tau$ \\
+  \hline
+  $\Gamma\vdash \forall\alpha.\tau$
+\end{tabular} & {\small Polymorphic Types} \\\\
+\begin{tabular}{c}
+  $\Gamma\vdash\sigma_1 \;\;\;\; \Gamma\vdash\sigma_2 \;\;\;\; \Gamma\vdash\tau$ \\
+  \hline
+  $\Gamma\vdash (\sigma_1\sim\sigma_2)\Rightarrow\tau$
+\end{tabular} & {\small Coercion Polymorphism} \\
+\end{tabular}
+\caption{System FC well-formedness rules for contexts and types}
+\label{fig:type-syntax}
+\end{figure}
+
+In order to prove Preservation, many lemmata must first be defined and proven. Among these, several weakening and strengthening lemmata help one reason about the well-formedness of a context, type, or coercion with a variable extended or removed from the context. These well-formedness rules are included in Figure~\ref{fig:type-syntax}. Also included in the system are several substitution lemmata which are used to prove that substituting a type, term, or coercion in an expression preserves the type of the expression. Using these lemmata, the Preservation theorem is also proven by induction on the typing derivation \texttt{Gamma |- t \textbackslash in T}. Much like the Progress theorem, the majority of the work done in the proof takes place in cases for term, type, and coercion application.
 
 \subsection{Soundness}
 \label{sec:implementation-soundness}
