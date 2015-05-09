@@ -79,7 +79,7 @@ Proving Haskell's type safety is done through a formalization and proof of a spe
 In the creation of this formalization and proof, there are several technical challenges. A language is often described with variables represented as strings. These strings could be the same and could allow for shadowing and troubles when substituting variables within expressions. A formalization without taking this into account would allow for substituting variables to change the semantics of a program. As a means of avoiding naming conflicts, variables are described using De Bruijn indices~\cite{Vouillon12} instead of strings. 
 
 The resulting system is a full formalization and mechanical proof of the type saftey of System F~\cite{Pierce:TAPL} with coercions~\cite{DBLP:conf/rta/VytiniotisJ13}. This is the first mechanical proof of this particular subset of System FC, and it can be used as a base formalization and proof system for future work in proving the type safety of Haskell as well as any language extensions or optimizations in GHC.
-
+\newpage
 \section{Background}
 \label{sec:background}
 
@@ -131,12 +131,12 @@ f G2 = True
 
 \begin{figure}[h!]
 \begin{lstlisting}
-G :: * $\rightarrow$ *
-G1 :: $\forall$ (a :: *). a $\sim$ Int $\rightarrow$ G a
-G2 :: $\forall$ (a :: *). a $\sim$ Bool $\rightarrow$ G a
+G :: $\star\rightarrow\star$
+G1 :: $\forall$ (a :: $\star$). a $\sim$ Int $\rightarrow$ G a
+G2 :: $\forall$ (a :: $\star$). a $\sim$ Bool $\rightarrow$ G a
 
-f :: $\forall$ (a :: *). G a $\rightarrow$ a
-f = $\lambda$(a :: *). $\lambda$(x :: G a)
+f :: $\forall$ (a :: $\star$). G a $\rightarrow$ a
+f = $\lambda$(a :: $\star$). $\lambda$(x :: G a)
   case x of
     G1 c $\rightarrow$ 5 $\triangleright$ sym c
     G2 c $\rightarrow$ True $\triangleright$ sym c
@@ -146,9 +146,9 @@ f = $\lambda$(a :: *). $\lambda$(x :: G a)
 \end{figure}
 
 
-This is a basic example of datatypes in Haskell and a trivial use of them. \texttt{G} is a parameterized datatype with kind {\tt *} $\rightarrow$ {\tt *}. A \textit{kind} in Haskell represents the type of a type constructor. In Haskell, the types \texttt{Int} and \texttt{Bool} both have kind \texttt{*}. \texttt{f} is a function that takes something of type \texttt{G a} and returns something of type \texttt{a}. In Haskell, this only compiles because of coercions.
+This is a basic example of datatypes in Haskell and a trivial use of them. \texttt{G} is a parameterized datatype with kind $\star\rightarrow\star$. A \textit{kind} in Haskell represents the type of a type constructor. In Haskell, the types \textsf{Int} and \textsf{Bool} both have kind $\star$. \texttt{f} is a function that takes something of type \texttt{G a} and returns something of type \texttt{a}. In Haskell, this only compiles because of coercions.
 
-Here, \texttt{G1} is stating that for all types \texttt{a} of kind \texttt{*}, if \texttt{a} can be coerced to an \texttt{Int}, then one can obtain something of type \texttt{G a}. \texttt{G2} is defined similarly. Now, in the \texttt{G1} case, in order for the function \texttt{f} to correctly yield something of type \texttt{a}, \texttt{5} needs to be coerced to be of type \texttt{a}. This is accomplished using the rule from the construction of \texttt{G1}, since \texttt{G1} requires that an \texttt{a} can be coerced to an \texttt{Int}. The symmetry of this rule allows for \texttt{5} to be coerced to an \texttt{a}, which is required in the body of \texttt{f}. 
+Here, \texttt{G1} is stating that for all types \texttt{a} of kind $\star$, if \texttt{a} can be coerced to an \textsf{Int}, then one can obtain something of type \texttt{G a}. \texttt{G2} is defined similarly. Now, in the \texttt{G1} case, in order for the function \texttt{f} to correctly yield something of type \texttt{a}, \texttt{5} needs to be coerced to be of type \texttt{a}. This is accomplished using the rule from the construction of \texttt{G1}, since \texttt{G1} requires that an \texttt{a} can be coerced to an \texttt{Int}. The symmetry of this rule allows for \texttt{5} to be coerced to an \texttt{a}, which is required in the body of \texttt{f}. 
 
 \subsection{Type Safety}
 \label{sec:background-type-safety}
@@ -311,7 +311,7 @@ Inductive value : tm -> Prop :=
 \label{fig:syntax-coq}
 \end{figure}
 
-In this formalization of the language, variables are parameterized by a natural number instead of a string as one would normally expect. Generally, variables are named with strings, but two different variables could share a name, which causes issues when reasoning about a language using Coq. Conflicting variable names creates a problem for handling shadowing and substitution. For example, when given a function $(\lambda x:Int.\:x + y)$ and attempting to substitute some externally defined variable $x$ for all instances of $y$, problems arise. Performing a na\"ive substitution of $[y \mapsto x] (\lambda x:Int.\:x + y)$ results in a function $\lambda x:Int.\:x + x$. This changes how the function evaluates, so it does not preserve program semantics. Continuing without addressing this source of error in the specification of the operational semantics of the language would make proving the type system to be sound impossible.
+In this formalization of the language, variables are parameterized by a natural number instead of a string as one would normally expect. Generally, variables are named with strings, but two different variables could share a name, which causes issues when reasoning about a language using Coq. Conflicting variable names creates a problem for handling shadowing and substitution. For example, when given a function $(\lambda x:\textsf{Int}.\;x + y)$ and attempting to substitute some externally defined variable $x$ for all instances of $y$, problems arise. Performing a na\"ive substitution of ${(\lambda x:\textsf{Int}.\;x + y)}[x/y]$ results in a function $\lambda x:\textsf{Int}.\;x + x$. This changes how the function evaluates, so it does not preserve program semantics. Continuing without addressing this source of error in the specification of the operational semantics of the language would make proving the type system to be sound impossible.
 
 There are several ways to get around this substitution issue. The way substitution is handled in the system described is through the use of De Bruijn indices~\cite{Vouillon12}. This means that variables are encoded with natural number values. The value represents the number of binders between the variable's use and its binding site. Given this representation of variables, there cannot be naming conflicts. Consider the following example:
 $$\Lambda T.\:\Lambda U.\:\lambda f:T \rightarrow U.\:\lambda x:T.\:f\:x$$
